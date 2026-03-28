@@ -768,6 +768,70 @@ let activeMid = null;
 let tickInterval = null;
 let fixtureRounds = null;  // cached fixture data
 
+// ── Live game polling ─────────────────────────────────────────────────────────
+const liveGames   = {};   // fw_id -> true  (confirmed live via probe)
+let pollTimer     = null; // master 5-sec interval
+let pollRoundGames = [];  // games in currently-displayed round
+
+function minsToKickoff(dateStr) {
+  if (!dateStr) return Infinity;
+  return (new Date(dateStr).getTime() - Date.now()) / 60000;
+}
+
+function isPollCandidate(g) {
+  if (g.complete >= 100)  return false;   // finished
+  if (liveGames[g.fw_id]) return false;   // already confirmed
+  const m = minsToKickoff(g.date);
+  return m <= 2 && m > -270;              // 2 min before → up to 4.5 h after
+}
+
+function markCardLive(fw_id) {
+  const card = document.querySelector(`.gs-game-card[data-fw="${fw_id}"]`);
+  if (!card) return;
+  card.classList.remove("upcoming");
+  card.classList.add("live");
+  const btn = card.querySelector(".gs-watch-btn");
+  if (btn && !btn.disabled) {
+    btn.className = "gs-watch-btn live-btn";
+    btn.textContent = "🔴 LIVE";
+  }
+  const badge = card.querySelector(".gs-status-badge");
+  if (badge) {
+    badge.className = "gs-status-badge live";
+    badge.innerHTML = '<span class="live-dot"></span> Live';
+  }
+}
+
+async function probeGame(g) {
+  try {
+    const r = await fetch(`/api/probe?mid=${g.fw_id}`);
+    if (!r.ok) return;
+    const d = await r.json();
+    if (d.found && !liveGames[g.fw_id]) {
+      liveGames[g.fw_id] = true;
+      markCardLive(g.fw_id);
+    }
+  } catch(e) { /* network hiccup — ignore */ }
+}
+
+function runPoll() {
+  pollRoundGames.forEach(g => { if (isPollCandidate(g)) probeGame(g); });
+}
+
+function startFixturePolling(games) {
+  pollRoundGames = games;
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(runPoll, 5000);
+  runPoll();                              // immediate first pass
+  // Also mark any Squiggle-confirmed live games right away
+  games.forEach(g => { if (g.complete > 0 && g.complete < 100) liveGames[g.fw_id] = true; });
+}
+
+function stopFixturePolling() {
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+  pollRoundGames = [];
+}
+
 function fmtDate(dateStr) {
   if (!dateStr) return "";
   const d = new Date(dateStr);
@@ -834,6 +898,8 @@ function renderFixtureRound(roundIdx) {
       </div>
     </div>`;
   }).join("");
+  // Start live polling for this round's games
+  startFixturePolling(round.games);
 }
 
 async function loadFixture() {
@@ -877,6 +943,10 @@ function showGameSelect(errMsg) {
   document.getElementById("gsErr").textContent = errMsg || "";
   if (!fixtureRounds) {
     loadFixture();
+  } else {
+    // Restart polling for the currently displayed round
+    const idx = parseInt(document.getElementById("gsRoundSelect").value || "0");
+    if (fixtureRounds[idx]) startFixturePolling(fixtureRounds[idx].games);
   }
 }
 
@@ -906,6 +976,7 @@ async function startGame(mid) {
 
     activeMid = mid;
     stopWatch();
+    stopFixturePolling();
     document.getElementById("downloadBtn").style.display = "";
     document.getElementById("watchNextBtn").style.display = "";
     document.getElementById("gsOverlay").style.display = "none";
