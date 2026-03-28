@@ -364,6 +364,88 @@ header{
          border-top-color:#58a6ff;border-radius:50%;
          animation:spin .7s linear infinite;vertical-align:middle;margin-right:3px}
 @keyframes spin{to{transform:rotate(360deg)}}
+
+/* ══════════════════════════════════════════
+   MOBILE  (≤ 768px)
+══════════════════════════════════════════ */
+.mobile-panel-tabs{display:none}
+
+@media(max-width:768px){
+
+  /* ── Header ── */
+  header{
+    flex-wrap:wrap;padding:6px 10px;gap:4px;
+  }
+  header > div:first-child{
+    flex:1;min-width:0;order:1;
+  }
+  .screen-tabs{order:3;width:100%}
+  .stab{flex:1;text-align:center;padding:6px 0;font-size:13px}
+  header > div:last-child{order:2;flex-shrink:0}
+  #teamsLabel{display:none}
+  .match-pill{padding:3px 10px;font-size:11px}
+  .chg-game-btn{padding:3px 8px;font-size:11px}
+
+  /* ── App body: allow vertical scroll on mobile ── */
+  .app-body{overflow:visible}
+  .screen{overflow:visible;min-height:0}
+  .screen.active{display:block}
+  #screen-dashboard{overflow-y:auto;-webkit-overflow-scrolling:touch}
+
+  /* ── Score row: cards 50/50, momentum below ── */
+  .score-row{flex-wrap:wrap}
+  .team-card{flex:1;min-width:0;padding:10px 12px;gap:8px}
+  .team-card-logo{width:44px;height:44px}
+  .team-card-score{font-size:36px;letter-spacing:-2px}
+  .team-card-name{font-size:12px}
+  .team-card-gb{font-size:11px}
+  .team-card-bg{width:80px;height:80px}
+  .momentum-panel{
+    flex:none;width:100%;min-width:100%;
+    height:72px;border-top:1px solid #30363d;
+  }
+  .momentum-chart-wrap{padding:4px 8px 4px}
+
+  /* ── Panels: tab switcher ── */
+  .mobile-panel-tabs{
+    display:flex;flex-shrink:0;
+    background:#0d1117;border-bottom:2px solid #30363d;
+    overflow-x:auto;-webkit-overflow-scrolling:touch;
+  }
+  .mpanel-tab{
+    flex:1;padding:10px 4px;font-size:13px;font-weight:700;
+    background:transparent;border:none;color:#8b949e;
+    cursor:pointer;white-space:nowrap;transition:all .15s;
+    border-bottom:3px solid transparent;
+  }
+  .mpanel-tab.active{color:#e6edf3;border-bottom-color:#58a6ff}
+  .panels-row{display:block;min-height:0}
+  .panel-col{display:none;flex-direction:column;min-height:520px}
+  .panel-col.mob-active{display:flex}
+
+  /* ── hc-card on mobile: slightly more compact ── */
+  .hc-name{font-size:15px}
+  .hc-delta{font-size:20px}
+  .hc-right{min-width:60px;padding:8px 10px 8px 4px}
+  .hc-header{padding:10px 14px 8px}
+  .hc-title{font-size:16px}
+  .hc-header::after{font-size:56px}
+
+  /* ── Players table: horizontal scroll, hide low-priority columns ── */
+  #screen-players{overflow-y:auto;-webkit-overflow-scrolling:touch}
+  .left-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .ctable{font-size:13px;min-width:600px}
+  /* Hide: CM, 1%, GA, HO, Q1-Q4 on mobile */
+  .ctable th:nth-child(8),  .ctable td:nth-child(8),
+  .ctable th:nth-child(9),  .ctable td:nth-child(9),
+  .ctable th:nth-child(15), .ctable td:nth-child(15),
+  .ctable th:nth-child(16), .ctable td:nth-child(16),
+  .ctable th:nth-child(17), .ctable td:nth-child(17),
+  .ctable th:nth-child(18), .ctable td:nth-child(18),
+  .ctable th:nth-child(19), .ctable td:nth-child(19),
+  .ctable th:nth-child(20), .ctable td:nth-child(20){display:none}
+  .pname{font-size:14px}
+}
 </style>
 </head>
 <body>
@@ -452,6 +534,14 @@ header{
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- Mobile panel tab switcher (hidden on desktop) -->
+    <div class="mobile-panel-tabs" id="mobilePanelTabs">
+      <button class="mpanel-tab active" data-panel="0">⭐ Best</button>
+      <button class="mpanel-tab" data-panel="1">🏆 Quarter</button>
+      <button class="mpanel-tab" data-panel="2">🔥 Hot</button>
+      <button class="mpanel-tab" data-panel="3">❄️ Cold</button>
     </div>
 
     <!-- Best | Quarter | Hot | Cold panels -->
@@ -1393,6 +1483,21 @@ document.querySelectorAll(".ctable thead th[data-col]").forEach(th => {
   });
 });
 document.querySelector('.ctable thead th[data-col="value"]').classList.add("sort-desc");
+
+// ── Mobile panel tab switching ────────────────────────────────────────────────
+(function(){
+  const panelCols = document.querySelectorAll(".panel-col");
+  // Set first panel active by default for mobile
+  if (panelCols[0]) panelCols[0].classList.add("mob-active");
+  document.getElementById("mobilePanelTabs").addEventListener("click", e => {
+    const btn = e.target.closest(".mpanel-tab");
+    if (!btn) return;
+    document.querySelectorAll(".mpanel-tab").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    const idx = parseInt(btn.dataset.panel);
+    panelCols.forEach((col, i) => col.classList.toggle("mob-active", i === idx));
+  });
+})();
 
 // ── Filters ───────────────────────────────────────────────────────────────────
 document.getElementById("filterTabs").addEventListener("click", e => {
