@@ -155,8 +155,9 @@ function mergeTeam(basicHtml, advHtml, teamName) {
 }
 
 // ── Persistent momentum storage ───────────────────────────────────────────────
-const DATA_DIR = path.join(__dirname, "data");
-if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR);
+// DATA_DIR can be overridden via env var to point at a Railway persistent volume.
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "data");
+if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
 function momentumFile(mid) { return path.join(DATA_DIR, `momentum_${mid}.json`); }
 function loadMomentum(mid) {
@@ -643,6 +644,113 @@ async function fetchRatings(mid) {
   };
 }
 
+// ── Fixture cache helpers ─────────────────────────────────────────────────────
+
+// Convert Squiggle's timezone-naive Australian Eastern date string to UTC ms.
+// AEDT = UTC+11 (Oct–Apr),  AEST = UTC+10 (Apr–Oct).
+function aestToUtcMs(dateStr) {
+  if (!dateStr) return null;
+  const month   = parseInt(dateStr.slice(5, 7), 10);
+  const offsetH = (month <= 3 || month >= 10) ? 11 : 10;
+  const utcMs   = new Date(dateStr.replace(" ", "T") + "Z").getTime();
+  return isNaN(utcMs) ? null : utcMs - offsetH * 3600000;
+}
+
+async function refreshFixture(force = false) {
+  const now = Date.now();
+  if (!force && fixtureCache && now - fixtureCache.ts < 3600000) return; // 1-hour cache
+  const raw = await new Promise((resolve, reject) => {
+    const r = https.request({
+      hostname: "api.squiggle.com.au",
+      path:     "/?q=games;year=2026",
+      method:   "GET",
+      timeout:  10000,
+      headers:  { "User-Agent": "AFL-Live-Ratings/1.0 (contact: github.com/afl-live)" },
+    }, res2 => {
+      let d = "";
+      res2.on("data", c => d += c);
+      res2.on("end", () => {
+        if (!d.trim().startsWith("{")) {
+          reject(new Error(`Squiggle non-JSON (HTTP ${res2.statusCode}): ${d.slice(0, 120)}`));
+          return;
+        }
+        try { resolve(JSON.parse(d)); } catch(e) { reject(e); }
+      });
+    });
+    r.on("timeout", () => { r.destroy(); reject(new Error("Squiggle timeout")); });
+    r.on("error", reject);
+    r.end();
+  });
+  const rounds = {};
+  for (const g of (raw.games || [])) {
+    const fw_id = g.id - 27089;
+    const key   = g.round === 0 ? "Opening Round" : `Round ${g.round}`;
+    if (!rounds[key]) rounds[key] = { roundNum: g.round, roundName: g.roundname || key, games: [] };
+    rounds[key].games.push({
+      fw_id, squiggle_id: g.id,
+      round: g.round, roundName: g.roundname || key,
+      hteam: g.hteam, ateam: g.ateam,
+      hscore: g.hscore, ascore: g.ascore,
+      hgoals: g.hgoalshots ? Math.floor(g.hgoalshots) : null,
+      hbehinds: g.hbehinds ?? null,
+      agoals: g.agoalshots ? Math.floor(g.agoalshots) : null,
+      abehinds: g.abehinds ?? null,
+      date: g.date, dateTs: aestToUtcMs(g.date),
+      venue: g.venue,
+      complete: g.complete, timestr: g.timestr || "",
+    });
+  }
+  const sorted = Object.values(rounds).sort((a, b) => a.roundNum - b.roundNum);
+  fixtureCache = { ts: now, rounds: sorted };
+}
+
+// ── Background auto-recorder ──────────────────────────────────────────────────
+// Automatically fetches & persists data for every live game every 15 seconds,
+// regardless of whether anyone is watching. This ensures full game records are
+// saved to disk (DATA_DIR) even if the user isn't on the dashboard.
+
+const autoRecording = new Set(); // fw_ids currently being auto-recorded
+
+async function autoRecordTick() {
+  // Refresh fixture every 10 min so we pick up newly-started games
+  try { await refreshFixture(); } catch(e) { /* squiggle hiccup — skip */ }
+
+  const now = Date.now();
+  const candidates = new Set();
+
+  for (const round of (fixtureCache?.rounds || [])) {
+    for (const g of round.games) {
+      const minsElapsed = g.dateTs ? (now - g.dateTs) / 60000 : -Infinity;
+      // Record if Squiggle says in-progress, or kickoff was ≤2 min ago and ≤270 min ago
+      if ((g.complete > 0 && g.complete < 100) ||
+          (g.complete === 0 && minsElapsed >= -2 && minsElapsed < 270)) {
+        candidates.add(g.fw_id);
+      }
+    }
+  }
+
+  // Stop tracking games that are no longer candidates
+  for (const mid of autoRecording) {
+    if (!candidates.has(mid)) {
+      autoRecording.delete(mid);
+      console.log(`[autoRecord] stopped  mid=${mid}`);
+    }
+  }
+
+  // Fetch each candidate (saves to disk via fetchRatings)
+  for (const mid of candidates) {
+    if (!autoRecording.has(mid)) {
+      autoRecording.add(mid);
+      console.log(`[autoRecord] started  mid=${mid}`);
+    }
+    try {
+      await fetchRatings(String(mid));
+    } catch(e) {
+      console.error(`[autoRecord] mid=${mid}: ${e.message}`);
+    }
+  }
+}
+
 // ── HTTP server ───────────────────────────────────────────────────────────────
 const HTML_PATH = path.join(__dirname, "index.html");
 
@@ -678,63 +786,7 @@ http.createServer(async (req, res) => {
   }
   if (parsed.pathname === "/api/fixture") {
     try {
-      const now = Date.now();
-      if (!fixtureCache || now - fixtureCache.ts > 3600000) {
-        const raw = await new Promise((resolve, reject) => {
-          const r = https.request({
-            hostname: "api.squiggle.com.au",
-            path: "/?q=games;year=2026",
-            method: "GET",
-            timeout: 10000,
-            headers: { "User-Agent": "AFL-Live-Ratings/1.0 (contact: github.com/afl-live)" },
-          }, res2 => {
-            let d = "";
-            res2.on("data", c => d += c);
-            res2.on("end", () => {
-              if (!d.trim().startsWith("{")) { reject(new Error(`Squiggle returned non-JSON (HTTP ${res2.statusCode}): ${d.slice(0,120)}`)); return; }
-              try { resolve(JSON.parse(d)); } catch(e) { reject(e); }
-            });
-          });
-          r.on("timeout", () => { r.destroy(); reject(new Error("Squiggle timeout")); });
-          r.on("error", reject);
-          r.end();
-        });
-        // Convert an Australian Eastern time string to a UTC ms timestamp.
-        // Squiggle dates have no tz info: "2026-03-29 14:30:00" means AEST/AEDT local time.
-        // AEDT = UTC+11 (Oct–Apr),  AEST = UTC+10 (Apr–Oct).
-        function aestToUtcMs(dateStr) {
-          if (!dateStr) return null;
-          const month = parseInt(dateStr.slice(5, 7), 10);
-          const offsetH = (month <= 3 || month >= 10) ? 11 : 10; // AEDT vs AEST
-          const utcMs = new Date(dateStr.replace(" ", "T") + "Z").getTime();
-          return isNaN(utcMs) ? null : utcMs - offsetH * 3600000;
-        }
-
-        // Group by round, add fw_id and UTC timestamp
-        const rounds = {};
-        for (const g of (raw.games || [])) {
-          const fw_id = g.id - 27089;
-          const key = g.round === 0 ? "Opening Round" : `Round ${g.round}`;
-          if (!rounds[key]) rounds[key] = { roundNum: g.round, roundName: g.roundname || key, games: [] };
-          rounds[key].games.push({
-            fw_id, squiggle_id: g.id,
-            round: g.round, roundName: g.roundname || key,
-            hteam: g.hteam, ateam: g.ateam,
-            hscore: g.hscore, ascore: g.ascore,
-            hgoals: g.hgoalshots ? Math.floor(g.hgoalshots) : null,
-            hbehinds: g.hbehinds ?? null,
-            agoals: g.agoalshots ? Math.floor(g.agoalshots) : null,
-            abehinds: g.abehinds ?? null,
-            date: g.date, dateTs: aestToUtcMs(g.date),
-            venue: g.venue,
-            complete: g.complete, timestr: g.timestr || "",
-          });
-        }
-        // Sort rounds by roundNum
-        const sorted = Object.values(rounds).sort((a, b) => a.roundNum - b.roundNum);
-        fixtureCache = { ts: now, rounds: sorted };
-      }
-      // Return { serverNow, rounds } so the client can calibrate its clock offset
+      await refreshFixture();
       res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-cache" });
       res.end(JSON.stringify({ serverNow: Date.now(), rounds: fixtureCache.rounds }));
     } catch (e) {
@@ -785,4 +837,10 @@ http.createServer(async (req, res) => {
   } catch {
     res.writeHead(404); res.end("Not found");
   }
-}).listen(PORT, () => console.log(`AFL Live Ratings → http://localhost:${PORT}`));
+}).listen(PORT, () => {
+  console.log(`AFL Live Ratings → http://localhost:${PORT}`);
+  console.log(`Data directory   → ${DATA_DIR}`);
+  // Kick off the background recorder immediately, then every 15 seconds
+  autoRecordTick();
+  setInterval(autoRecordTick, 15000);
+});
