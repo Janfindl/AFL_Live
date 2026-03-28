@@ -380,14 +380,13 @@ async function fetchRatings(mid) {
   const currentQ   = gameTime ? gameTime.quarter : null;
 
   all.forEach(p => {
-    p.value          = calculateValue(p, elapsedFrac);
-    const rawPv      = el ? projectValue(p.value, el) : p.value;
-    const prevPv     = lastFetchState[p.name]?.pv;
-    // Smooth: (new projected + previous projected) / 2
-    p.projectedValue = prevPv != null
-      ? Math.round((rawPv + prevPv) / 2 * 100) / 100
-      : rawPv;
-    p.rating         = calcRating(p.projectedValue);
+    p.value             = calculateValue(p, elapsedFrac);
+    const rawPv         = el ? projectValue(p.value, el) : p.value;
+    const fracElapsed   = el ? Math.min(el / GAME_MINS, 1) : 1;
+    // prevProjectedValue = accrued × 1/(1 - fracRemaining) = accrued / fracElapsed
+    const prevPv        = fracElapsed > 0 ? p.value / fracElapsed : rawPv;
+    p.projectedValue    = Math.round((rawPv + prevPv) / 2 * 100) / 100;
+    p.rating            = calcRating(p.projectedValue);
   });
 
   // ── 5-min hot delta ───────────────────────────────────────────────────────────
@@ -571,7 +570,7 @@ async function fetchRatings(mid) {
       const newR  = p.rating;
       if (!prev || isBaseline) {
         // First time — full snapshot for this player
-        const entry = { n: p.name, tm: p.team, v: newV, r: newR, pv: +p.projectedValue.toFixed(2) };
+        const entry = { n: p.name, tm: p.team, v: newV, r: newR };
         STAT_KEYS.forEach(k => { if (p[k]) entry[k] = p[k]; });
         actions.push(entry);
       } else {
@@ -581,10 +580,10 @@ async function fetchRatings(mid) {
           const cur = p[k] || 0;
           if (cur !== (prev[k] || 0)) changed[k] = cur;
         });
-        actions.push({ n: p.name, ...changed, v: newV, r: newR, pv: +p.projectedValue.toFixed(2) });
+        actions.push({ n: p.name, ...changed, v: newV, r: newR });
       }
       // Update diff baseline
-      lastFetchState[p.name] = { v: newV, r: newR, pv: +p.projectedValue.toFixed(2), tm: p.team };
+      lastFetchState[p.name] = { v: newV, r: newR, tm: p.team };
       STAT_KEYS.forEach(k => { lastFetchState[p.name][k] = p[k] || 0; });
     });
 
