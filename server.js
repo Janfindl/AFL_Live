@@ -282,6 +282,9 @@ function inferQDeltaFromLog(name, q) {
   return delta;
 }
 
+// ── Fixture cache ─────────────────────────────────────────────────────────────
+let fixtureCache = null; // { ts: Date.now(), rounds: [...] }
+
 // ── State reset on game change ────────────────────────────────────────────────
 let activeMid          = null;
 let trackedQuarter     = null;
@@ -663,6 +666,57 @@ http.createServer(async (req, res) => {
     } catch (e) {
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ found: false, error: e.message }));
+    }
+    return;
+  }
+  if (parsed.pathname === "/api/fixture") {
+    try {
+      const now = Date.now();
+      if (!fixtureCache || now - fixtureCache.ts > 3600_000) {
+        const raw = await new Promise((resolve, reject) => {
+          const r = https.request({
+            hostname: "api.squiggle.com.au",
+            path: "/?q=games;year=2026",
+            method: "GET",
+            timeout: 10000,
+            headers: { "User-Agent": "AFL-Live-Ratings/1.0 (contact: github.com/afl-live)" },
+          }, res2 => {
+            let d = "";
+            res2.on("data", c => d += c);
+            res2.on("end", () => { try { resolve(JSON.parse(d)); } catch(e) { reject(e); } });
+          });
+          r.on("timeout", () => { r.destroy(); reject(new Error("Squiggle timeout")); });
+          r.on("error", reject);
+          r.end();
+        });
+        // Group by round, add fw_id
+        const rounds = {};
+        for (const g of (raw.games || [])) {
+          const fw_id = g.id - 27089;
+          const key = g.round === 0 ? "Opening Round" : `Round ${g.round}`;
+          if (!rounds[key]) rounds[key] = { roundNum: g.round, roundName: g.roundname || key, games: [] };
+          rounds[key].games.push({
+            fw_id, squiggle_id: g.id,
+            round: g.round, roundName: g.roundname || key,
+            hteam: g.hteam, ateam: g.ateam,
+            hscore: g.hscore, ascore: g.ascore,
+            hgoals: g.hgoalshots ? Math.floor(g.hgoalshots) : null,
+            hbehinds: g.hbehinds ?? null,
+            agoals: g.agoalshots ? Math.floor(g.agoalshots) : null,
+            abehinds: g.abehinds ?? null,
+            date: g.date, venue: g.venue,
+            complete: g.complete, timestr: g.timestr || "",
+          });
+        }
+        // Sort rounds by roundNum
+        const sorted = Object.values(rounds).sort((a, b) => a.roundNum - b.roundNum);
+        fixtureCache = { ts: now, rounds: sorted };
+      }
+      res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "public, max-age=300" });
+      res.end(JSON.stringify(fixtureCache.rounds));
+    } catch (e) {
+      res.writeHead(500, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: e.message }));
     }
     return;
   }
