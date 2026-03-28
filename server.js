@@ -672,7 +672,7 @@ http.createServer(async (req, res) => {
   if (parsed.pathname === "/api/fixture") {
     try {
       const now = Date.now();
-      if (!fixtureCache || now - fixtureCache.ts > 3600_000) {
+      if (!fixtureCache || now - fixtureCache.ts > 3600000) {
         const raw = await new Promise((resolve, reject) => {
           const r = https.request({
             hostname: "api.squiggle.com.au",
@@ -683,7 +683,10 @@ http.createServer(async (req, res) => {
           }, res2 => {
             let d = "";
             res2.on("data", c => d += c);
-            res2.on("end", () => { try { resolve(JSON.parse(d)); } catch(e) { reject(e); } });
+            res2.on("end", () => {
+              if (!d.trim().startsWith("{")) { reject(new Error(`Squiggle returned non-JSON (HTTP ${res2.statusCode}): ${d.slice(0,120)}`)); return; }
+              try { resolve(JSON.parse(d)); } catch(e) { reject(e); }
+            });
           });
           r.on("timeout", () => { r.destroy(); reject(new Error("Squiggle timeout")); });
           r.on("error", reject);
@@ -715,6 +718,7 @@ http.createServer(async (req, res) => {
       res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "public, max-age=300" });
       res.end(JSON.stringify(fixtureCache.rounds));
     } catch (e) {
+      console.error("[fixture]", e.message);
       res.writeHead(500, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ error: e.message }));
     }
