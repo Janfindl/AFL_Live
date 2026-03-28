@@ -772,16 +772,19 @@ let fixtureRounds = null;  // cached fixture data
 const liveGames   = {};   // fw_id -> true  (confirmed live via probe)
 let pollTimer     = null; // master 5-sec interval
 let pollRoundGames = [];  // games in currently-displayed round
+let clockOffset   = 0;   // ms: server UTC - client Date.now() — calibrated on fixture load
 
-function minsToKickoff(dateStr) {
-  if (!dateStr) return Infinity;
-  return (new Date(dateStr).getTime() - Date.now()) / 60000;
+function serverNow() { return Date.now() + clockOffset; }
+
+function minsToKickoff(g) {
+  if (!g.dateTs) return Infinity;
+  return (g.dateTs - serverNow()) / 60000;
 }
 
 function isPollCandidate(g) {
   if (g.complete >= 100)  return false;   // finished
   if (liveGames[g.fw_id]) return false;   // already confirmed
-  const m = minsToKickoff(g.date);
+  const m = minsToKickoff(g);
   return m <= 2 && m > -270;              // 2 min before → up to 4.5 h after
 }
 
@@ -911,7 +914,11 @@ async function loadFixture() {
   try {
     const res = await fetch("/api/fixture");
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    fixtureRounds = await res.json();
+    const payload = await res.json();
+    if (payload.error) throw new Error(payload.error);
+    // Calibrate clock offset using server timestamp
+    if (payload.serverNow) clockOffset = payload.serverNow - Date.now();
+    fixtureRounds = payload.rounds;
     if (!Array.isArray(fixtureRounds) || !fixtureRounds.length) throw new Error("No fixture data");
 
     // Build round dropdown

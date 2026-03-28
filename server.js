@@ -692,7 +692,18 @@ http.createServer(async (req, res) => {
           r.on("error", reject);
           r.end();
         });
-        // Group by round, add fw_id
+        // Convert an Australian Eastern time string to a UTC ms timestamp.
+        // Squiggle dates have no tz info: "2026-03-29 14:30:00" means AEST/AEDT local time.
+        // AEDT = UTC+11 (Oct–Apr),  AEST = UTC+10 (Apr–Oct).
+        function aestToUtcMs(dateStr) {
+          if (!dateStr) return null;
+          const month = parseInt(dateStr.slice(5, 7), 10);
+          const offsetH = (month <= 3 || month >= 10) ? 11 : 10; // AEDT vs AEST
+          const utcMs = new Date(dateStr.replace(" ", "T") + "Z").getTime();
+          return isNaN(utcMs) ? null : utcMs - offsetH * 3600000;
+        }
+
+        // Group by round, add fw_id and UTC timestamp
         const rounds = {};
         for (const g of (raw.games || [])) {
           const fw_id = g.id - 27089;
@@ -707,7 +718,8 @@ http.createServer(async (req, res) => {
             hbehinds: g.hbehinds ?? null,
             agoals: g.agoalshots ? Math.floor(g.agoalshots) : null,
             abehinds: g.abehinds ?? null,
-            date: g.date, venue: g.venue,
+            date: g.date, dateTs: aestToUtcMs(g.date),
+            venue: g.venue,
             complete: g.complete, timestr: g.timestr || "",
           });
         }
@@ -715,8 +727,9 @@ http.createServer(async (req, res) => {
         const sorted = Object.values(rounds).sort((a, b) => a.roundNum - b.roundNum);
         fixtureCache = { ts: now, rounds: sorted };
       }
-      res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "public, max-age=300" });
-      res.end(JSON.stringify(fixtureCache.rounds));
+      // Return { serverNow, rounds } so the client can calibrate its clock offset
+      res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-cache" });
+      res.end(JSON.stringify({ serverNow: Date.now(), rounds: fixtureCache.rounds }));
     } catch (e) {
       console.error("[fixture]", e.message);
       res.writeHead(500, { "Content-Type": "application/json" });
