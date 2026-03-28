@@ -74,9 +74,12 @@ function parseGameTime(sb) {
   return { quarter, elapsedMins: (quarter - 1) * QUARTER_MINS + qElapsed };
 }
 
+// Projected value = accrued + 30 × fraction of game remaining.
+// e.g. at 20 min with 15pts: 15 + (30 × 100/120) = 40.0
 function projectValue(val, elapsedMins) {
-  if (!elapsedMins || elapsedMins <= 0) return val;
-  return Math.round(val * (GAME_MINS / elapsedMins) * 100) / 100;
+  const fracRemaining = elapsedMins >= GAME_MINS ? 0
+    : Math.max(0, (GAME_MINS - (elapsedMins || 0)) / GAME_MINS);
+  return Math.round((val + 30 * fracRemaining) * 100) / 100;
 }
 
 // ── Footywire fetch ───────────────────────────────────────────────────────────
