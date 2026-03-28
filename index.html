@@ -1,0 +1,1418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AFL Live Ratings</title>
+<style>
+/* ── Reset & base ── */
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+     background:#0d1117;color:#e6edf3;min-height:100vh;display:flex;flex-direction:column}
+
+/* ── Header ── */
+header{
+  background:#161b22;border-bottom:1px solid #30363d;
+  padding:8px 16px;display:flex;align-items:center;
+  justify-content:space-between;gap:10px;flex-shrink:0;
+}
+.logo{font-size:16px;font-weight:700;letter-spacing:-.5px;white-space:nowrap}
+.logo span{color:#58a6ff}
+.match-pill{
+  display:flex;align-items:center;gap:8px;
+  background:#21262d;border:1px solid #30363d;
+  border-radius:20px;padding:4px 14px;font-size:12px;
+}
+.match-pill .qtr{font-weight:700;color:#58a6ff}
+.live-badge{
+  display:inline-flex;align-items:center;gap:5px;
+  background:rgba(248,81,73,.15);border:1px solid rgba(248,81,73,.4);
+  color:#f85149;font-size:10px;font-weight:700;
+  padding:2px 8px;border-radius:20px;letter-spacing:.5px;text-transform:uppercase;
+}
+.live-dot{width:6px;height:6px;background:#f85149;border-radius:50%;
+          animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.refresh-info{display:flex;align-items:center;gap:6px;font-size:12px;color:#8b949e}
+.countdown{font-weight:700;color:#58a6ff;min-width:16px;text-align:right}
+.ring{position:relative;width:26px;height:26px}
+.ring svg{transform:rotate(-90deg)}
+.ring-bg  {fill:none;stroke:#30363d;stroke-width:3}
+.ring-fill{fill:none;stroke:#58a6ff;stroke-width:3;stroke-linecap:round;
+           stroke-dasharray:75.4;stroke-dashoffset:0;transition:stroke-dashoffset 1s linear}
+
+/* ── Screen tabs ── */
+.screen-tabs{display:flex;background:#21262d;border:1px solid #30363d;border-radius:6px;overflow:hidden}
+.stab{
+  padding:5px 16px;font-size:12px;font-weight:600;cursor:pointer;
+  border:none;background:transparent;color:#8b949e;transition:all .15s;white-space:nowrap;
+}
+.stab.active{background:#58a6ff;color:#fff}
+.stab:hover:not(.active){color:#e6edf3}
+
+/* ── App body ── */
+.app-body{display:flex;flex:1;min-height:0;flex-direction:column;overflow:hidden}
+
+/* ── Screen containers ── */
+.screen{display:none;flex:1;min-height:0;flex-direction:column;overflow:hidden}
+.screen.active{display:flex}
+
+/* ══════════════════════════════════════════
+   SCREEN 1 — DASHBOARD
+══════════════════════════════════════════ */
+
+/* Score + Momentum row */
+.score-row{
+  display:flex;flex-direction:row;gap:1px;background:#30363d;
+  flex-shrink:0;
+}
+.team-card{
+  padding:14px 18px;display:flex;align-items:center;gap:14px;
+  background:#0d1117;min-width:0;position:relative;overflow:hidden;
+}
+.team-card-logo{
+  width:72px;height:72px;object-fit:contain;flex-shrink:0;
+  filter:drop-shadow(0 2px 8px rgba(0,0,0,.5));z-index:1;
+}
+.team-card-body{
+  flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;z-index:1;
+}
+.team-card-name{
+  font-size:16px;font-weight:900;letter-spacing:-.3px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-transform:uppercase;
+}
+.team-card-gb{font-size:13px;font-weight:700;opacity:.75;letter-spacing:.5px}
+.team-card-score{
+  font-size:52px;font-weight:900;font-variant-numeric:tabular-nums;
+  letter-spacing:-3px;flex-shrink:0;line-height:1;z-index:1;
+}
+.team-card-bg{
+  position:absolute;right:-10px;top:50%;transform:translateY(-50%);
+  width:110px;height:110px;object-fit:contain;opacity:.07;pointer-events:none;
+}
+
+/* Momentum panel */
+.momentum-panel{
+  flex:1;display:flex;flex-direction:column;background:#161b22;
+  min-width:200px;overflow:hidden;
+}
+.momentum-header{
+  padding:6px 12px 3px;display:flex;align-items:center;
+  justify-content:space-between;flex-shrink:0;
+}
+.momentum-title{
+  font-size:11px;font-weight:800;letter-spacing:-.2px;
+  display:flex;align-items:center;gap:5px;
+}
+.momentum-legend{display:flex;gap:10px;}
+.momentum-leg-item{display:flex;align-items:center;gap:4px;font-size:10px;font-weight:700}
+.momentum-leg-dot{width:8px;height:8px;border-radius:50%}
+.momentum-chart-wrap{flex:1;min-height:0;padding:0 12px 6px}
+.momentum-chart-wrap svg{width:100%;height:100%;display:block;overflow:visible}
+
+/* Three-column panel row (Quarter | Hot | Cold) */
+.panels-row{
+  display:flex;flex-direction:row;flex:1;min-height:0;
+}
+.panel-col{
+  flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;
+}
+.panel-col+.panel-col{border-left:1px solid #30363d}
+
+/* Panel header */
+.hc-header{
+  padding:12px 16px 10px;display:flex;align-items:center;
+  justify-content:space-between;flex-shrink:0;
+  border-bottom:1px solid rgba(255,255,255,.06);
+}
+.hc-title{font-size:20px;font-weight:900;letter-spacing:-.5px;display:flex;align-items:center;gap:7px}
+.hc-badge{font-size:11px;font-weight:600;padding:3px 9px;border-radius:10px;letter-spacing:.2px}
+.hc-badge-hot {background:rgba(255,100,0,.18);color:#ff7733}
+.hc-badge-cold{background:rgba(100,180,255,.15);color:#79c0ff}
+
+/* Themed panel headers */
+.hc-header-best{
+  background:linear-gradient(105deg,#0e1f0e 0%,#091409 60%,#161b22 100%);
+  border-bottom:1px solid rgba(60,220,60,.25);
+  position:relative;overflow:hidden;
+}
+.hc-header-best .hc-title{color:#3dd68c}
+.hc-header-best::after{
+  content:"⭐";position:absolute;right:8px;top:50%;transform:translateY(-50%);
+  font-size:80px;opacity:.12;pointer-events:none;line-height:1;
+}
+.hc-header-hot{
+  background:linear-gradient(105deg,#2d1000 0%,#1a0a00 60%,#161b22 100%);
+  border-bottom:1px solid rgba(255,100,0,.35);
+  position:relative;overflow:hidden;
+}
+.hc-header-hot .hc-title{color:#ff7733}
+.hc-header-hot::after{
+  content:"🔥";position:absolute;right:8px;top:50%;transform:translateY(-50%);
+  font-size:80px;opacity:.13;pointer-events:none;line-height:1;
+}
+.hc-header-cold{
+  background:linear-gradient(105deg,#001428 0%,#000e1c 60%,#161b22 100%);
+  border-bottom:1px solid rgba(80,160,255,.3);
+  position:relative;overflow:hidden;
+}
+.hc-header-cold .hc-title{color:#79c0ff}
+.hc-header-cold::after{
+  content:"❄️";position:absolute;right:8px;top:50%;transform:translateY(-50%);
+  font-size:80px;opacity:.15;pointer-events:none;line-height:1;
+}
+.hc-header-quarter{
+  background:linear-gradient(105deg,#1e1600 0%,#141000 60%,#161b22 100%);
+  border-bottom:1px solid rgba(255,210,0,.3);
+  position:relative;overflow:hidden;
+}
+.hc-header-quarter .hc-title{color:#ffd700}
+.hc-header-quarter::after{
+  content:"🏆";position:absolute;right:8px;top:50%;transform:translateY(-50%);
+  font-size:80px;opacity:.13;pointer-events:none;line-height:1;
+}
+
+/* Quarter tab toggles */
+.qtop-tab{
+  padding:2px 7px;font-size:10px;font-weight:700;
+  background:transparent;border:1px solid #30363d;border-radius:4px;
+  color:#484f58;cursor:pointer;transition:all .15s;
+}
+.qtop-tab:hover:not(:disabled){border-color:#ffd700;color:#ffd700}
+.qtop-tab.active{background:rgba(255,210,0,.18);border-color:rgba(255,210,0,.5);color:#ffd700}
+.qtop-tab:disabled{opacity:0.25;cursor:default}
+
+/* Scrollable card list */
+.hc-list{display:flex;flex-direction:column;overflow-y:auto;flex:1}
+
+
+/* Cards */
+.hc-card{
+  display:flex;align-items:stretch;
+  border-bottom:1px solid rgba(255,255,255,.07);
+  position:relative;overflow:hidden;transition:filter .15s;
+  min-height:80px;box-sizing:border-box;
+}
+.hc-card:hover{filter:brightness(1.1)}
+.hc-glow{width:6px;flex-shrink:0}
+.hc-rank-wrap{display:flex;align-items:center;justify-content:center;width:38px;flex-shrink:0}
+.hc-rank{
+  width:26px;height:26px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:800;
+}
+.hc-info{flex:1;min-width:0;padding:10px 6px 10px 4px}
+.hc-name{
+  font-size:18px;font-weight:700;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.2;
+}
+.hc-meta{display:flex;align-items:center;gap:6px;margin-top:3px}
+.hc-team{font-size:9px;font-weight:800;padding:1px 6px;border-radius:3px;letter-spacing:.3px}
+.hc-stats{display:flex;flex-wrap:wrap;gap:3px;margin-top:6px}
+.stat-chip{
+  display:inline-flex;align-items:baseline;gap:2px;
+  padding:2px 6px;border-radius:4px;font-size:9px;font-weight:700;white-space:nowrap;
+}
+.stat-chip-pts{font-size:8px;font-weight:400;opacity:.75}
+.hc-right{
+  display:flex;flex-direction:column;align-items:flex-end;
+  justify-content:center;padding:10px 14px 10px 6px;
+  flex-shrink:0;min-width:80px;
+}
+.hc-delta{font-size:26px;font-weight:900;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:-1px}
+.hc-delta-sub{font-size:9px;font-weight:500;opacity:.6;margin-top:2px;text-align:right}
+.hc-pill{margin-top:5px}
+
+/* Proj banner */
+.proj-banner{
+  padding:4px 16px;font-size:10px;color:#8b949e;
+  background:rgba(88,166,255,.05);border-bottom:1px solid rgba(88,166,255,.15);
+  flex-shrink:0;
+}
+.proj-banner strong{color:#58a6ff}
+
+/* ══════════════════════════════════════════
+   SCREEN 2 — PLAYERS
+══════════════════════════════════════════ */
+
+.left-controls{
+  display:flex;align-items:center;gap:8px;padding:7px 12px;
+  border-bottom:1px solid #30363d;flex-shrink:0;flex-wrap:wrap;background:#161b22;
+}
+.filter-tabs{display:flex;background:#21262d;border:1px solid #30363d;border-radius:6px;overflow:hidden}
+.ftab{padding:4px 12px;font-size:11px;cursor:pointer;border:none;
+      background:transparent;color:#8b949e;transition:all .15s}
+.ftab.active{background:#58a6ff;color:#fff;font-weight:600}
+.search{flex:1;max-width:160px;padding:4px 10px;background:#21262d;
+        border:1px solid #30363d;border-radius:6px;color:#e6edf3;
+        font-size:11px;outline:none}
+.search:focus{border-color:#58a6ff}
+.search::placeholder{color:#8b949e}
+.left-scroll{overflow-y:auto;flex:1}
+
+/* Compact table */
+.ctable{width:100%;border-collapse:collapse;font-size:16px}
+.ctable thead th{
+  position:sticky;top:0;z-index:2;
+  padding:5px 6px;text-align:right;
+  color:#8b949e;font-size:11px;text-transform:uppercase;letter-spacing:.3px;
+  background:#161b22;border-bottom:1px solid #30363d;
+  white-space:nowrap;cursor:pointer;user-select:none;
+}
+.ctable thead th:hover{color:#e6edf3}
+.ctable thead th.left{text-align:left}
+.ctable thead th.sort-asc::after {content:" ▲";color:#58a6ff}
+.ctable thead th.sort-desc::after{content:" ▼";color:#58a6ff}
+.ctable tbody tr{border-bottom:1px solid #21262d;transition:background .1s}
+.ctable tbody tr:hover{background:rgba(88,166,255,.05)}
+.ctable td{padding:5px 6px;text-align:right;white-space:nowrap}
+.ctable td.left{text-align:left}
+.ctable td:last-child,.ctable th:last-child{padding-right:18px}
+.rnk{color:#8b949e;font-size:10px;padding-right:1px!important}
+.rtg-cell{padding-left:0!important;padding-right:6px!important;text-align:left!important;width:1px;white-space:nowrap}
+.pname{font-weight:600;font-size:18px}
+.ttag{
+  display:inline-block;font-size:9px;font-weight:700;
+  padding:1px 4px;border-radius:3px;margin-left:4px;vertical-align:middle;
+}
+.zero{color:#2d333b}
+.neg {color:#f85149}
+
+/* Change badge */
+.chg{display:inline-flex;align-items:center;gap:1px;font-size:9px;font-weight:700;
+     padding:1px 3px;border-radius:3px;white-space:nowrap}
+.chg-up  {background:rgba(63,185,80,.18);color:#3fb950}
+.chg-dn  {background:rgba(248,81,73,.18);color:#f85149}
+.chg-new {background:rgba(139,148,158,.12);color:#8b949e;font-weight:400}
+
+/* Rating pill / bar */
+.pill{display:inline-flex;align-items:center;justify-content:center;
+      min-width:38px;padding:3px 4px 3px 6px;border-radius:20px;font-size:14px;font-weight:700}
+.rbar-wrap{width:40px;height:4px;background:#30363d;border-radius:2px;
+           overflow:hidden;display:inline-block;vertical-align:middle;margin-left:4px}
+.rbar{height:100%;border-radius:2px;transition:width .5s}
+
+/* Quarter log */
+.qlog-section{border-top:2px solid #30363d;background:#0d1117}
+.qlog-header{
+  padding:6px 14px 4px;display:flex;align-items:center;gap:8px;
+  background:#161b22;border-bottom:1px solid #30363d;
+  position:sticky;top:0;z-index:2;
+}
+.qlog-title{font-size:11px;font-weight:800;letter-spacing:-.2px;display:flex;align-items:center;gap:5px}
+.qlog-val{font-variant-numeric:tabular-nums;font-weight:700}
+.qlog-total{font-variant-numeric:tabular-nums;font-weight:800;color:#58a6ff}
+
+/* ── Game selection overlay ── */
+.gs-overlay{
+  position:fixed;inset:0;z-index:1000;background:#0d1117;
+  display:flex;align-items:center;justify-content:center;
+}
+.gs-card{
+  background:#161b22;border:1px solid #30363d;border-radius:12px;
+  padding:40px 48px;width:420px;max-width:90vw;
+  display:flex;flex-direction:column;align-items:center;gap:0;
+}
+.gs-logo{font-size:28px;font-weight:800;letter-spacing:-.5px;margin-bottom:6px}
+.gs-logo span{color:#58a6ff}
+.gs-sub{font-size:13px;color:#8b949e;margin-bottom:28px;text-align:center}
+.gs-label{align-self:flex-start;font-size:11px;font-weight:600;
+  color:#8b949e;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.gs-input{
+  width:100%;padding:10px 14px;background:#21262d;
+  border:1px solid #30363d;border-radius:8px;
+  color:#e6edf3;font-size:16px;font-weight:600;
+  outline:none;text-align:center;letter-spacing:1px;transition:border-color .15s;
+}
+.gs-input:focus{border-color:#58a6ff}
+.gs-input::placeholder{color:#484f58;font-weight:400;letter-spacing:0}
+.gs-btn{
+  margin-top:18px;width:100%;padding:11px;
+  background:#1f6feb;border:none;border-radius:8px;
+  color:#fff;font-size:14px;font-weight:700;
+  cursor:pointer;transition:background .15s;letter-spacing:.2px;
+}
+.gs-btn:hover{background:#388bfd}
+.gs-btn:disabled{background:#21262d;color:#484f58;cursor:default}
+.gs-recent{margin-top:22px;width:100%}
+.gs-recent-label{font-size:10px;color:#484f58;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+.gs-recent-list{display:flex;flex-wrap:wrap;gap:6px}
+.gs-recent-btn{
+  padding:4px 12px;background:#21262d;border:1px solid #30363d;
+  border-radius:20px;color:#8b949e;font-size:11px;font-weight:600;
+  cursor:pointer;transition:all .15s;
+}
+.gs-recent-btn:hover{border-color:#58a6ff;color:#58a6ff}
+.gs-err{font-size:11px;color:#f85149;margin-top:8px;min-height:16px;text-align:center}
+
+/* Header buttons */
+.chg-game-btn{
+  padding:3px 10px;background:transparent;border:1px solid #30363d;
+  border-radius:5px;color:#8b949e;font-size:11px;cursor:pointer;transition:all .15s;
+}
+.chg-game-btn:hover{border-color:#58a6ff;color:#58a6ff}
+
+/* Status toast */
+#status{
+  position:fixed;bottom:14px;right:18px;font-size:11px;color:#8b949e;
+  background:#161b22;border:1px solid #30363d;border-radius:5px;
+  padding:4px 10px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:100;
+}
+#status.show{opacity:1}
+#status.err{color:#f85149;border-color:rgba(248,81,73,.4)}
+.spinner{display:inline-block;width:9px;height:9px;border:2px solid #30363d;
+         border-top-color:#58a6ff;border-radius:50%;
+         animation:spin .7s linear infinite;vertical-align:middle;margin-right:3px}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<!-- GAME SELECTION OVERLAY -->
+<div class="gs-overlay" id="gsOverlay">
+  <div class="gs-card">
+    <div class="gs-logo">AFL <span>Live</span> Ratings</div>
+    <div class="gs-sub">Enter a Footywire Match ID to begin</div>
+    <div class="gs-label">Match ID</div>
+    <input class="gs-input" id="gsInput" type="text" placeholder="e.g. 11427" maxlength="8" inputmode="numeric">
+    <div class="gs-err" id="gsErr"></div>
+    <button class="gs-btn" id="gsBtn">Watch Game →</button>
+    <div class="gs-recent" id="gsRecent" style="display:none">
+      <div class="gs-recent-label">Recent</div>
+      <div class="gs-recent-list" id="gsRecentList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- HEADER -->
+<header>
+  <div style="display:flex;align-items:center;gap:10px;min-width:0;flex:1">
+    <div class="logo">AFL <span>Live</span></div>
+    <div class="match-pill" style="min-width:0">
+      <span class="qtr" id="qtrLabel">—</span>
+      <span style="color:#8b949e;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="teamsLabel">Loading…</span>
+    </div>
+    <div class="live-badge"><div class="live-dot"></div> Live</div>
+  </div>
+
+  <!-- Screen tabs centred -->
+  <div class="screen-tabs">
+    <button class="stab active" data-screen="dashboard">Dashboard</button>
+    <button class="stab"        data-screen="players">Players</button>
+  </div>
+
+  <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+    <button class="chg-game-btn" id="chgGameBtn">Change</button>
+    <button class="chg-game-btn" id="watchNextBtn" style="display:none">👁 Next</button>
+    <button class="chg-game-btn" id="downloadBtn"  style="display:none">↓ Save</button>
+    <div class="refresh-info">
+      <span class="countdown" id="countdown">15</span>s
+      <div class="ring">
+        <svg viewBox="0 0 26 26" width="26" height="26">
+          <circle class="ring-bg"   cx="13" cy="13" r="11"/>
+          <circle class="ring-fill" cx="13" cy="13" r="11" id="ringFill"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- APP BODY -->
+<div class="app-body">
+
+  <!-- ══ SCREEN 1: DASHBOARD ══ -->
+  <div class="screen active" id="screen-dashboard">
+
+    <!-- Score cards + Momentum -->
+    <div class="score-row" id="teamCards">
+      <div class="team-card" id="card1">
+        <img class="team-card-logo" id="c1logo" src="" alt="">
+        <div class="team-card-body">
+          <div class="team-card-name" id="c1name">—</div>
+          <div class="team-card-gb"><span id="c1goals">—</span>.<span id="c1behinds">—</span></div>
+          <div id="c1rat">—</div>
+        </div>
+        <div class="team-card-score" id="c1score">—</div>
+        <img class="team-card-bg" id="c1bg" src="" alt="">
+      </div>
+      <div class="team-card" id="card2">
+        <img class="team-card-logo" id="c2logo" src="" alt="">
+        <div class="team-card-body">
+          <div class="team-card-name" id="c2name">—</div>
+          <div class="team-card-gb"><span id="c2goals">—</span>.<span id="c2behinds">—</span></div>
+          <div id="c2rat">—</div>
+        </div>
+        <div class="team-card-score" id="c2score">—</div>
+        <img class="team-card-bg" id="c2bg" src="" alt="">
+      </div>
+      <div class="momentum-panel">
+        <div class="momentum-chart-wrap">
+          <div id="momentumChart" style="height:100%">
+            <div style="padding:16px;text-align:center;color:#8b949e;font-size:11px">Building history…</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Best | Quarter | Hot | Cold panels -->
+    <div class="panels-row">
+      <!-- Best (top 10) -->
+      <div class="panel-col">
+        <div class="hc-header hc-header-best">
+          <div class="hc-title">⭐ Best</div>
+        </div>
+        <div class="hc-list" id="bestList">
+          <div style="padding:20px;text-align:center;color:#8b949e;font-size:11px">
+            <span class="spinner"></span> Fetching…
+          </div>
+        </div>
+      </div>
+
+      <!-- Quarter top 5 -->
+      <div class="panel-col">
+        <div class="hc-header hc-header-quarter">
+          <div class="hc-title">🏆 Quarter</div>
+          <div id="qtopTabs" style="display:flex;gap:3px">
+            <button class="qtop-tab" data-q="1">Q1</button>
+            <button class="qtop-tab" data-q="2">Q2</button>
+            <button class="qtop-tab" data-q="3">Q3</button>
+            <button class="qtop-tab" data-q="4">Q4</button>
+          </div>
+        </div>
+        <div class="hc-list" id="qtopList">
+          <div style="padding:20px;text-align:center;color:#8b949e;font-size:11px">
+            <span class="spinner"></span> Building history…
+          </div>
+        </div>
+      </div>
+
+      <!-- Hot 5 -->
+      <div class="panel-col">
+        <div class="hc-header hc-header-hot">
+          <div class="hc-title">🔥 Hot</div>
+          <div class="hc-badge hc-badge-hot">Last <span id="windowLbl">5</span> min · value gained</div>
+        </div>
+        <div class="hc-list" id="hotList">
+          <div style="padding:20px;text-align:center;color:#8b949e;font-size:11px">
+            <span class="spinner"></span> Building history…
+          </div>
+        </div>
+      </div>
+
+      <!-- Cold 5 -->
+      <div class="panel-col">
+        <div class="hc-header hc-header-cold">
+          <div class="hc-title">❄️ Cold</div>
+          <div class="hc-badge hc-badge-cold">Last <span id="quietWindowLbl">10</span> min · vs pace</div>
+        </div>
+        <div class="hc-list" id="quietList">
+          <div style="padding:20px;text-align:center;color:#8b949e;font-size:11px">
+            <span class="spinner"></span> Building history…
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /screen-dashboard -->
+
+  <!-- ══ SCREEN 2: PLAYERS ══ -->
+  <div class="screen" id="screen-players">
+
+    <div class="proj-banner">
+      Projected to full game · <span id="elapsedLbl">—</span> / 120 min
+      <span style="margin-left:12px;color:#484f58" id="updatedAt"></span>
+    </div>
+
+    <div class="left-controls">
+      <div class="filter-tabs" id="filterTabs">
+        <button class="ftab active" data-team="all">All</button>
+        <button class="ftab" data-team="t1" id="tabT1">Home</button>
+        <button class="ftab" data-team="t2" id="tabT2">Away</button>
+      </div>
+      <input class="search" id="searchBox" type="text" placeholder="Search…">
+    </div>
+
+    <div class="left-scroll">
+      <table class="ctable" id="mainTable">
+        <thead>
+          <tr>
+            <th class="left" data-col="rank">Rnk</th>
+            <th data-col="rating">Rtg</th>
+            <th class="left" data-col="name">Player</th>
+            <th data-col="change">Chg</th>
+            <th data-col="CP"  title="Contested Possessions">CP</th>
+            <th data-col="ED"  title="Effective Disposals">ED</th>
+            <th data-col="CM"  title="Contested Marks">CM</th>
+            <th data-col="1%"  title="One Percenters">1%</th>
+            <th data-col="SI"  title="Score Involvements">SI</th>
+            <th data-col="MG"  title="Metres Gained">MG</th>
+            <th data-col="TO"  title="Turnovers">TO</th>
+            <th data-col="ITC" title="Intercepts">ITC</th>
+            <th data-col="G"   title="Goals">G</th>
+            <th data-col="B"   title="Behinds">B</th>
+            <th data-col="T"   title="Tackles">T</th>
+            <th data-col="GA"  title="Goal Assists">GA</th>
+            <th data-col="HO"  title="Hit Outs">HO</th>
+            <th data-col="Q1"  title="Quarter 1 Value">Q1</th>
+            <th data-col="Q2"  title="Quarter 2 Value">Q2</th>
+            <th data-col="Q3"  title="Quarter 3 Value">Q3</th>
+            <th data-col="Q4"  title="Quarter 4 Value">Q4</th>
+            <th data-col="value">Val</th>
+            <th data-col="projectedValue">Proj</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody">
+          <tr><td colspan="23" style="text-align:center;padding:32px;color:#8b949e">
+            <span class="spinner"></span> Fetching…
+          </td></tr>
+        </tbody>
+      </table>
+
+    </div>
+
+  </div><!-- /screen-players -->
+
+</div><!-- /app-body -->
+
+<div id="status"></div>
+
+<script>
+// ── Team logos (squiggle.com.au) ──────────────────────────────────────────────
+const TEAM_LOGO_KEYS = {
+  "Adelaide":"Adelaide","Brisbane Lions":"Brisbane","Carlton":"Carlton",
+  "Collingwood":"Collingwood","Essendon":"Essendon","Fremantle":"Fremantle",
+  "Geelong":"Geelong","Gold Coast":"GoldCoast","GWS":"Giants",
+  "GWS Giants":"Giants","GWS GIANTS":"Giants","Hawthorn":"Hawthorn",
+  "Melbourne":"Melbourne","North Melbourne":"NorthMelbourne",
+  "Port Adelaide":"PortAdelaide","Richmond":"Richmond","St Kilda":"StKilda",
+  "Sydney":"Sydney","West Coast":"WestCoast","Western Bulldogs":"Bulldogs",
+};
+function teamLogo(name) {
+  const k = TEAM_LOGO_KEYS[name];
+  return k ? `https://squiggle.com.au/wp-content/themes/squiggle/assets/images/${k}.png` : "";
+}
+
+// ── Team colours ──────────────────────────────────────────────────────────────
+const TEAM_COLORS = {
+  "Adelaide":         { txt:"#E82334", bg:"rgba(0,38,100,.22)"     },
+  "Brisbane Lions":   { txt:"#F5A800", bg:"rgba(111,28,66,.22)"    },
+  "Carlton":          { txt:"#1C5DB8", bg:"rgba(0,20,80,.26)"      },
+  "Collingwood":      { txt:"#C8C8C8", bg:"rgba(200,200,200,.09)"  },
+  "Essendon":         { txt:"#E03244", bg:"rgba(204,32,49,.14)"    },
+  "Fremantle":        { txt:"#9060CC", bg:"rgba(100,60,160,.18)"   },
+  "Geelong":          { txt:"#1F7EC8", bg:"rgba(31,126,200,.18)"   },
+  "Gold Coast":       { txt:"#FFB800", bg:"rgba(220,40,20,.15)"    },
+  "GWS":              { txt:"#F47920", bg:"rgba(120,120,120,.14)"  },
+  "GWS Giants":       { txt:"#F47920", bg:"rgba(120,120,120,.14)"  },
+  "GWS GIANTS":       { txt:"#F47920", bg:"rgba(120,120,120,.14)"  },
+  "Hawthorn":         { txt:"#D49010", bg:"rgba(77,32,4,.22)"      },
+  "Melbourne":        { txt:"#1A70C8", bg:"rgba(26,104,200,.17)"   },
+  "North Melbourne":  { txt:"#4A7ACC", bg:"rgba(0,53,128,.2)"      },
+  "Port Adelaide":    { txt:"#00BCC8", bg:"rgba(0,188,200,.13)"    },
+  "Richmond":         { txt:"#FFD200", bg:"rgba(255,210,0,.11)"    },
+  "St Kilda":         { txt:"#E83848", bg:"rgba(10,10,10,.35)"     },
+  "Sydney":           { txt:"#E8001C", bg:"rgba(232,0,28,.14)"     },
+  "West Coast":       { txt:"#5282D0", bg:"rgba(0,48,135,.2)"      },
+  "Western Bulldogs": { txt:"#CC1030", bg:"rgba(0,60,160,.18)"     },
+};
+function teamColor(name) {
+  return TEAM_COLORS[name] || { txt:"#8b949e", bg:"rgba(139,148,158,.1)" };
+}
+function teamAbbr(name) {
+  const map = {
+    "Adelaide":"ADE","Brisbane Lions":"BRL","Carlton":"CAR","Collingwood":"COL",
+    "Essendon":"ESS","Fremantle":"FRE","Geelong":"GEE","Gold Coast":"GCS",
+    "GWS":"GWS","GWS Giants":"GWS","GWS GIANTS":"GWS","Hawthorn":"HAW",
+    "Melbourne":"MEL","North Melbourne":"NME","Port Adelaide":"PTA",
+    "Richmond":"RIC","St Kilda":"STK","Sydney":"SYD","West Coast":"WCE",
+    "Western Bulldogs":"WBD",
+  };
+  return map[name] || name.split(" ").map(w=>w[0]).join("").toUpperCase().slice(0,3);
+}
+
+// ── Screen switching ──────────────────────────────────────────────────────────
+document.querySelectorAll(".stab").forEach(tab => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll(".stab").forEach(t => t.classList.remove("active"));
+    tab.classList.add("active");
+    const target = tab.dataset.screen;
+    document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+    document.getElementById("screen-" + target).classList.add("active");
+  });
+});
+
+// ── Game selection ────────────────────────────────────────────────────────────
+let activeMid = null;
+let tickInterval = null;
+
+const RECENT_KEY = "afl_recent_mids";
+function getRecent() { try { return JSON.parse(localStorage.getItem(RECENT_KEY)||"[]"); } catch { return []; } }
+function saveRecent(mid) {
+  const list = [mid, ...getRecent().filter(m => m !== mid)].slice(0, 5);
+  localStorage.setItem(RECENT_KEY, JSON.stringify(list));
+}
+
+function showGameSelect(errMsg) {
+  clearInterval(tickInterval);
+  document.getElementById("gsOverlay").style.display = "flex";
+  document.getElementById("gsErr").textContent = errMsg || "";
+  document.getElementById("gsInput").value = activeMid || "";
+  const recent = getRecent();
+  const recentEl = document.getElementById("gsRecent");
+  const listEl   = document.getElementById("gsRecentList");
+  if (recent.length) {
+    recentEl.style.display = "";
+    listEl.innerHTML = recent.map(m =>
+      `<button class="gs-recent-btn" data-mid="${m}">${m}</button>`
+    ).join("");
+    listEl.querySelectorAll(".gs-recent-btn").forEach(b =>
+      b.addEventListener("click", () => startGame(b.dataset.mid))
+    );
+  } else {
+    recentEl.style.display = "none";
+  }
+  document.getElementById("gsInput").focus();
+}
+
+function stopWatch() {
+  clearInterval(watchInterval);
+  watchInterval = null;
+  const wb = document.getElementById("watchNextBtn");
+  if (wb) { wb.textContent = "👁 Next"; wb.title = "Poll for next sequential game"; }
+}
+
+async function startGame(mid) {
+  mid = mid.trim();
+  if (!mid || !/^\d+$/.test(mid)) {
+    document.getElementById("gsErr").textContent = "Please enter a valid numeric Match ID.";
+    return;
+  }
+  const btn = document.getElementById("gsBtn");
+  btn.disabled = true;
+  btn.textContent = "Loading…";
+  document.getElementById("gsErr").textContent = "";
+
+  try {
+    try { await fetch("/api/ping"); }
+    catch { throw new Error("Cannot reach server — is it running?"); }
+    const res  = await fetch(`/api/ratings?mid=${encodeURIComponent(mid)}`);
+    if (!res.ok) throw new Error(`Server error (HTTP ${res.status})`);
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    if (!data.players || data.players.length === 0) throw new Error("No data found for that Match ID.");
+
+    activeMid = mid;
+    stopWatch();
+    document.getElementById("downloadBtn").style.display = "";
+    document.getElementById("watchNextBtn").style.display = "";
+    saveRecent(mid);
+    document.getElementById("gsOverlay").style.display = "none";
+    prevValues = {};
+    currentData = null;
+    countdown = REFRESH;
+    render(data);
+    data.players.forEach(p => prevValues[p.name] = p.value);
+    currentData = data;
+    clearInterval(tickInterval);
+    tickInterval = setInterval(tick, 1000);
+  } catch(e) {
+    document.getElementById("gsOverlay").style.display = "flex";
+    document.getElementById("gsErr").textContent = "⚠ " + e.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Watch Game →";
+  }
+}
+
+document.getElementById("gsBtn").addEventListener("click", () =>
+  startGame(document.getElementById("gsInput").value)
+);
+document.getElementById("gsInput").addEventListener("keydown", e => {
+  if (e.key === "Enter") startGame(document.getElementById("gsInput").value);
+});
+document.getElementById("chgGameBtn").addEventListener("click", () => showGameSelect());
+document.getElementById("downloadBtn").addEventListener("click", () => {
+  if (!activeMid) return;
+  const a = document.createElement("a");
+  a.href = `/api/download?mid=${encodeURIComponent(activeMid)}`;
+  a.download = `afl_game_${activeMid}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+});
+
+// ── Watch Next ────────────────────────────────────────────────────────────────
+let watchInterval = null;
+let watchMid = null;
+
+document.getElementById("watchNextBtn").addEventListener("click", () => {
+  const wb = document.getElementById("watchNextBtn");
+  if (watchInterval) { stopWatch(); return; }
+  if (!activeMid) return;
+  watchMid = parseInt(activeMid) + 1;
+  wb.textContent = `👁 ${watchMid}…`;
+  wb.title = `Polling mid=${watchMid} every 30s — click to stop`;
+  async function probe() {
+    try {
+      const r = await fetch(`/api/probe?mid=${watchMid}`);
+      const d = await r.json();
+      if (d.found) {
+        stopWatch();
+        const label = d.teams.join(" vs ") || `Game ${watchMid}`;
+        if (confirm(`New game found: ${label}\n\nSwitch to it now?`)) startGame(String(watchMid));
+      }
+    } catch(e) { /* ignore */ }
+  }
+  probe();
+  watchInterval = setInterval(probe, 30000);
+});
+
+document.getElementById("qtopTabs").addEventListener("click", e => {
+  const tab = e.target.closest(".qtop-tab");
+  if (!tab || tab.disabled) return;
+  selectedQ = parseInt(tab.dataset.q);
+  if (currentData) {
+    updateQTopTabs(currentData, selectedQ);
+    renderQTop(getQTop5ForQ(selectedQ, currentData), selectedQ);
+  }
+});
+
+showGameSelect();
+
+// ── State ─────────────────────────────────────────────────────────────────────
+const REFRESH = 15;
+const CIRC    = 2 * Math.PI * 11;
+
+const STAT_WEIGHTS = {
+  CP:0.896,ED:0.797,CM:0.922,"1%":0.640,SI:0.450,MG:0.020,
+  TO:-0.869,ITC:0.456,G:4.452,B:-1.109,T:0.771,GA:1.000,HO:0.264,
+};
+
+let currentData = null;
+let prevValues  = {};
+let activeTeam  = "all";
+let sortCol     = "value";
+let sortDir     = -1;
+let countdown   = REFRESH;
+let selectedQ   = null;
+
+const ringFill = document.getElementById("ringFill");
+const cdEl     = document.getElementById("countdown");
+const tbody    = document.getElementById("tableBody");
+const statusEl = document.getElementById("status");
+ringFill.style.strokeDasharray  = CIRC;
+ringFill.style.strokeDashoffset = 0;
+
+// ── Status ────────────────────────────────────────────────────────────────────
+let stTimer;
+function showStatus(msg, isErr=false) {
+  statusEl.innerHTML = msg;
+  statusEl.className = "show" + (isErr?" err":"");
+  clearTimeout(stTimer);
+  stTimer = setTimeout(()=>statusEl.className="", 2200);
+}
+
+// ── Fetch ─────────────────────────────────────────────────────────────────────
+async function fetchAndRender() {
+  if (!activeMid) return;
+  showStatus('<span class="spinner"></span> Refreshing…');
+  try {
+    const res  = await fetch(`/api/ratings?mid=${encodeURIComponent(activeMid)}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    render(data);
+    data.players.forEach(p => prevValues[p.name] = p.value);
+    currentData = data;
+    showStatus("Updated");
+  } catch(e) { showStatus("⚠ "+e.message, true); }
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function render(data) {
+  const [t1, t2] = data.teams;
+  const c1 = teamColor(t1), c2 = teamColor(t2);
+
+  // Header
+  const qStr  = data.matchInfo ? data.matchInfo.replace(/\s+\d+–\d+$/, "").trim() : "Live";
+  const scStr = (data.matchInfo||"").match(/(\d+–\d+)$/);
+  document.getElementById("qtrLabel").textContent   = qStr;
+  document.getElementById("teamsLabel").textContent  = `${t1} vs ${t2}${scStr?" · "+scStr[1]:""}`;
+  document.getElementById("tabT1").textContent = t1;
+  document.getElementById("tabT2").textContent = t2;
+  document.getElementById("updatedAt").textContent   =
+    "Updated " + new Date(data.fetchedAt).toLocaleTimeString();
+
+  // Elapsed
+  const el = data.elapsedMins;
+  document.getElementById("elapsedLbl").textContent = el
+    ? `${Math.floor(el)}:${String(Math.round((el%1)*60)).padStart(2,"0")}`
+    : "unknown";
+
+  // Team score cards
+  const s1 = data.summary[t1], s2 = data.summary[t2];
+  const teamGoals   = t => (data.players||[]).filter(p=>p.team===t).reduce((s,p)=>s+(p.G||0),0);
+  const teamBehinds = t => (data.players||[]).filter(p=>p.team===t).reduce((s,p)=>s+(p.B||0),0);
+  styleTeamCard("card1","c1name","c1score","c1rat","c1goals","c1behinds", t1, s1, c1, teamGoals(t1), teamBehinds(t1));
+  styleTeamCard("card2","c2name","c2score","c2rat","c2goals","c2behinds", t2, s2, c2, teamGoals(t2), teamBehinds(t2));
+
+  // Hot / Cold
+  renderHot(data.hot5, data.hotWindowMins);
+  renderQuiet(data.quiet5, data.quietWindowMins);
+
+  // Quarter top 5
+  const qToShow = selectedQ ?? data.quarter;
+  updateQTopTabs(data, qToShow);
+  renderQTop(getQTop5ForQ(qToShow, data), qToShow);
+
+  // Momentum
+  renderMomentum(data.momentum, data.teams, data.quarterStartTs, data.scoreEvents);
+
+  // Best (top 10 on ground)
+  renderBest(data.players);
+
+  // Player table (with quarter columns merged in)
+  renderTable(data.players, data.quarterLog);
+}
+
+function styleTeamCard(cardId, nameId, scoreId, ratId, goalsId, behindsId, name, sum, col, goals, behinds) {
+  const card   = document.getElementById(cardId);
+  const logo   = teamLogo(name);
+  const isCard2 = cardId === "card2";
+  // Gradient from team colour on the logo side
+  const gradDir = isCard2 ? "270deg" : "90deg";
+  card.style.background = `linear-gradient(${gradDir}, rgba(0,0,0,0) 40%, #0d1117 100%), linear-gradient(${gradDir}, ${col.txt}22 0%, #0d1117 55%)`;
+  card.style.borderLeft  = isCard2 ? "none" : `3px solid ${col.txt}`;
+  card.style.borderRight = isCard2 ? `3px solid ${col.txt}` : "none";
+
+  document.getElementById(nameId).style.color  = col.txt;
+  document.getElementById(nameId).textContent  = name;
+  document.getElementById(scoreId).textContent = sum.score ?? "—";
+  document.getElementById(scoreId).style.color = col.txt;
+  document.getElementById(ratId).innerHTML     = ratingPill(sum.avgRating);
+  document.getElementById(goalsId).textContent   = goals;
+  document.getElementById(behindsId).textContent = behinds;
+
+  // Logos
+  const logoEl = document.getElementById(cardId === "card1" ? "c1logo" : "c2logo");
+  const bgEl   = document.getElementById(cardId === "card1" ? "c1bg"   : "c2bg");
+  if (logoEl) { logoEl.src = logo; logoEl.alt = name; }
+  if (bgEl)   { bgEl.src   = logo; bgEl.alt   = name; }
+}
+
+// ── Delta colour scales ───────────────────────────────────────────────────────
+function hotDeltaColor(delta) {
+  if (delta >= 10) return "#ff2200";
+  if (delta >= 8)  return "#ffd700";
+  if (delta >= 6)  return "#ff8c00";
+  return "#ffdd00";
+}
+function coldDeltaColor(qd) {
+  const v = Math.abs(qd);
+  if (v >= 3)   return "#4488ff";
+  if (v >= 2)   return "#6aabff";
+  if (v >= 1.5) return "#99ccff";
+  return "#79c0ff";
+}
+
+// ── Stat chips ────────────────────────────────────────────────────────────────
+function statChips(contribs, isHot) {
+  if (!contribs || contribs.length === 0)
+    return `<span style="font-size:9px;color:#8b949e;font-style:italic">no activity</span>`;
+  return contribs.slice(0, 5).map(c => {
+    const sign    = c.delta >= 0 ? "+" : "";
+    const ptsSign = c.contribution >= 0 ? "+" : "";
+    const bg  = c.contribution > 0 ? "rgba(255,255,255,.1)" : "rgba(248,81,73,.18)";
+    const col = c.contribution > 0 ? "#e6edf3"             : "#f85149";
+    return `<span class="stat-chip" style="background:${bg};color:${col}">
+      ${sign}${c.delta}<span style="opacity:.8">${c.stat}</span>
+      <span class="stat-chip-pts">${ptsSign}${c.contribution.toFixed(1)}</span>
+    </span>`;
+  }).join("");
+}
+
+// ── Hot list ─────────────────────────────────────────────────────────────────
+function renderHot(hot5, windowMins) {
+  document.getElementById("windowLbl").textContent =
+    windowMins > 0 ? windowMins.toFixed(1) : "5";
+  const el = document.getElementById("hotList");
+  if (!hot5 || hot5.length === 0) {
+    el.innerHTML = `<div style="padding:20px;text-align:center;color:#8b949e;font-size:11px">Building history…</div>`;
+    return;
+  }
+  el.innerHTML = hot5.map((p, i) => {
+    const col   = teamColor(p.team);
+    const abbr  = teamAbbr(p.team);
+    const delta = p.delta5min ?? 0;
+    const sign  = delta >= 0 ? "+" : "";
+    const cardBg = i % 2 === 0 ? '#13181f' : '#0f1318';
+    return `<div class="hc-card" style="background:${cardBg}">
+      <div class="hc-glow" style="background:${col.txt}"></div>
+      <div class="hc-rank-wrap">
+        <div class="hc-rank" style="background:${col.bg};color:${col.txt}">${i+1}</div>
+      </div>
+      <div class="hc-info">
+        <div class="hc-name" style="color:${col.txt}">${esc(p.name)}</div>
+        <div class="hc-meta">
+          <span class="hc-team" style="background:${col.bg};color:${col.txt}">${abbr}</span>
+        </div>
+        <div class="hc-stats">${statChips(p.statContribs, true)}</div>
+      </div>
+      <div class="hc-right">
+        <div class="hc-delta" style="color:${hotDeltaColor(delta)}">${sign}${delta.toFixed(1)}</div>
+        <div class="hc-delta-sub">value gained</div>
+        <div class="hc-pill">${ratingPill(p.rating)}</div>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+// ── Cold list ─────────────────────────────────────────────────────────────────
+function renderQuiet(quiet5, windowMins) {
+  document.getElementById("quietWindowLbl").textContent =
+    windowMins > 0 ? windowMins.toFixed(1) : "5";
+  const el = document.getElementById("quietList");
+  if (!quiet5 || quiet5.length === 0) {
+    el.innerHTML = `<div style="padding:20px;text-align:center;color:#8b949e;font-size:11px">Building history…</div>`;
+    return;
+  }
+  el.innerHTML = quiet5.map((p, i) => {
+    const col   = teamColor(p.team);
+    const abbr  = teamAbbr(p.team);
+    const qd    = p.quietDelta ?? 0;
+    const exp   = p.expectedDelta ?? 0;
+    const sign  = qd >= 0 ? "+" : "";
+    const cardBg = i % 2 === 0 ? '#13181f' : '#0f1318';
+    const coldContribs = [...(p.quietStatContribs || p.statContribs || [])].reverse();
+    return `<div class="hc-card" style="background:${cardBg}">
+      <div class="hc-glow" style="background:${col.txt}"></div>
+      <div class="hc-rank-wrap">
+        <div class="hc-rank" style="background:${col.bg};color:${col.txt}">${i+1}</div>
+      </div>
+      <div class="hc-info">
+        <div class="hc-name" style="color:${col.txt}">${esc(p.name)}</div>
+        <div class="hc-meta">
+          <span class="hc-team" style="background:${col.bg};color:${col.txt}">${abbr}</span>
+          <span style="font-size:9px;color:#8b949e">exp&nbsp;+${exp.toFixed(1)}</span>
+        </div>
+        <div class="hc-stats">${statChips(coldContribs, false)}</div>
+      </div>
+      <div class="hc-right">
+        <div class="hc-delta" style="color:${coldDeltaColor(qd)}">${sign}${qd.toFixed(1)}</div>
+        <div class="hc-delta-sub">vs pace</div>
+        <div class="hc-pill">${ratingPill(p.rating)}</div>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+// ── Quarter top-5 ─────────────────────────────────────────────────────────────
+function getQTop5ForQ(q, data) {
+  if (!q || !data) return null;
+  const key = `Q${q}`;
+  const rows = (data.players || [])
+    .map(p => ({
+      ...p,
+      quarterDelta: data.quarterLog?.[p.name]?.[key] ?? null,
+      qStatDeltas:  data.quarterStatLog?.[p.name]?.[key] ?? null,
+    }))
+    .filter(p => p.quarterDelta !== null)
+    .sort((a, b) => b.quarterDelta - a.quarterDelta)
+    .slice(0, 10);
+  return rows.length > 0 ? rows : null;
+}
+
+function updateQTopTabs(data, activeQ) {
+  document.querySelectorAll(".qtop-tab").forEach(tab => {
+    const q   = parseInt(tab.dataset.q);
+    const key = `Q${q}`;
+    const hasData = Object.values(data.quarterLog || {}).some(
+      log => log[key] !== null && log[key] !== undefined
+    );
+    tab.disabled = !hasData;
+    tab.classList.toggle("active", q === activeQ);
+  });
+}
+
+function qStatContribs(sd) {
+  if (!sd) return [];
+  return Object.keys(STAT_WEIGHTS)
+    .map(stat => {
+      const delta = sd[stat] ?? 0;
+      const contribution = Math.round(delta * STAT_WEIGHTS[stat] * 100) / 100;
+      return { stat, delta, contribution };
+    })
+    .filter(x => Math.abs(x.contribution) >= 0.05)
+    .sort((a, b) => b.contribution - a.contribution);
+}
+
+function renderQTop(qTop5, quarter) {
+  const el = document.getElementById("qtopList");
+  if (!qTop5 || qTop5.length === 0) {
+    el.innerHTML = `<div style="padding:20px;text-align:center;color:#8b949e;font-size:11px">Building quarter history…</div>`;
+    return;
+  }
+  el.innerHTML = qTop5.map((p, i) => {
+    const col      = teamColor(p.team);
+    const abbr     = teamAbbr(p.team);
+    const delta    = p.quarterDelta ?? 0;
+    const sign     = delta >= 0 ? "+" : "";
+    const rc       = ratingColor(p.rating);
+    const contribs = qStatContribs(p.qStatDeltas);
+    const cardBg = i % 2 === 0 ? '#13181f' : '#0f1318';
+    return `<div class="hc-card" style="background:${cardBg}">
+      <div class="hc-glow" style="background:${col.txt}"></div>
+      <div class="hc-rank-wrap">
+        <div class="hc-rank" style="background:${col.bg};color:${col.txt}">${i+1}</div>
+      </div>
+      <div class="hc-info">
+        <div class="hc-name" style="color:${col.txt}">${esc(p.name)}</div>
+        <div class="hc-meta">
+          <span class="hc-team" style="background:${col.bg};color:${col.txt}">${abbr}</span>
+          ${ratingPill(p.rating)}
+        </div>
+        <div class="hc-stats">${statChips(contribs, true)}</div>
+      </div>
+      <div class="hc-right">
+        <div class="hc-delta" style="color:${rc}">${sign}${delta.toFixed(1)}</div>
+        <div class="hc-delta-sub">this quarter</div>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+// ── Quarterly value log ───────────────────────────────────────────────────────
+function renderQuarterLog(quarterLog, players) {
+  const el = document.getElementById("qlogBody");
+  if (!quarterLog || !players || players.length === 0) return;
+  const QUARTERS = ["Q1","Q2","Q3","Q4"];
+  const rows = players.map(p => {
+    const log  = quarterLog[p.name] || {};
+    const vals = QUARTERS.map(q => (log[q] !== null && log[q] !== undefined) ? log[q] : null);
+    const total = vals.reduce((s, v) => s + (v ?? 0), 0);
+    return { p, log, vals, total };
+  }).sort((a, b) => b.total - a.total);
+
+  function qColor(v) {
+    if (v === null) return null;
+    if (v >= 12) return "#ff2200";
+    if (v >= 9)  return "#ffd700";
+    if (v >= 6)  return "#ff8c00";
+    if (v >= 3)  return "#ffdd00";
+    if (v >= 0)  return "#8b949e";
+    return "#f85149";
+  }
+
+  el.innerHTML = rows.map(({ p, vals, total }, i) => {
+    const col  = teamColor(p.team);
+    const abbr = teamAbbr(p.team);
+    const qCells = vals.map(v => {
+      if (v === null) return `<td class="qlog-val zero">—</td>`;
+      const color = qColor(v);
+      const sign  = v >= 0 ? "+" : "";
+      return `<td class="qlog-val" style="color:${color}">${sign}${v.toFixed(1)}</td>`;
+    }).join("");
+    const totalColor = total >= 0 ? "#58a6ff" : "#f85149";
+    const totalSign  = total >= 0 ? "+" : "";
+    return `<tr>
+      <td class="left rnk">${i+1}</td>
+      <td class="left">
+        <span class="pname">${esc(p.name)}</span>
+        <span class="ttag" style="background:${col.bg};color:${col.txt}">${abbr}</span>
+      </td>
+      ${qCells}
+      <td class="qlog-total" style="color:${totalColor}">${totalSign}${total.toFixed(1)}</td>
+    </tr>`;
+  }).join("");
+}
+
+// ── Momentum chart ────────────────────────────────────────────────────────────
+function renderMomentum(momentum, teams, quarterStartTs, scoreEvents) {
+  const el     = document.getElementById("momentumChart");
+  const [t1, t2] = teams;
+  const c1 = teamColor(t1).txt, c2 = teamColor(t2).txt;
+
+  if (!momentum || momentum.length < 3) {
+    el.innerHTML = `<div style="height:100%;display:flex;align-items:center;justify-content:center;color:#484f58;font-size:11px">Building history…</div>`;
+    return;
+  }
+
+  const W = 1000, H = 90, SCORE_H = 14, chartH = H - SCORE_H, midY = chartH / 2;
+  const n = momentum.length;
+  const firstTs = momentum[0].ts, lastTs = momentum[n-1].ts;
+  const tsRange = Math.max(lastTs - firstTs, 1);
+  const tsToX = ts => Math.max(0, Math.min(W, ((ts - firstTs) / tsRange) * W));
+
+  // ── Build 2-minute discrete bins ────────────────────────────────────────────
+  const BIN_MS = 2 * 60 * 1000;
+  const numBins = Math.max(1, Math.ceil((lastTs - firstTs) / BIN_MS));
+  const bins = [];
+  for (let b = 0; b < numBins; b++) {
+    const binStart = firstTs + b * BIN_MS;
+    const binEnd   = binStart + BIN_MS;
+    const inBin    = momentum.filter(p => p.ts >= binStart && p.ts < binEnd);
+    const before   = momentum.filter(p => p.ts < binStart);
+    const baseT1   = before.length > 0 ? before[before.length - 1].t1 : momentum[0].t1;
+    const baseT2   = before.length > 0 ? before[before.length - 1].t2 : momentum[0].t2;
+    if (inBin.length > 0) {
+      const endT1   = inBin[inBin.length - 1].t1;
+      const endT2   = inBin[inBin.length - 1].t2;
+      const homeVal = Math.max(0, endT1 - baseT1);
+      const awayVal = Math.max(0, endT2 - baseT2);
+      // skip bins with no actual change (quarter breaks / no-play periods)
+      if (homeVal > 0 || awayVal > 0) {
+        bins.push({ binStart, binEnd, homeVal, awayVal });
+      }
+    }
+  }
+
+  // Net per bin: positive = home dominated, negative = away dominated
+  // Bins are play-only (gaps removed), spaced evenly across chart width
+  const nets   = bins.map(b => b.homeVal - b.awayVal);
+  const maxAbs = Math.max(...nets.map(Math.abs), 1);
+  const nb     = Math.max(bins.length, 1);
+  const barW   = W / nb;
+  const gap    = Math.max(1, barW * 0.18);
+  const bw     = Math.max(1, barW - gap);
+  const scaleH = midY - 4;
+
+  const bars = nets.map((net, i) => {
+    const h   = (Math.abs(net) / maxAbs) * scaleH;
+    if (h < 0.5) return "";
+    const col = net >= 0 ? c1 : c2;
+    const x   = (i * barW + gap / 2).toFixed(1);
+    const y   = net >= 0 ? (midY - h).toFixed(1) : midY.toFixed(1);
+    return `<rect x="${x}" y="${y}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" fill="${col}" opacity="0.85"/>`;
+  }).join("");
+
+  // ── Quarter markers (mapped to play-only bin index) ──────────────────────────
+  // Find the first bin index that falls at or after each quarter start
+  const binIdxToX = idx => idx * barW;
+  const q1Label = bins.length > 0
+    ? `<text x="3" y="9" fill="#484f58" font-size="9" font-family="sans-serif" font-weight="700">Q1</text>`
+    : "";
+  const qMarkers = Object.entries(quarterStartTs||{})
+    .filter(([q]) => Number(q) >= 2)
+    .map(([q, ts]) => {
+      const idx = bins.findIndex(b => b.binStart >= ts);
+      if (idx < 0) return "";
+      const x = binIdxToX(idx).toFixed(1);
+      return `<line x1="${x}" y1="0" x2="${x}" y2="${chartH}" stroke="#484f58" stroke-width="1" stroke-dasharray="3,3"/>
+              <text x="${+x+3}" y="9" fill="#484f58" font-size="9" font-family="sans-serif" font-weight="700">Q${q}</text>`;
+    }).join("");
+
+  // ── Quarter winner labels (completed quarters only) ──────────────────────────
+  const qWinLabels = Object.entries(quarterStartTs||{})
+    .sort((a, b) => Number(a[0]) - Number(b[0]))
+    .map(([q, startTs], i, arr) => {
+      const nextTs = arr[i + 1]?.[1];
+      if (!nextTs) return ""; // skip current/incomplete quarter
+      const qBins   = bins.filter(b => b.binStart >= startTs && b.binStart < nextTs);
+      if (qBins.length === 0) return "";
+      const homeSum = qBins.reduce((s, b) => s + b.homeVal, 0);
+      const awaySum = qBins.reduce((s, b) => s + b.awayVal, 0);
+      const diff    = homeSum - awaySum;
+      if (Math.abs(diff) < 0.1) return "";
+      const winAbbr = diff > 0 ? teamAbbr(t1) : teamAbbr(t2);
+      const winC    = diff > 0 ? c1 : c2;
+      const margin  = Math.abs(diff).toFixed(1);
+      const lastIdx = bins.indexOf(qBins[qBins.length - 1]);
+      const x = ((lastIdx + 1) * barW - 3).toFixed(1);
+      const y = diff > 0 ? (midY - 4).toFixed(1) : (midY + 11).toFixed(1);
+      return `<text x="${x}" y="${y}" text-anchor="end"
+        fill="${winC}" font-size="9" font-family="sans-serif" font-weight="800" opacity="0.95"
+        >${winAbbr} +${margin}</text>`;
+    }).join("");
+
+  // ── Score event markers (mapped to nearest play bin) ────────────────────────
+  const scoreMarkers = (scoreEvents||[])
+    .filter(e => e.ts >= firstTs && e.ts <= lastTs + 30000)
+    .map(e => {
+      // find the bin that contains this event (or the nearest one before it)
+      let idx = bins.findLastIndex(b => b.binStart <= e.ts);
+      if (idx < 0) idx = 0;
+      const x   = (binIdxToX(idx) + barW / 2).toFixed(1);
+      const col = teamColor(e.team).txt;
+      const y0  = chartH + 1;
+      return e.type === 'G'
+        ? `<polygon points="${x},${y0+1} ${+x-5},${y0+SCORE_H-2} ${+x+5},${y0+SCORE_H-2}" fill="${col}" opacity="0.9"/>`
+        : `<circle cx="${x}" cy="${y0+7}" r="3.5" fill="${col}" opacity="0.4"/>`;
+    }).join("");
+
+  // ── Leader label (overall net across all bins) ───────────────────────────────
+  const totalNet   = nets.reduce((s, v) => s + v, 0);
+  const leader     = totalNet >= 0 ? t1 : t2;
+  const leaderC    = totalNet >= 0 ? c1 : c2;
+  const leaderAbbr = teamAbbr(leader);
+
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+    ${bars}
+    <line x1="0" y1="${midY}" x2="${W}" y2="${midY}" stroke="#30363d" stroke-width="1"/>
+    ${q1Label}${qMarkers}
+    ${qWinLabels}
+    <text x="${W-4}" y="${midY-4}" text-anchor="end"
+          fill="${leaderC}" font-size="11" font-family="sans-serif" font-weight="800"
+          >${leaderAbbr}</text>
+    <line x1="0" y1="${chartH}" x2="${W}" y2="${chartH}" stroke="#30363d" stroke-width="0.5"/>
+    ${scoreMarkers}
+  </svg>`;
+}
+
+// ── Table helpers ─────────────────────────────────────────────────────────────
+function getFiltered(players) {
+  if (!currentData) return players;
+  const [t1,t2] = currentData.teams;
+  const q = document.getElementById("searchBox").value.toLowerCase();
+  return players.filter(p => {
+    if (activeTeam==="t1" && p.team!==t1) return false;
+    if (activeTeam==="t2" && p.team!==t2) return false;
+    if (q && !p.name.toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+function getSorted(players) {
+  return [...players].sort((a,b) => {
+    let av=a[sortCol]??0, bv=b[sortCol]??0;
+    if(typeof av==="string"){av=av.toLowerCase();bv=bv.toLowerCase()}
+    return av<bv ? sortDir : av>bv ? -sortDir : 0;
+  });
+}
+
+const RATING_COLORS = [
+  "#FF0000","#FF3300","#FF6600","#FF9900","#FFCC00",
+  "#CCCC00","#99CC00","#33CC66","#00CCCC","#0099CC"
+];
+function ratingColor(r) { return RATING_COLORS[Math.min(9,Math.max(0,Math.floor(r)))]; }
+function ratingPill(r) {
+  const c = ratingColor(r);
+  return `<span class="pill" style="background:${c}28;color:${c};border:1px solid ${c}55">${r.toFixed(1)} ★</span>`;
+}
+
+function chgBadge(p) {
+  const prev = prevValues[p.name];
+  if (prev === undefined) return `<span class="chg chg-new">● new</span>`;
+  const d = p.value - prev;
+  if (Math.abs(d) < 0.05) return `<span style="color:#3d4550;font-size:10px">—</span>`;
+  const sign=d>0?"+":"", cls=d>0?"chg-up":"chg-dn", arr=d>0?"▲":"▼";
+  return `<span class="chg ${cls}">${arr}${sign}${d.toFixed(1)}</span>`;
+}
+
+function nc(v, isTO=false) {
+  if(!v||v===0) return `<td class="zero">0</td>`;
+  if(isTO&&v>0) return `<td class="neg">${v}</td>`;
+  return `<td>${v}</td>`;
+}
+
+// ── Best (top 10 on ground) ───────────────────────────────────────────────────
+function renderBest(players) {
+  const el = document.getElementById("bestList");
+  if (!players || players.length === 0) return;
+  const top10 = [...players].sort((a, b) => b.value - a.value).slice(0, 10);
+  el.innerHTML = top10.map((p, i) => {
+    const col  = teamColor(p.team);
+    const abbr = teamAbbr(p.team);
+    const rc   = ratingColor(p.rating);
+    const cardBg = i % 2 === 0 ? '#13181f' : '#0f1318';
+    return `<div class="hc-card" style="background:${cardBg}">
+      <div class="hc-glow" style="background:${col.txt}"></div>
+      <div class="hc-rank-wrap">
+        <div class="hc-rank" style="background:${col.bg};color:${col.txt}">${i + 1}</div>
+      </div>
+      <div class="hc-info">
+        <div class="hc-name" style="color:${col.txt}">${esc(p.name)}</div>
+        <div class="hc-meta">
+          <span class="hc-team" style="background:${col.bg};color:${col.txt}">${abbr}</span>
+          ${ratingPill(p.rating)}
+        </div>
+        <div class="hc-stats">${statChips(p.statContribs, true)}</div>
+      </div>
+      <div class="hc-right">
+        <div class="hc-delta" style="color:${rc}">${p.value.toFixed(1)}</div>
+        <div class="hc-delta-sub">value</div>
+        <div style="font-size:11px;color:${rc};font-weight:700;margin-top:3px">▶ ${p.projectedValue.toFixed(1)}</div>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function qValColor(v) {
+  if (v === null || v === undefined) return null;
+  // Map 0–12 onto RATING_COLORS index 0–9 (red→blue); negatives clamp to red
+  const idx = Math.min(9, Math.max(0, Math.floor(v * 9 / 12)));
+  return RATING_COLORS[idx];
+}
+
+function renderTable(players, quarterLog) {
+  const rows = getSorted(getFiltered(players));
+  if (!rows.length) {
+    tbody.innerHTML=`<tr><td colspan="23" style="text-align:center;padding:24px;color:#8b949e">No players match</td></tr>`;
+    return;
+  }
+  const QUARTERS = ["Q1","Q2","Q3","Q4"];
+  tbody.innerHTML = rows.map(p => {
+    const col  = teamColor(p.team);
+    const abbr = teamAbbr(p.team);
+    const rc   = ratingColor(p.rating);
+    const barW = (p.rating / 10 * 100).toFixed(0);
+    const qLog = (quarterLog || {})[p.name] || {};
+    const qCells = QUARTERS.map(q => {
+      const v = (qLog[q] !== null && qLog[q] !== undefined) ? qLog[q] : null;
+      if (v === null) return `<td class="zero">—</td>`;
+      const color = qValColor(v);
+      const sign  = v >= 0 ? "+" : "";
+      return `<td style="color:${color};font-weight:700;font-variant-numeric:tabular-nums">${sign}${v.toFixed(1)}</td>`;
+    }).join("");
+    return `<tr>
+      <td class="left rnk">${p.rank}</td>
+      <td class="rtg-cell">${ratingPill(p.rating)}</td>
+      <td class="left">
+        <span class="pname">${esc(p.name)}</span>
+        <span class="ttag" style="background:${col.bg};color:${col.txt}">${abbr}</span>
+      </td>
+      <td>${chgBadge(p)}</td>
+      ${nc(p.CP)}${nc(p.ED)}${nc(p.CM)}${nc(p["1%"])}${nc(p.SI)}${nc(p.MG)}
+      ${nc(p.TO,true)}${nc(p.ITC)}${nc(p.G)}${nc(p.B)}${nc(p.T)}${nc(p.GA)}${nc(p.HO)}
+      ${qCells}
+      <td>${p.value.toFixed(1)}</td>
+      <td style="color:${rc};font-weight:700">${p.projectedValue.toFixed(1)}</td>
+    </tr>`;
+  }).join("");
+}
+
+function esc(s){ return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+// ── Sort headers ──────────────────────────────────────────────────────────────
+document.querySelectorAll(".ctable thead th[data-col]").forEach(th => {
+  th.addEventListener("click", () => {
+    const col = th.dataset.col;
+    sortDir = sortCol===col ? sortDir*-1 : (col==="rank"||col==="name"?1:-1);
+    sortCol = col;
+    document.querySelectorAll(".ctable thead th").forEach(h=>h.classList.remove("sort-asc","sort-desc"));
+    th.classList.add(sortDir===-1?"sort-desc":"sort-asc");
+    if(currentData) renderTable(currentData.players, currentData.quarterLog);
+  });
+});
+document.querySelector('.ctable thead th[data-col="value"]').classList.add("sort-desc");
+
+// ── Filters ───────────────────────────────────────────────────────────────────
+document.getElementById("filterTabs").addEventListener("click", e => {
+  const b = e.target.closest(".ftab"); if(!b) return;
+  document.querySelectorAll(".ftab").forEach(x=>x.classList.remove("active"));
+  b.classList.add("active");
+  activeTeam = b.dataset.team;
+  if(currentData) renderTable(currentData.players, currentData.quarterLog);
+});
+document.getElementById("searchBox").addEventListener("input", () => {
+  if(currentData) renderTable(currentData.players, currentData.quarterLog);
+});
+
+// ── Countdown ─────────────────────────────────────────────────────────────────
+function tick() {
+  countdown--;
+  if(countdown<=0){ countdown=REFRESH; fetchAndRender(); }
+  cdEl.textContent = countdown;
+  ringFill.style.strokeDashoffset = CIRC*(1-countdown/REFRESH);
+}
+</script>
+</body>
+</html>
