@@ -903,8 +903,13 @@ http.createServer(async (req, res) => {
   if (parsed.pathname === "/api/fixture") {
     try {
       await refreshFixture();
+      // Include the set of fw_ids with saved game data so the client can
+      // show/hide the Review button without a separate round-trip.
+      const savedGames = fs.readdirSync(DATA_DIR)
+        .filter(f => /^game_\d+\.json$/.test(f))
+        .map(f => parseInt(f.slice(5, -5), 10));
       res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-cache" });
-      res.end(JSON.stringify({ serverNow: Date.now(), rounds: fixtureCache.rounds }));
+      res.end(JSON.stringify({ serverNow: Date.now(), rounds: fixtureCache.rounds, savedGames }));
     } catch (e) {
       console.error("[fixture]", e.message);
       res.writeHead(500, { "Content-Type": "application/json" });

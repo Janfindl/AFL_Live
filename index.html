@@ -365,6 +365,8 @@ header{
 .gs-watch-btn:hover{background:#388bfd}
 .gs-watch-btn.live-btn{background:rgba(248,81,73,.2);border:1px solid rgba(248,81,73,.5);color:#f85149}
 .gs-watch-btn.live-btn:hover{background:rgba(248,81,73,.35)}
+.gs-no-data-btn{background:transparent!important;border:1px solid #30363d!important;color:#484f58!important;cursor:default!important}
+.gs-upcoming-btn{background:#21262d!important;border:1px solid #30363d!important;color:#8b949e!important;cursor:default!important}
 .gs-bottom-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .gs-status-badge{
   display:inline-flex;align-items:center;gap:4px;
@@ -774,7 +776,8 @@ document.querySelectorAll(".stab").forEach(tab => {
 // ── Game selection ────────────────────────────────────────────────────────────
 let activeMid = null;
 let tickInterval = null;
-let fixtureRounds = null;  // cached fixture data
+let fixtureRounds = null;   // cached fixture data
+let savedGames    = new Set(); // fw_ids with server-side saved data
 
 // ── Live game polling ─────────────────────────────────────────────────────────
 const liveGames   = {};   // fw_id -> true  (confirmed live via probe)
@@ -857,10 +860,11 @@ function renderFixtureRound(roundIdx) {
   grid.innerHTML = round.games.map(g => {
     const hLogo = teamLogo(g.hteam);
     const aLogo = teamLogo(g.ateam);
-    const isLive    = g.complete > 0 && g.complete < 100;
-    const isDone    = g.complete >= 100;
+    const isLive     = g.complete > 0 && g.complete < 100;
+    const isDone     = g.complete >= 100;
     const isUpcoming = g.complete === 0;
-    const cardCls   = isLive ? "live" : isUpcoming ? "upcoming" : "";
+    const hasData    = savedGames.has(g.fw_id) || isLive;
+    const cardCls    = isLive ? "live" : isUpcoming ? "upcoming" : "";
     const hCol = (TEAM_COLORS[g.hteam] || {}).txt || "#e6edf3";
     const aCol = (TEAM_COLORS[g.ateam] || {}).txt || "#e6edf3";
 
@@ -887,8 +891,16 @@ function renderFixtureRound(roundIdx) {
     else if (isDone) badgeHtml = `<span class="gs-status-badge done">Final</span>`;
     else badgeHtml = `<span class="gs-status-badge upcoming">${fmtDate(g.date)}</span>`;
 
-    const btnCls  = isLive ? "gs-watch-btn live-btn" : "gs-watch-btn";
-    const btnText = isLive ? "▶ Watch Live" : isDone ? "▶ Review" : "▶ Watch";
+    let btnHtml = "";
+    if (isLive) {
+      btnHtml = `<button class="gs-watch-btn live-btn" onclick="startGame('${g.fw_id}')">🔴 Watch Live</button>`;
+    } else if (isDone && hasData) {
+      btnHtml = `<button class="gs-watch-btn" onclick="startGame('${g.fw_id}')">▶ Review</button>`;
+    } else if (isDone) {
+      btnHtml = `<button class="gs-watch-btn gs-no-data-btn" disabled title="No data recorded for this game">No data</button>`;
+    } else {
+      btnHtml = `<button class="gs-watch-btn gs-upcoming-btn" disabled title="Game hasn't started yet">▶ Watch</button>`;
+    }
 
     return `<div class="gs-game-card ${cardCls}" data-fw="${g.fw_id}">
       <div class="gs-teams-row">
@@ -905,7 +917,7 @@ function renderFixtureRound(roundIdx) {
       <div class="gs-bottom-row">
         ${badgeHtml}
         <div class="gs-venue">${g.venue || ""}</div>
-        <button class="gs-watch-btn ${isLive ? "live-btn" : ""}" onclick="startGame('${g.fw_id}')">${btnText}</button>
+        ${btnHtml}
       </div>
     </div>`;
   }).join("");
@@ -919,7 +931,7 @@ async function tryAutoLoad(mid) {
     const res  = await fetch(`/api/ratings?mid=${encodeURIComponent(mid)}`);
     if (!res.ok) return false;
     const data = await res.json();
-    if (data.error || !data.players || data.players.length === 0) return false;
+    if (data.error || !data.players || !data.players.length) return false;
     activeMid = String(mid);
     stopWatch();
     stopFixturePolling();
@@ -952,6 +964,7 @@ async function loadFixture() {
     // Calibrate clock offset using server timestamp
     if (payload.serverNow) clockOffset = payload.serverNow - Date.now();
     fixtureRounds = payload.rounds;
+    savedGames = new Set(payload.savedGames || []);
     if (!Array.isArray(fixtureRounds) || !fixtureRounds.length) throw new Error("No fixture data");
 
     // Build round dropdown
@@ -1027,18 +1040,7 @@ async function startGame(mid) {
     if (!res.ok) throw new Error(`Server error (HTTP ${res.status})`);
     const data = await res.json();
     if (data.error) throw new Error(data.error);
-    if (!data.players || data.players.length === 0) {
-      // Show import option for completed games with no server-side data
-      const errEl = document.getElementById("gsErr");
-      errEl.innerHTML = `No saved data for this game.
-        <label class="gs-import-label">
-          📂 Import game_${mid}.json
-          <input type="file" accept=".json" style="display:none"
-            onchange="importGameData('${mid}', this)">
-        </label>`;
-      renderFixtureRound(parseInt(document.getElementById("gsRoundSelect").value || "0"));
-      return;
-    }
+    if (!data.players || !data.players.length) throw new Error("No data recorded for this game.");
 
     activeMid = mid;
     stopWatch();
