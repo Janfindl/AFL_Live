@@ -60,7 +60,7 @@ function parseGameTime(sb) {
 
   // Break labels (quarter / half / three-quarter / full time)
   const title = (sb.match(/class="tbtitle"[^>]*>([\s\S]*?)<\/td>/i)||[])[1]||"";
-  if (/full\s*time/i.test(title) || /final\s*scores?/i.test(title)) return { quarter: 4, elapsedMins: GAME_MINS };
+  if (/full\s*time/i.test(title) || /final\s*scores?/i.test(title)) return { quarter: 4, elapsedMins: GAME_MINS, isFullTime: true };
   if (/(?:three|3\w*)[\s-]*quarter\s*time/i.test(title))    return { quarter: 3, elapsedMins: 90 };
   if (/half\s*time/i.test(title))                            return { quarter: 2, elapsedMins: 60 };
   if (/quarter\s*time/i.test(title))                         return { quarter: 1, elapsedMins: 30 };
@@ -428,6 +428,7 @@ function getState(mid) {
     fetchLog:          saved?.fetches           || [],
     lastFetchState:    {},
     snapshotHistory:   [],   // rolling snapshots for hot/cold deltas (in-memory only)
+    fullTimeTs:        saved?.fullTimeTs        ?? null,  // timestamp of first full-time detection
   };
   // Rebuild lastFetchState by replaying the saved fetch log
   for (const entry of state.fetchLog) {
@@ -530,9 +531,20 @@ async function fetchRatings(mid) {
   const quietWindowMins = Math.round(quietWindowMs / 6000) / 10;
   const quietWindowFrac = quietWindowMins / GAME_MINS;
 
+  // ── Stat-correction detection ─────────────────────────────────────────────────
+  // First time full time is detected: record everything normally and stamp the time.
+  // All subsequent full-time fetches are stat corrections — player totals are updated
+  // but the timeline (momentum, snapshots, score events) is frozen at the final whistle.
+  const isFullTimeNow = gameTime?.isFullTime === true;
+  if (isFullTimeNow && state.fullTimeTs === null) {
+    state.fullTimeTs = Date.now();
+  }
+  const isStatCorrection = isFullTimeNow && state.fullTimeTs !== null
+    && Date.now() - state.fullTimeTs > 5000;  // >5s after first full-time detection
+
   all.forEach(p => {
     const refEntry = quietRef ? (quietRef.map[p.name] ?? null) : null;
-    if (refEntry === null || quietWindowMins === 0) {
+    if (isStatCorrection || refEntry === null || quietWindowMins === 0) {
       p.delta10min    = null;
       p.expectedDelta = null;
       p.quietDelta    = null;
@@ -545,8 +557,8 @@ async function fetchRatings(mid) {
     p.quietStatContribs = statContributions(p, refEntry);
   });
 
-  // Record snapshot AFTER computing deltas so it doesn't compare to itself
-  recordSnapshot(all, snapshotHistory);
+  // Record snapshot only during live play (not stat corrections)
+  if (!isStatCorrection) recordSnapshot(all, snapshotHistory);
 
   // ── Quarter value + stat tracking ─────────────────────────────────────────────
   if (currentQ !== null && currentQ !== state.trackedQuarter) {
@@ -643,8 +655,8 @@ async function fetchRatings(mid) {
     .slice(0, 10)
     .map((p, i) => ({ ...p, quietRank: i + 1 }));
 
-  // ── Momentum: append current totals to full-game timeline ───────────────────
-  if (all.length > 0) {
+  // ── Momentum: frozen during stat corrections ──────────────────────────────────
+  if (!isStatCorrection && all.length > 0) {
     const t1Total = all.filter(p => p.team === team1Name).reduce((s, p) => s + p.value, 0);
     const t2Total = all.filter(p => p.team === team2Name).reduce((s, p) => s + p.value, 0);
     state.momentumFull.push({ ts: Date.now(), t1: +t1Total.toFixed(2), t2: +t2Total.toFixed(2) });
@@ -652,21 +664,23 @@ async function fetchRatings(mid) {
   }
   const momentum = state.momentumFull;
 
-  // ── Score event detection ────────────────────────────────────────────────────
-  const now = Date.now();
-  for (const [teamName, players] of [[team1Name, team1], [team2Name, team2]]) {
-    const totalG = players.reduce((s, p) => s + (p.G || 0), 0);
-    const totalB = players.reduce((s, p) => s + (p.B || 0), 0);
-    const prev = state.lastScores[teamName];
-    if (prev) {
-      const dG = Math.max(0, totalG - prev.G);
-      const dB = Math.max(0, totalB - prev.B);
-      for (let i = 0; i < dG; i++) state.scoreEvents.push({ ts: now, team: teamName, type: 'G' });
-      for (let i = 0; i < dB; i++) state.scoreEvents.push({ ts: now, team: teamName, type: 'B' });
+  // ── Score event detection: frozen during stat corrections ────────────────────
+  if (!isStatCorrection) {
+    const now = Date.now();
+    for (const [teamName, players] of [[team1Name, team1], [team2Name, team2]]) {
+      const totalG = players.reduce((s, p) => s + (p.G || 0), 0);
+      const totalB = players.reduce((s, p) => s + (p.B || 0), 0);
+      const prev = state.lastScores[teamName];
+      if (prev) {
+        const dG = Math.max(0, totalG - prev.G);
+        const dB = Math.max(0, totalB - prev.B);
+        for (let i = 0; i < dG; i++) state.scoreEvents.push({ ts: now, team: teamName, type: 'G' });
+        for (let i = 0; i < dB; i++) state.scoreEvents.push({ ts: now, team: teamName, type: 'B' });
+      }
+      state.lastScores[teamName] = { G: totalG, B: totalB };
     }
-    state.lastScores[teamName] = { G: totalG, B: totalB };
+    if (state.scoreEvents.length > 400) state.scoreEvents.splice(0, state.scoreEvents.length - 400);
   }
-  if (state.scoreEvents.length > 400) state.scoreEvents.splice(0, state.scoreEvents.length - 400);
 
   // ── Team summary ─────────────────────────────────────────────────────────────
   const summary = {};
@@ -733,6 +747,7 @@ async function fetchRatings(mid) {
       completedQuarters: state.completedQuarters,
       quarterBaseline:  state.quarterBaseline,
       quarterStartTs:   state.quarterStartTs,
+      fullTimeTs:       state.fullTimeTs,
       fetches:          state.fetchLog,
       savedAt:          new Date().toISOString(),
     });
@@ -838,14 +853,22 @@ async function autoRecordTick() {
     for (const g of round.games) {
       const minsElapsed = g.dateTs ? (now - g.dateTs) / 60000 : -Infinity;
       const alreadySaved = fs.existsSync(gameFile(g.fw_id));
+      // Check if we're within the stat-correction window (12 min after full time).
+      // Use in-memory fullTimeTs if available; fall back to kickoff-time estimate.
+      const gs = gameStates.get(String(g.fw_id));
+      const inCorrectionWindow =
+        (gs?.fullTimeTs && now - gs.fullTimeTs < 12 * 60 * 1000) ||
+        (g.complete === 100 && minsElapsed >= 125 && minsElapsed < 165 && alreadySaved);
+
       // Record if:
       //  • Squiggle says in-progress (0 < complete < 100)
       //  • OR upcoming game whose kickoff was ≤2 min ago (not yet in Squiggle)
-      //  • OR recently completed (complete=100, kickoff < 4.5 h ago) and not yet saved —
-      //    catches games where server restarted just after Squiggle marked them done
+      //  • OR recently completed and not yet saved (server restarted mid-game)
+      //  • OR within stat-correction window after full time
       if ((g.complete > 0 && g.complete < 100) ||
           (g.complete === 0 && minsElapsed >= -2 && minsElapsed < 270) ||
-          (g.complete === 100 && minsElapsed < 270 && !alreadySaved)) {
+          (g.complete === 100 && minsElapsed < 270 && !alreadySaved) ||
+          inCorrectionWindow) {
         candidates.add(g.fw_id);
       }
     }
