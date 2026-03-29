@@ -212,13 +212,11 @@ function buildCachedResponse(cached) {
   };
 }
 
-// ── Rolling snapshot history (in-memory) ──────────────────────────────────────
+// ── Rolling snapshot history (in-memory, per-game) ───────────────────────────
 const STAT_KEYS = Object.keys(WEIGHTS);  // all formula stat names
 
 // Each snapshot: { ts, map: { name -> { value, ...stats } } }
-const snapshotHistory = [];
-
-function recordSnapshot(players) {
+function recordSnapshot(players, snapshotHistory) {
   const snap = { ts: Date.now(), map: {} };
   players.forEach(p => {
     const entry = { value: p.value };
@@ -229,7 +227,7 @@ function recordSnapshot(players) {
   if (snapshotHistory.length > HISTORY_MAX) snapshotHistory.shift();
 }
 
-function getRefSnapshot(windowMs, minTs = 0) {
+function getRefSnapshot(windowMs, minTs = 0, snapshotHistory) {
   if (snapshotHistory.length === 0) return null;
   const targetTs  = Date.now() - windowMs;
   const inQuarter = snapshotHistory.filter(s => s.ts >= minTs);
@@ -257,7 +255,7 @@ function statContributions(player, refEntry) {
 // ── Reconstruct a player's per-quarter delta from the fetch log ──────────────
 // Used to patch completedQuarters entries that were stored as null (e.g. bench
 // players who came on after the quarter baseline was taken).
-function inferQDeltaFromLog(name, q) {
+function inferQDeltaFromLog(name, q, fetchLog) {
   if (!fetchLog.length) return null;
   let cum          = {};   // running cumulative stats for this player
   let statsBeforeQ = null; // snapshot just before quarter q began
@@ -289,52 +287,54 @@ function inferQDeltaFromLog(name, q) {
 // ── Fixture cache ─────────────────────────────────────────────────────────────
 let fixtureCache = null; // { ts: Date.now(), rounds: [...] }
 
-// ── State reset on game change ────────────────────────────────────────────────
-let activeMid          = null;
-let trackedQuarter     = null;
-let quarterBaseline    = null;   // { playerName -> value at start of current quarter }
-let completedQuarters  = {};     // { 1: {playerName -> delta}, 2: ..., 3: ..., 4: ... }
-let quarterStartTs     = {};     // { quarter -> timestamp when first detected }
-let lastScores         = {};     // { teamName -> { G: total, B: total } }
-let scoreEvents        = [];     // [{ ts, team, type:'G'|'B' }]
-let momentumFull       = [];     // [{ ts, t1, t2 }] — full-game history, persisted to disk
-let fetchLog           = [];     // timestamped action-diff log (baseline + stat changes only)
-let lastFetchState     = {};     // { playerName -> { v, r, tm, ...stats } } — for diffing
+// ── Per-game state ────────────────────────────────────────────────────────────
+// All mutable game state is stored per mid so concurrent fetchRatings calls
+// (background recorder + user requests) never corrupt each other.
+const gameStates = new Map(); // mid -> GameState
+
+function getState(mid) {
+  if (gameStates.has(mid)) return gameStates.get(mid);
+  const saved = loadGameData(mid);
+  const state = {
+    trackedQuarter:    saved?.quarter          ?? null,
+    quarterBaseline:   saved?.quarterBaseline  ?? null,
+    completedQuarters: saved?.completedQuarters || {},
+    quarterStartTs:    saved?.quarterStartTs    || {},
+    lastScores:        {},
+    scoreEvents:       saved?.scoreEvents       || [],
+    momentumFull:      saved?.momentum          || loadMomentum(mid),
+    fetchLog:          saved?.fetches           || [],
+    lastFetchState:    {},
+    snapshotHistory:   [],   // rolling snapshots for hot/cold deltas (in-memory only)
+  };
+  // Rebuild lastFetchState by replaying the saved fetch log
+  for (const entry of state.fetchLog) {
+    for (const action of (entry.actions || [])) {
+      const { n, tm, ...fields } = action;
+      if (!state.lastFetchState[n]) state.lastFetchState[n] = {};
+      if (tm) state.lastFetchState[n].tm = tm;
+      Object.assign(state.lastFetchState[n], fields);
+    }
+  }
+  // Patch any null completedQuarters entries using the fetch log
+  for (const [q, qData] of Object.entries(state.completedQuarters)) {
+    for (const [name, val] of Object.entries(qData)) {
+      if (val === null) {
+        const inferred = inferQDeltaFromLog(name, parseInt(q), state.fetchLog);
+        if (inferred) qData[name] = inferred;
+      }
+    }
+  }
+  gameStates.set(mid, state);
+  return state;
+}
 
 // ── Core fetch ────────────────────────────────────────────────────────────────
 async function fetchRatings(mid) {
-  if (mid !== activeMid) {
-    activeMid         = mid;
-    const _saved      = loadGameData(mid);
-    trackedQuarter    = _saved?.quarter          ?? null;
-    quarterBaseline   = _saved?.quarterBaseline  ?? null;
-    completedQuarters = _saved?.completedQuarters || {};
-    quarterStartTs    = _saved?.quarterStartTs    || {};
-    lastScores        = {};
-    scoreEvents       = _saved?.scoreEvents       || [];
-    momentumFull      = _saved?.momentum          || loadMomentum(mid);
-    fetchLog          = _saved?.fetches           || [];
-    // Reconstruct lastFetchState by replaying the saved fetch log
-    lastFetchState    = {};
-    for (const entry of fetchLog) {
-      for (const action of (entry.actions || [])) {
-        const { n, tm, ...fields } = action;
-        if (!lastFetchState[n]) lastFetchState[n] = {};
-        if (tm) lastFetchState[n].tm = tm;
-        Object.assign(lastFetchState[n], fields);
-      }
-    }
-    // Patch any null completedQuarters entries using the fetch log
-    for (const [q, qData] of Object.entries(completedQuarters)) {
-      for (const [name, val] of Object.entries(qData)) {
-        if (val === null) {
-          const inferred = inferQDeltaFromLog(name, parseInt(q));
-          if (inferred) qData[name] = inferred;
-        }
-      }
-    }
-    snapshotHistory.length = 0;
-  }
+  const state = getState(mid);
+  const {
+    snapshotHistory,
+  } = state;
   const [basicData, advData] = await Promise.all([
     fetchFootywire("N", mid),
     fetchFootywire("Y", mid),
@@ -391,8 +391,8 @@ async function fetchRatings(mid) {
   });
 
   // ── 5-min hot delta ───────────────────────────────────────────────────────────
-  const qMinTs        = quarterStartTs[currentQ] || 0;
-  const hotRef        = getRefSnapshot(HOT_WINDOW_MS, qMinTs);
+  const qMinTs        = state.quarterStartTs[currentQ] || 0;
+  const hotRef        = getRefSnapshot(HOT_WINDOW_MS, qMinTs, snapshotHistory);
   const hotWindowMs   = hotRef ? Date.now() - hotRef.ts : 0;
   const hotWindowMins = Math.round(hotWindowMs / 6000) / 10;
 
@@ -403,7 +403,7 @@ async function fetchRatings(mid) {
   });
 
   // ── 10-min cold delta ─────────────────────────────────────────────────────────
-  const quietRef      = getRefSnapshot(QUIET_WINDOW_MS, qMinTs);
+  const quietRef      = getRefSnapshot(QUIET_WINDOW_MS, qMinTs, snapshotHistory);
   const quietWindowMs = quietRef ? Date.now() - quietRef.ts : 0;
   const quietWindowMins = Math.round(quietWindowMs / 6000) / 10;
   const quietWindowFrac = quietWindowMins / GAME_MINS;
@@ -424,22 +424,21 @@ async function fetchRatings(mid) {
   });
 
   // Record snapshot AFTER computing deltas so it doesn't compare to itself
-  recordSnapshot(all);
+  recordSnapshot(all, snapshotHistory);
 
   // ── Quarter value + stat tracking ─────────────────────────────────────────────
-  if (currentQ !== null && currentQ !== trackedQuarter) {
+  if (currentQ !== null && currentQ !== state.trackedQuarter) {
     // Quarter changed — save the outgoing quarter's value+stat deltas
-    if (trackedQuarter !== null && quarterBaseline !== null) {
+    if (state.trackedQuarter !== null && state.quarterBaseline !== null) {
       const qData = {};
       all.forEach(p => {
-        const base = quarterBaseline[p.name];
+        const base = state.quarterBaseline[p.name];
         if (base !== undefined) {
           const entry = { v: Math.round((p.value - base.v) * 100) / 100 };
           STAT_KEYS.forEach(k => { entry[k] = (p[k] || 0) - (base[k] || 0); });
           qData[p.name] = entry;
         } else {
-          // No baseline — infer from fetch log; zero-baseline as last resort
-          const inferred = inferQDeltaFromLog(p.name, trackedQuarter);
+          const inferred = inferQDeltaFromLog(p.name, state.trackedQuarter, state.fetchLog);
           if (inferred) {
             qData[p.name] = inferred;
           } else {
@@ -449,27 +448,26 @@ async function fetchRatings(mid) {
           }
         }
       });
-      completedQuarters[trackedQuarter] = qData;
+      state.completedQuarters[state.trackedQuarter] = qData;
     }
-    trackedQuarter           = currentQ;
-    quarterStartTs[currentQ] = Date.now();
-    snapshotHistory.length   = 0;   // flush hot/cold cache — new quarter starts clean
-    quarterBaseline          = {};
+    state.trackedQuarter              = currentQ;
+    state.quarterStartTs[currentQ]    = Date.now();
+    snapshotHistory.length            = 0;  // flush hot/cold — new quarter starts clean
+    state.quarterBaseline             = {};
     all.forEach(p => {
-      quarterBaseline[p.name] = { v: p.value };
-      STAT_KEYS.forEach(k => { quarterBaseline[p.name][k] = p[k] || 0; });
+      state.quarterBaseline[p.name] = { v: p.value };
+      STAT_KEYS.forEach(k => { state.quarterBaseline[p.name][k] = p[k] || 0; });
     });
   }
   // Helper: extract value from completedQuarters entry (supports old number format)
   function cqv(entry) { return typeof entry === "object" && entry !== null ? entry.v : entry; }
 
   all.forEach(p => {
-    if (quarterBaseline && p.name && !(p.name in quarterBaseline)) {
-      // Player came on mid-quarter — seed their baseline now so delta tracks from here
-      quarterBaseline[p.name] = { v: p.value };
-      STAT_KEYS.forEach(k => { quarterBaseline[p.name][k] = p[k] || 0; });
+    if (state.quarterBaseline && p.name && !(p.name in state.quarterBaseline)) {
+      state.quarterBaseline[p.name] = { v: p.value };
+      STAT_KEYS.forEach(k => { state.quarterBaseline[p.name][k] = p[k] || 0; });
     }
-    const base = quarterBaseline?.[p.name];
+    const base = state.quarterBaseline?.[p.name];
     p.quarterDelta = base !== undefined
       ? Math.round((p.value - base.v) * 100) / 100
       : null;
@@ -487,21 +485,21 @@ async function fetchRatings(mid) {
   const quarterStatLog = {};
   all.forEach(p => {
     function cqEntry(q) {
-      const e = completedQuarters[q]?.[p.name];
+      const e = state.completedQuarters[q]?.[p.name];
       return e !== undefined ? e : null;
     }
     function liveEntry() { return { v: p.quarterDelta, ...p.qStatDeltas }; }
     quarterLog[p.name] = {
-      Q1: completedQuarters[1] ? cqv(cqEntry(1)) : (currentQ === 1 ? p.quarterDelta : null),
-      Q2: completedQuarters[2] ? cqv(cqEntry(2)) : (currentQ === 2 ? p.quarterDelta : null),
-      Q3: completedQuarters[3] ? cqv(cqEntry(3)) : (currentQ === 3 ? p.quarterDelta : null),
-      Q4: completedQuarters[4] ? cqv(cqEntry(4)) : (currentQ === 4 ? p.quarterDelta : null),
+      Q1: state.completedQuarters[1] ? cqv(cqEntry(1)) : (currentQ === 1 ? p.quarterDelta : null),
+      Q2: state.completedQuarters[2] ? cqv(cqEntry(2)) : (currentQ === 2 ? p.quarterDelta : null),
+      Q3: state.completedQuarters[3] ? cqv(cqEntry(3)) : (currentQ === 3 ? p.quarterDelta : null),
+      Q4: state.completedQuarters[4] ? cqv(cqEntry(4)) : (currentQ === 4 ? p.quarterDelta : null),
     };
     quarterStatLog[p.name] = {
-      Q1: completedQuarters[1] ? cqEntry(1) : (currentQ === 1 ? liveEntry() : null),
-      Q2: completedQuarters[2] ? cqEntry(2) : (currentQ === 2 ? liveEntry() : null),
-      Q3: completedQuarters[3] ? cqEntry(3) : (currentQ === 3 ? liveEntry() : null),
-      Q4: completedQuarters[4] ? cqEntry(4) : (currentQ === 4 ? liveEntry() : null),
+      Q1: state.completedQuarters[1] ? cqEntry(1) : (currentQ === 1 ? liveEntry() : null),
+      Q2: state.completedQuarters[2] ? cqEntry(2) : (currentQ === 2 ? liveEntry() : null),
+      Q3: state.completedQuarters[3] ? cqEntry(3) : (currentQ === 3 ? liveEntry() : null),
+      Q4: state.completedQuarters[4] ? cqEntry(4) : (currentQ === 4 ? liveEntry() : null),
     };
   });
 
@@ -527,26 +525,26 @@ async function fetchRatings(mid) {
   if (all.length > 0) {
     const t1Total = all.filter(p => p.team === team1Name).reduce((s, p) => s + p.value, 0);
     const t2Total = all.filter(p => p.team === team2Name).reduce((s, p) => s + p.value, 0);
-    momentumFull.push({ ts: Date.now(), t1: +t1Total.toFixed(2), t2: +t2Total.toFixed(2) });
-    saveMomentum(activeMid, momentumFull);
+    state.momentumFull.push({ ts: Date.now(), t1: +t1Total.toFixed(2), t2: +t2Total.toFixed(2) });
+    saveMomentum(mid, state.momentumFull);
   }
-  const momentum = momentumFull;
+  const momentum = state.momentumFull;
 
   // ── Score event detection ────────────────────────────────────────────────────
   const now = Date.now();
   for (const [teamName, players] of [[team1Name, team1], [team2Name, team2]]) {
     const totalG = players.reduce((s, p) => s + (p.G || 0), 0);
     const totalB = players.reduce((s, p) => s + (p.B || 0), 0);
-    const prev = lastScores[teamName];
+    const prev = state.lastScores[teamName];
     if (prev) {
       const dG = Math.max(0, totalG - prev.G);
       const dB = Math.max(0, totalB - prev.B);
-      for (let i = 0; i < dG; i++) scoreEvents.push({ ts: now, team: teamName, type: 'G' });
-      for (let i = 0; i < dB; i++) scoreEvents.push({ ts: now, team: teamName, type: 'B' });
+      for (let i = 0; i < dG; i++) state.scoreEvents.push({ ts: now, team: teamName, type: 'G' });
+      for (let i = 0; i < dB; i++) state.scoreEvents.push({ ts: now, team: teamName, type: 'B' });
     }
-    lastScores[teamName] = { G: totalG, B: totalB };
+    state.lastScores[teamName] = { G: totalG, B: totalB };
   }
-  if (scoreEvents.length > 400) scoreEvents.splice(0, scoreEvents.length - 400);
+  if (state.scoreEvents.length > 400) state.scoreEvents.splice(0, state.scoreEvents.length - 400);
 
   // ── Team summary ─────────────────────────────────────────────────────────────
   const summary = {};
@@ -563,19 +561,17 @@ async function fetchRatings(mid) {
   // ── Persist game state to disk ────────────────────────────────────────────────
   if (all.length > 0) {
     // Build action diff — only record players whose stats changed
-    const isBaseline = fetchLog.length === 0 || Object.keys(lastFetchState).length === 0;
+    const isBaseline = state.fetchLog.length === 0 || Object.keys(state.lastFetchState).length === 0;
     const actions    = [];
     all.forEach(p => {
-      const prev  = lastFetchState[p.name];
+      const prev  = state.lastFetchState[p.name];
       const newV  = +p.value.toFixed(2);
       const newR  = p.rating;
       if (!prev || isBaseline) {
-        // First time — full snapshot for this player
         const entry = { n: p.name, tm: p.team, v: newV, r: newR };
         STAT_KEYS.forEach(k => { if (p[k]) entry[k] = p[k]; });
         actions.push(entry);
       } else {
-        // Delta — record changed stats; always include v and r for time-series
         const changed = {};
         STAT_KEYS.forEach(k => {
           const cur = p[k] || 0;
@@ -583,13 +579,11 @@ async function fetchRatings(mid) {
         });
         actions.push({ n: p.name, ...changed, v: newV, r: newR });
       }
-      // Update diff baseline
-      lastFetchState[p.name] = { v: newV, r: newR, tm: p.team };
-      STAT_KEYS.forEach(k => { lastFetchState[p.name][k] = p[k] || 0; });
+      state.lastFetchState[p.name] = { v: newV, r: newR, tm: p.team };
+      STAT_KEYS.forEach(k => { state.lastFetchState[p.name][k] = p[k] || 0; });
     });
 
-    // Always record every 15-second fetch for a complete time-series
-    fetchLog.push({
+    state.fetchLog.push({
       ts:  Date.now(),
       iso: new Date().toISOString(),
       q:   currentQ,
@@ -600,7 +594,7 @@ async function fetchRatings(mid) {
       actions,
     });
 
-    saveGameData(activeMid, {
+    saveGameData(mid, {
       teams: [team1Name, team2Name],
       matchInfo, elapsedMins: el, quarter: currentQ,
       score1, score2,
@@ -612,13 +606,13 @@ async function fetchRatings(mid) {
       }),
       quarterLog,
       quarterStatLog,
-      momentum:    momentumFull,
-      scoreEvents,
-      completedQuarters,
-      quarterBaseline,
-      quarterStartTs,
-      fetches:     fetchLog,
-      savedAt:     new Date().toISOString(),
+      momentum:         state.momentumFull,
+      scoreEvents:      state.scoreEvents,
+      completedQuarters: state.completedQuarters,
+      quarterBaseline:  state.quarterBaseline,
+      quarterStartTs:   state.quarterStartTs,
+      fetches:          state.fetchLog,
+      savedAt:          new Date().toISOString(),
     });
   }
 
@@ -634,8 +628,8 @@ async function fetchRatings(mid) {
     qTop5,
     quarterLog,
     quarterStatLog,
-    quarterStartTs,
-    scoreEvents,
+    quarterStartTs:  state.quarterStartTs,
+    scoreEvents:     state.scoreEvents,
     hotWindowMins:   hotWindowMins,
     quietWindowMins: quietWindowMins,
     momentum,
