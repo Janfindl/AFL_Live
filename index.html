@@ -1556,7 +1556,12 @@ const RATING_COLORS = [
   "#CC0000","#FF0000","#FF6600","#FFCC00","#CCCC00",
   "#99CC00","#33CC66","#33CCCC","#33CCFF","#CC33FF"
 ];
-function ratingColor(r) { return RATING_COLORS[Math.min(9,Math.max(0,Math.floor(r)))]; }
+// Mapping: 10→[9], 9.0-9.5→[8], 8.0-8.5→[7], … 2.0-2.5→[1], 0-1.5→[0]
+function ratingColor(r) {
+  if (r >= 10) return RATING_COLORS[9];
+  if (r <  2)  return RATING_COLORS[0];
+  return RATING_COLORS[Math.floor(r) - 1];
+}
 function ratingPill(r) {
   const c = ratingColor(r);
   return `<span class="pill" style="background:${c}28;color:${c};border:1px solid ${c}55">${r.toFixed(1)} ★</span>`;
