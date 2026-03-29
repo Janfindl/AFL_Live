@@ -805,6 +805,38 @@ http.createServer(async (req, res) => {
     res.end(fs.readFileSync(file));
     return;
   }
+  if (parsed.pathname === "/api/has-data") {
+    const mid = parsed.searchParams.get("mid");
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ hasSaved: !!(mid && fs.existsSync(gameFile(mid))) }));
+    return;
+  }
+  if (parsed.pathname === "/api/import" && req.method === "POST") {
+    const mid = parsed.searchParams.get("mid");
+    if (!mid) { res.writeHead(400); res.end(JSON.stringify({ error: "mid required" })); return; }
+    let body = "";
+    req.on("data", c => { body += c; if (body.length > 20 * 1024 * 1024) { req.destroy(); } });
+    req.on("end", () => {
+      try {
+        const data = JSON.parse(body);
+        if (!Array.isArray(data.teams) || !Array.isArray(data.players)) {
+          res.writeHead(400, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: "Invalid game data: missing teams or players" }));
+          return;
+        }
+        saveGameData(mid, data);
+        // Evict cached state so next load re-reads the imported file
+        gameStates.delete(mid);
+        console.log(`[import] saved game_${mid}.json (${data.players.length} players)`);
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ ok: true, players: data.players.length, teams: data.teams }));
+      } catch(e) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Invalid JSON: " + e.message }));
+      }
+    });
+    return;
+  }
   if (parsed.pathname === "/api/ratings") {
     const mid = parsed.searchParams.get("mid");
     console.log(`[${new Date().toLocaleTimeString()}] /api/ratings mid=${mid}`);
