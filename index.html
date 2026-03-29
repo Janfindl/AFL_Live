@@ -979,21 +979,6 @@ async function loadFixture() {
     }
     selEl.value = defaultIdx;
     renderFixtureRound(defaultIdx);
-
-    // Auto-load best game: live first, then most recently completed
-    const round = fixtureRounds[defaultIdx];
-    const allGames = fixtureRounds.flatMap(r => r.games);
-
-    const liveGame = allGames.find(g => g.complete > 0 && g.complete < 100);
-    if (liveGame) { tryAutoLoad(liveGame.fw_id); return; }
-
-    // Try completed games newest-first (highest fw_id = most recent)
-    const completed = allGames
-      .filter(g => g.complete >= 100)
-      .sort((a, b) => b.fw_id - a.fw_id);
-    for (const g of completed) {
-      if (await tryAutoLoad(g.fw_id)) return;
-    }
   } catch(e) {
     errEl.textContent = "⚠ Could not load fixture: " + e.message;
   } finally {
