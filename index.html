@@ -913,12 +913,37 @@ function renderFixtureRound(roundIdx) {
   startFixturePolling(round.games);
 }
 
+// Try to silently load a game; returns true on success, false if no data
+async function tryAutoLoad(mid) {
+  try {
+    const res  = await fetch(`/api/ratings?mid=${encodeURIComponent(mid)}`);
+    if (!res.ok) return false;
+    const data = await res.json();
+    if (data.error || !data.players || data.players.length === 0) return false;
+    activeMid = String(mid);
+    stopWatch();
+    stopFixturePolling();
+    document.getElementById("downloadBtn").style.display = "";
+    document.getElementById("watchNextBtn").style.display = "";
+    document.getElementById("gsOverlay").style.display = "none";
+    prevValues = {};
+    currentData = null;
+    countdown = REFRESH;
+    render(data);
+    data.players.forEach(p => prevValues[p.name] = p.value);
+    currentData = data;
+    clearInterval(tickInterval);
+    tickInterval = setInterval(tick, 1000);
+    return true;
+  } catch { return false; }
+}
+
 async function loadFixture() {
   const loadEl  = document.getElementById("gsLoading");
   const errEl   = document.getElementById("gsErr");
   const selEl   = document.getElementById("gsRoundSelect");
   loadEl.style.display = "flex";
-  errEl.textContent = "";
+  errEl.innerHTML = "";
   try {
     const res = await fetch("/api/fixture");
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -941,6 +966,21 @@ async function loadFixture() {
     }
     selEl.value = defaultIdx;
     renderFixtureRound(defaultIdx);
+
+    // Auto-load best game: live first, then most recently completed
+    const round = fixtureRounds[defaultIdx];
+    const allGames = fixtureRounds.flatMap(r => r.games);
+
+    const liveGame = allGames.find(g => g.complete > 0 && g.complete < 100);
+    if (liveGame) { tryAutoLoad(liveGame.fw_id); return; }
+
+    // Try completed games newest-first (highest fw_id = most recent)
+    const completed = allGames
+      .filter(g => g.complete >= 100)
+      .sort((a, b) => b.fw_id - a.fw_id);
+    for (const g of completed) {
+      if (await tryAutoLoad(g.fw_id)) return;
+    }
   } catch(e) {
     errEl.textContent = "⚠ Could not load fixture: " + e.message;
   } finally {
