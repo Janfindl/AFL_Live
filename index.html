@@ -945,7 +945,13 @@ async function tryAutoLoad(mid) {
     data.players.forEach(p => prevValues[p.name] = p.value);
     currentData = data;
     clearInterval(tickInterval);
-    tickInterval = setInterval(tick, 1000);
+    if (data.inProgress) {
+      tickInterval = setInterval(tick, 1000);
+    } else {
+      tickInterval = null;
+      cdEl.textContent = "—";
+      ringFill.style.strokeDashoffset = CIRC;
+    }
     return true;
   } catch { return false; }
 }
@@ -1040,7 +1046,13 @@ async function startGame(mid) {
     data.players.forEach(p => prevValues[p.name] = p.value);
     currentData = data;
     clearInterval(tickInterval);
-    tickInterval = setInterval(tick, 1000);
+    if (data.inProgress) {
+      tickInterval = setInterval(tick, 1000);
+    } else {
+      tickInterval = null;
+      cdEl.textContent = "—";
+      ringFill.style.strokeDashoffset = CIRC;
+    }
   } catch(e) {
     document.getElementById("gsOverlay").style.display = "flex";
     document.getElementById("gsErr").textContent = "⚠ " + e.message;
@@ -1166,7 +1178,16 @@ async function fetchAndRender() {
     render(data);
     data.players.forEach(p => prevValues[p.name] = p.value);
     currentData = data;
-    showStatus("Updated");
+    if (!data.inProgress) {
+      // Game is finished — stop polling, no need to keep hitting the server
+      clearInterval(tickInterval);
+      tickInterval = null;
+      cdEl.textContent = "—";
+      ringFill.style.strokeDashoffset = CIRC;
+      showStatus("Final");
+    } else {
+      showStatus("Updated");
+    }
   } catch(e) { showStatus("⚠ "+e.message, true); }
 }
 
