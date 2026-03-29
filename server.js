@@ -837,9 +837,15 @@ async function autoRecordTick() {
   for (const round of (fixtureCache?.rounds || [])) {
     for (const g of round.games) {
       const minsElapsed = g.dateTs ? (now - g.dateTs) / 60000 : -Infinity;
-      // Record if Squiggle says in-progress, or kickoff was ≤2 min ago and ≤270 min ago
+      const alreadySaved = fs.existsSync(gameFile(g.fw_id));
+      // Record if:
+      //  • Squiggle says in-progress (0 < complete < 100)
+      //  • OR upcoming game whose kickoff was ≤2 min ago (not yet in Squiggle)
+      //  • OR recently completed (complete=100, kickoff < 4.5 h ago) and not yet saved —
+      //    catches games where server restarted just after Squiggle marked them done
       if ((g.complete > 0 && g.complete < 100) ||
-          (g.complete === 0 && minsElapsed >= -2 && minsElapsed < 270)) {
+          (g.complete === 0 && minsElapsed >= -2 && minsElapsed < 270) ||
+          (g.complete === 100 && minsElapsed < 270 && !alreadySaved)) {
         candidates.add(g.fw_id);
       }
     }
