@@ -154,8 +154,7 @@ function mergeTeam(basicHtml, advHtml, teamName) {
   }));
 }
 
-// ── Persistent momentum storage ───────────────────────────────────────────────
-// DATA_DIR can be overridden via env var to point at a Railway persistent volume.
+// ── Persistent storage ────────────────────────────────────────────────────────
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "data");
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
@@ -169,15 +168,138 @@ function saveMomentum(mid, arr) {
   catch (e) { console.error("saveMomentum:", e.message); }
 }
 
-// ── Full game data persistence ────────────────────────────────────────────────
 function gameFile(mid) { return path.join(DATA_DIR, `game_${mid}.json`); }
-function saveGameData(mid, state) {
-  try { fs.writeFileSync(gameFile(mid), JSON.stringify(state)); }
-  catch (e) { console.error("saveGameData:", e.message); }
-}
 function loadGameData(mid) {
   try { return JSON.parse(fs.readFileSync(gameFile(mid), "utf8")); }
   catch { return null; }
+}
+
+// ── GitHub-backed cloud persistence ──────────────────────────────────────────
+// Set GITHUB_TOKEN (PAT with contents:write) and GITHUB_REPO (owner/repo) on
+// Railway to survive redeployments without a persistent volume.
+//
+// Flow:
+//  • Boot  → pull any game_*.json / momentum_*.json missing from DATA_DIR
+//  • Save  → write locally, schedule a GitHub push (debounced to 5 min)
+//  • Full time detected → push to GitHub immediately (5-second delay)
+//
+const GH_TOKEN = process.env.GITHUB_TOKEN || null;
+const GH_REPO  = process.env.GITHUB_REPO  || null;   // "owner/repo"
+const GH_BRANCH = process.env.GITHUB_DATA_BRANCH || "master";
+
+const ghShaCache  = new Map();   // repoPath -> last known SHA
+const ghPushQueue = new Map();   // mid -> timeout handle
+
+function ghRequest(method, apiPath, body = null) {
+  return new Promise((resolve, reject) => {
+    const payload = body ? JSON.stringify(body) : null;
+    const req = https.request({
+      hostname: "api.github.com",
+      path:     apiPath,
+      method,
+      timeout:  12000,
+      headers: {
+        "Authorization":        `Bearer ${GH_TOKEN}`,
+        "User-Agent":           "AFL-Live-Ratings/1.0",
+        "Accept":               "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+        ...(payload ? {
+          "Content-Type":   "application/json",
+          "Content-Length": Buffer.byteLength(payload),
+        } : {}),
+      },
+    }, res => {
+      let d = "";
+      res.on("data", c => d += c);
+      res.on("end", () => {
+        try { resolve({ status: res.statusCode, body: JSON.parse(d) }); }
+        catch { resolve({ status: res.statusCode, body: d }); }
+      });
+    });
+    req.on("timeout", () => { req.destroy(); reject(new Error("GitHub timeout")); });
+    req.on("error", reject);
+    if (payload) req.write(payload);
+    req.end();
+  });
+}
+
+async function ghPutFile(repoPath, buf) {
+  const content = buf.toString("base64");
+  const sha     = ghShaCache.get(repoPath);
+  const r = await ghRequest("PUT",
+    `/repos/${GH_REPO}/contents/${repoPath}`,
+    { message: `data: ${repoPath}`, content, branch: GH_BRANCH, ...(sha ? { sha } : {}) }
+  );
+  if (r.status === 409 || r.status === 422) {
+    // SHA stale — fetch current SHA and retry once
+    const g = await ghRequest("GET", `/repos/${GH_REPO}/contents/${repoPath}?ref=${GH_BRANCH}`);
+    if (g.body?.sha) {
+      ghShaCache.set(repoPath, g.body.sha);
+      return ghPutFile(repoPath, buf);
+    }
+  }
+  if (r.status >= 400) throw new Error(`GitHub PUT ${repoPath}: HTTP ${r.status}`);
+  if (r.body?.content?.sha) ghShaCache.set(repoPath, r.body.content.sha);
+}
+
+async function ghGetFile(repoPath) {
+  const r = await ghRequest("GET", `/repos/${GH_REPO}/contents/${repoPath}?ref=${GH_BRANCH}`);
+  if (r.status !== 200 || !r.body?.content) return null;
+  ghShaCache.set(repoPath, r.body.sha);
+  return Buffer.from(r.body.content.replace(/\n/g, ""), "base64");
+}
+
+async function ghListDataDir() {
+  const r = await ghRequest("GET", `/repos/${GH_REPO}/contents/data?ref=${GH_BRANCH}`);
+  if (r.status !== 200 || !Array.isArray(r.body)) return [];
+  return r.body.filter(f => f.type === "file").map(f => f.name);
+}
+
+// On boot: download any game/momentum files not already in DATA_DIR
+async function syncFromGitHub() {
+  if (!GH_TOKEN || !GH_REPO) return;
+  console.log("[github] syncing data files from GitHub…");
+  let names;
+  try { names = await ghListDataDir(); }
+  catch (e) { console.error("[github] list failed:", e.message); return; }
+
+  for (const name of names) {
+    if (!/^(game|momentum)_\d+\.json$/.test(name)) continue;
+    const local = path.join(DATA_DIR, name);
+    if (fs.existsSync(local)) continue;
+    try {
+      const buf = await ghGetFile(`data/${name}`);
+      if (buf) { fs.writeFileSync(local, buf); console.log(`[github] pulled  ${name}`); }
+    } catch (e) { console.error(`[github] pull ${name}:`, e.message); }
+  }
+  console.log("[github] sync complete");
+}
+
+// Push a game's files to GitHub (called after writes, debounced per mid)
+async function ghPushGame(mid) {
+  const gf = gameFile(mid);
+  const mf = momentumFile(mid);
+  if (fs.existsSync(gf)) await ghPutFile(`data/game_${mid}.json`,     fs.readFileSync(gf));
+  if (fs.existsSync(mf)) await ghPutFile(`data/momentum_${mid}.json`, fs.readFileSync(mf));
+  console.log(`[github] pushed  game_${mid}.json`);
+}
+
+function scheduleGhPush(mid, urgent = false) {
+  if (!GH_TOKEN || !GH_REPO) return;
+  if (ghPushQueue.has(mid)) clearTimeout(ghPushQueue.get(mid));
+  const delay = urgent ? 5000 : 5 * 60 * 1000;  // 5 s for game-end, 5 min otherwise
+  ghPushQueue.set(mid, setTimeout(() => {
+    ghPushQueue.delete(mid);
+    ghPushGame(mid).catch(e => console.error(`[github] push mid=${mid}:`, e.message));
+  }, delay));
+}
+
+// ── saveGameData: write locally + schedule GitHub push ────────────────────────
+function saveGameData(mid, state) {
+  try { fs.writeFileSync(gameFile(mid), JSON.stringify(state)); }
+  catch (e) { console.error("saveGameData:", e.message); }
+  const isFullTime = (state.elapsedMins ?? 0) >= GAME_MINS;
+  scheduleGhPush(mid, isFullTime);
 }
 function buildCachedResponse(cached) {
   const summary = {};
@@ -866,7 +988,12 @@ http.createServer(async (req, res) => {
 }).listen(PORT, () => {
   console.log(`AFL Live Ratings → http://localhost:${PORT}`);
   console.log(`Data directory   → ${DATA_DIR}`);
-  // Kick off the background recorder immediately, then every 15 seconds
-  autoRecordTick();
-  setInterval(autoRecordTick, 15000);
+  console.log(`GitHub repo      → ${GH_REPO || "(not configured — set GITHUB_TOKEN + GITHUB_REPO)"}`);
+  // Pull saved game data from GitHub, then start the background recorder
+  syncFromGitHub()
+    .catch(e => console.error("[github] startup sync failed:", e.message))
+    .finally(() => {
+      autoRecordTick();
+      setInterval(autoRecordTick, 15000);
+    });
 });
