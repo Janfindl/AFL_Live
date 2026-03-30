@@ -316,6 +316,9 @@ function buildCachedResponse(cached) {
       topPlayer:    tp[0]?.name || "—",
     };
   }
+  // Re-apply modified projected value (saved files may pre-date this calculation)
+  applyModProjectedValue(cached.players || [], cached.completedQuarters || {});
+
   return {
     inProgress:      false,
     fromCache:       true,
@@ -421,6 +424,42 @@ function computeBursts(fetchLog) {
 
   allBursts.sort((a, b) => b.gain - a.gain || a.startTs - b.startTs);
   return allBursts;
+}
+
+// ── Modified projected value ──────────────────────────────────────────────────
+// modPV = PV + max(0, bestQ - avgQ)
+//
+// avgQ = PV / 4  (expected value per quarter at the current projection)
+// bestQ = highest value scored in any observable quarter:
+//         completed quarters (from completedQuarters map) + current live quarter (quarterDelta)
+//
+// Mutates p.projectedValue and p.rating in-place.
+function applyModProjectedValue(players, completedQuarters) {
+  players.forEach(p => {
+    // Collect all observable quarter values
+    const qVals = Object.values(completedQuarters || {})
+      .map(qData => {
+        const entry = qData[p.name];
+        if (entry == null) return null;
+        return typeof entry === "object" ? (entry.v ?? null) : entry;
+      })
+      .filter(v => v !== null && isFinite(v));
+
+    // Also include the current live quarter's accrued value
+    if (p.quarterDelta !== null && p.quarterDelta !== undefined && isFinite(p.quarterDelta)) {
+      qVals.push(p.quarterDelta);
+    }
+
+    if (qVals.length === 0) return; // no quarter data yet (early Q1)
+
+    const avgQ     = p.projectedValue / 4;
+    const maxQ     = Math.max(...qVals);
+    const qmxDelta = Math.max(0, maxQ - avgQ);
+    if (qmxDelta <= 0) return;
+
+    p.projectedValue = Math.round((p.projectedValue + qmxDelta) * 100) / 100;
+    p.rating         = calcRating(p.projectedValue);
+  });
 }
 
 // Returns the top stat contributions over the window, sorted by value added (desc).
@@ -701,6 +740,9 @@ async function fetchRatings(mid) {
       Q4: state.completedQuarters[4] ? cqEntry(4) : (currentQ === 4 ? liveEntry() : null),
     };
   });
+
+  // ── Modified projected value (best-quarter bonus) ────────────────────────────
+  applyModProjectedValue(all, state.completedQuarters);
 
   // ── Sort & rank ──────────────────────────────────────────────────────────────
   all.sort((a, b) => b.projectedValue - a.projectedValue);
