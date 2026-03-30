@@ -801,6 +801,12 @@ document.querySelectorAll(".stab").forEach(tab => {
     const target = tab.dataset.screen;
     document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
     document.getElementById("screen-" + target).classList.add("active");
+    if (target === "players") {
+      sortCol = "value"; sortDir = -1;
+      document.querySelectorAll(".ctable thead th").forEach(h => h.classList.remove("sort-asc","sort-desc"));
+      document.querySelector('.ctable thead th[data-col="value"]').classList.add("sort-desc");
+      if (currentData) renderTable(currentData.players, currentData.quarterLog);
+    }
   });
 });
 
