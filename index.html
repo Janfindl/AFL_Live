@@ -714,6 +714,7 @@ header{
             <th data-col="T"   title="Tackles">T</th>
             <th data-col="GA"  title="Goal Assists">GA</th>
             <th data-col="HO"  title="Hit Outs">HO</th>
+            <th data-col="FA"  title="Free Kicks Against">FA</th>
             <th data-col="Q1"  title="Quarter 1 Value">Q1</th>
             <th data-col="Q2"  title="Quarter 2 Value">Q2</th>
             <th data-col="Q3"  title="Quarter 3 Value">Q3</th>
@@ -723,7 +724,7 @@ header{
           </tr>
         </thead>
         <tbody id="tableBody">
-          <tr><td colspan="23" style="text-align:center;padding:32px;color:#8b949e">
+          <tr><td colspan="24" style="text-align:center;padding:32px;color:#8b949e">
             <span class="spinner"></span> Fetching…
           </td></tr>
         </tbody>
@@ -1763,7 +1764,7 @@ function qValColor(v) {
 function renderTable(players, quarterLog) {
   const rows = getSorted(getFiltered(players));
   if (!rows.length) {
-    tbody.innerHTML=`<tr><td colspan="23" style="text-align:center;padding:24px;color:#8b949e">No players match</td></tr>`;
+    tbody.innerHTML=`<tr><td colspan="24" style="text-align:center;padding:24px;color:#8b949e">No players match</td></tr>`;
     return;
   }
   const QUARTERS = ["Q1","Q2","Q3","Q4"];
@@ -1789,7 +1790,7 @@ function renderTable(players, quarterLog) {
       </td>
       <td>${chgBadge(p)}</td>
       ${nc(p.CP)}${nc(p.ED)}${nc(p.CM)}${nc(p["1%"])}${nc(p.SI)}${nc(p.MG)}
-      ${nc(p.TO,true)}${nc(p.ITC)}${nc(p.G)}${nc(p.B)}${nc(p.T)}${nc(p.GA)}${nc(p.HO)}
+      ${nc(p.TO,true)}${nc(p.ITC)}${nc(p.G)}${nc(p.B)}${nc(p.T)}${nc(p.GA)}${nc(p.HO)}${nc(p.FA,true)}
       ${qCells}
       <td>${p.value.toFixed(1)}</td>
       <td style="color:${rc};font-weight:700">${p.projectedValue.toFixed(1)}</td>
