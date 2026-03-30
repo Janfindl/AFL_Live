@@ -10,8 +10,8 @@ const GAME_MINS    = 120;
 const QUARTER_MINS = GAME_MINS / 4;
 const HOT_WINDOW_MS   = 5  * 60 * 1000;  // 5-minute hot window
 const QUIET_WINDOW_MS = 10 * 60 * 1000;  // 10-minute cold window
-const BURST_WINDOW_MS = 15 * 60 * 1000;  // 15-minute burst window
-const BURST_THRESHOLD = 20;              // min value gain to qualify as a burst
+const BURST_WINDOW_MS = 10 * 60 * 1000;  // 10-minute burst window
+const BURST_THRESHOLD = 15;              // min value gain to qualify as a burst
 const HISTORY_MAX     = 42;              // ~10.5 min of snapshots at 15-sec intervals
 
 // ── Formula ───────────────────────────────────────────────────────────────────
