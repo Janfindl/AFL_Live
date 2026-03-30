@@ -802,9 +802,9 @@ document.querySelectorAll(".stab").forEach(tab => {
     document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
     document.getElementById("screen-" + target).classList.add("active");
     if (target === "players") {
-      sortCol = "value"; sortDir = -1;
+      sortCol = "value"; sortDir = 1;
       document.querySelectorAll(".ctable thead th").forEach(h => h.classList.remove("sort-asc","sort-desc"));
-      document.querySelector('.ctable thead th[data-col="value"]').classList.add("sort-desc");
+      document.querySelector('.ctable thead th[data-col="value"]').classList.add("sort-desc"); // sortDir=1 = desc
       if (currentData) renderTable(currentData.players, currentData.quarterLog);
     }
   });
@@ -1147,7 +1147,7 @@ let currentData = null;
 let prevValues  = {};
 let activeTeam  = "all";
 let sortCol     = "value";
-let sortDir     = -1;
+let sortDir     =  1;   // 1=descending, -1=ascending
 let countdown   = REFRESH;
 let selectedQ   = null;
 
@@ -1810,10 +1810,10 @@ function esc(s){ return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/
 document.querySelectorAll(".ctable thead th[data-col]").forEach(th => {
   th.addEventListener("click", () => {
     const col = th.dataset.col;
-    sortDir = sortCol===col ? sortDir*-1 : (col==="rank"||col==="name"?1:-1);
+    sortDir = sortCol===col ? sortDir*-1 : (col==="rank"||col==="name"?-1:1);
     sortCol = col;
     document.querySelectorAll(".ctable thead th").forEach(h=>h.classList.remove("sort-asc","sort-desc"));
-    th.classList.add(sortDir===-1?"sort-desc":"sort-asc");
+    th.classList.add(sortDir===1?"sort-desc":"sort-asc");
     if(currentData) renderTable(currentData.players, currentData.quarterLog);
   });
 });
