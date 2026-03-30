@@ -511,9 +511,12 @@ header{
 <header>
   <div style="display:flex;align-items:center;gap:10px;min-width:0;flex:1">
     <div class="logo">AFL <span>Live</span></div>
-    <div class="match-pill" style="min-width:0">
-      <span class="qtr" id="qtrLabel">—</span>
-      <span style="color:#8b949e;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="teamsLabel">Loading…</span>
+    <div class="match-pill" style="min-width:0;flex-direction:column;align-items:flex-start;gap:1px;padding:4px 14px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="qtr" id="qtrLabel">—</span>
+        <span style="color:#8b949e;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="teamsLabel">Loading…</span>
+      </div>
+      <span id="roundVenueLabel" style="font-size:10px;color:#484f58;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%"></span>
     </div>
     <div class="live-badge"><div class="live-dot"></div> Live</div>
   </div>
@@ -526,8 +529,6 @@ header{
 
   <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
     <button class="chg-game-btn" id="chgGameBtn">Change</button>
-    <button class="chg-game-btn" id="watchNextBtn" style="display:none">👁 Next</button>
-    <button class="chg-game-btn" id="downloadBtn"  style="display:none">↓ Save</button>
     <div class="refresh-info">
       <span class="countdown" id="countdown">15</span>s
       <div class="ring">
@@ -779,6 +780,15 @@ let tickInterval = null;
 let fixtureRounds = null;   // cached fixture data
 let savedGames    = new Set(); // fw_ids with server-side saved data
 
+function setRoundVenue(mid) {
+  const el = document.getElementById("roundVenueLabel");
+  if (!el || !fixtureRounds) return;
+  const game = fixtureRounds.flatMap(r => r.games).find(g => String(g.fw_id) === String(mid));
+  if (!game) return;
+  const parts = [game.roundName, game.venue].filter(Boolean);
+  el.textContent = parts.join(" · ");
+}
+
 // ── Live game polling ─────────────────────────────────────────────────────────
 const liveGames   = {};   // fw_id -> true  (confirmed live via probe)
 let pollTimer     = null; // master 5-sec interval
@@ -933,10 +943,8 @@ async function tryAutoLoad(mid) {
     const data = await res.json();
     if (data.error || !data.players || !data.players.length) return false;
     activeMid = String(mid);
-    stopWatch();
+    setRoundVenue(mid);
     stopFixturePolling();
-    document.getElementById("downloadBtn").style.display = "";
-    document.getElementById("watchNextBtn").style.display = "";
     document.getElementById("gsOverlay").style.display = "none";
     prevValues = {};
     currentData = null;
@@ -1009,12 +1017,6 @@ function showGameSelect(errMsg) {
   }
 }
 
-function stopWatch() {
-  clearInterval(watchInterval);
-  watchInterval = null;
-  const wb = document.getElementById("watchNextBtn");
-  if (wb) { wb.textContent = "👁 Next"; wb.title = "Poll for next sequential game"; }
-}
 
 async function startGame(mid) {
   mid = String(mid).trim();
@@ -1034,10 +1036,8 @@ async function startGame(mid) {
     if (!data.players || !data.players.length) throw new Error("No data recorded for this game.");
 
     activeMid = mid;
-    stopWatch();
+    setRoundVenue(mid);
     stopFixturePolling();
-    document.getElementById("downloadBtn").style.display = "";
-    document.getElementById("watchNextBtn").style.display = "";
     document.getElementById("gsOverlay").style.display = "none";
     prevValues = {};
     currentData = null;
@@ -1085,41 +1085,6 @@ async function importGameData(mid, input) {
 }
 
 document.getElementById("chgGameBtn").addEventListener("click", () => showGameSelect());
-document.getElementById("downloadBtn").addEventListener("click", () => {
-  if (!activeMid) return;
-  const a = document.createElement("a");
-  a.href = `/api/download?mid=${encodeURIComponent(activeMid)}`;
-  a.download = `afl_game_${activeMid}.json`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-});
-
-// ── Watch Next ────────────────────────────────────────────────────────────────
-let watchInterval = null;
-let watchMid = null;
-
-document.getElementById("watchNextBtn").addEventListener("click", () => {
-  const wb = document.getElementById("watchNextBtn");
-  if (watchInterval) { stopWatch(); return; }
-  if (!activeMid) return;
-  watchMid = parseInt(activeMid) + 1;
-  wb.textContent = `👁 ${watchMid}…`;
-  wb.title = `Polling mid=${watchMid} every 30s — click to stop`;
-  async function probe() {
-    try {
-      const r = await fetch(`/api/probe?mid=${watchMid}`);
-      const d = await r.json();
-      if (d.found) {
-        stopWatch();
-        const label = d.teams.join(" vs ") || `Game ${watchMid}`;
-        if (confirm(`New game found: ${label}\n\nSwitch to it now?`)) startGame(String(watchMid));
-      }
-    } catch(e) { /* ignore */ }
-  }
-  probe();
-  watchInterval = setInterval(probe, 30000);
-});
 
 document.getElementById("qtopTabs").addEventListener("click", e => {
   const tab = e.target.closest(".qtop-tab");
@@ -1579,11 +1544,12 @@ function renderMomentum(momentum, teams, quarterStartTs, scoreEvents) {
       const winAbbr = diff > 0 ? teamAbbr(t1) : teamAbbr(t2);
       const winC    = diff > 0 ? c1 : c2;
       const margin  = Math.abs(diff).toFixed(1);
-      const lastIdx = bins.indexOf(qBins[qBins.length - 1]);
-      const x = ((lastIdx + 1) * barW - 3).toFixed(1);
-      const y = diff > 0 ? (midY - 4).toFixed(1) : (midY + 11).toFixed(1);
-      return `<text x="${x}" y="${y}" text-anchor="end"
-        fill="${winC}" font-size="9" font-family="sans-serif" font-weight="800" opacity="0.95"
+      // Anchor to the start of the quarter (same x as the Qx label), just below it
+      const startIdx = bins.indexOf(qBins[0]);
+      const x = (startIdx * barW + 4).toFixed(1);
+      const y = diff > 0 ? (midY - 3).toFixed(1) : (midY + 15).toFixed(1);
+      return `<text x="${x}" y="${y}" text-anchor="start"
+        fill="${winC}" font-size="12" font-family="sans-serif" font-weight="800" opacity="0.95"
         >${winAbbr} +${margin}</text>`;
     }).join("");
 
