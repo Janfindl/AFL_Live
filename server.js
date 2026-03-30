@@ -16,21 +16,22 @@ const HISTORY_MAX     = 42;              // ~10.5 min of snapshots at 15-sec int
 
 // ── Formula ───────────────────────────────────────────────────────────────────
 const WEIGHTS = {
-  CP:   0.8962150068520374,
-  ED:   0.7968879864324794,
-  CM:   0.9222372631321538,
-  "1%": 0.6398048905259526,
-  SI:   0.449900466686957,
-  MG:   0.02012467643642767,
-  TO:  -0.8690147413415404,
-  ITC:  0.45580331941919333,
-  G:    4.451968483148417,
-  B:   -1.1085983290944166,
-  T:    0.770907475619704,
-  GA:   0.9998240754615281,
-  HO:   0.2635684440920885,
+  CP:   0.916753,
+  ED:   0.799711,
+  CM:   0.924184,
+  "1%": 0.680905,
+  SI:   0.453731,
+  MG:   0.019095,
+  TO:  -0.718576,
+  ITC:  0.438471,
+  G:    4.479627,
+  B:   -1.096947,
+  T:    0.810325,
+  GA:   1.002275,
+  HO:   0.283985,
+  FA:  -1.105267,
 };
-const CONSTANT = 5.475487260287346;
+const CONSTANT = 5.909483;
 
 function calcRating(value) {
   let raw;
@@ -141,7 +142,7 @@ function parseTable(html, colMap) {
   return players;
 }
 
-const BASIC_MAP = { _name: 1, G: 6, B: 7, T: 8, HO: 9, GA: 10 };
+const BASIC_MAP = { _name: 1, G: 6, B: 7, T: 8, HO: 9, GA: 10, FF: 15, FA: 16 };
 const ADV_MAP   = { _name: 1, CP: 2, ED: 4, CM: 6, "1%": 8, SI: 12, MG: 13, TO: 14, ITC: 15 };
 
 function mergeTeam(basicHtml, advHtml, teamName) {
