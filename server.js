@@ -10,6 +10,8 @@ const GAME_MINS    = 120;
 const QUARTER_MINS = GAME_MINS / 4;
 const HOT_WINDOW_MS   = 5  * 60 * 1000;  // 5-minute hot window
 const QUIET_WINDOW_MS = 10 * 60 * 1000;  // 10-minute cold window
+const BURST_WINDOW_MS = 15 * 60 * 1000;  // 15-minute burst window
+const BURST_THRESHOLD = 20;              // min value gain to qualify as a burst
 const HISTORY_MAX     = 42;              // ~10.5 min of snapshots at 15-sec intervals
 
 // ── Formula ───────────────────────────────────────────────────────────────────
@@ -329,6 +331,7 @@ function buildCachedResponse(cached) {
     momentum:        cached.momentum     || [],
     scoreEvents:     cached.scoreEvents  || [],
     quarterStartTs:  cached.quarterStartTs || {},
+    bursts:          computeBursts(cached.fetches || []),
     summary,
     fetchedAt:       new Date().toISOString(),
   };
@@ -356,6 +359,67 @@ function getRefSnapshot(windowMs, minTs = 0, snapshotHistory) {
   if (inQuarter.length === 0) return null;
   const older = inQuarter.filter(s => s.ts <= targetTs);
   return older.length > 0 ? older[older.length - 1] : inQuarter[0];
+}
+
+// ── Burst detection ───────────────────────────────────────────────────────────
+// Scans the fetch log for any 15-minute window where a player gained 20+ value.
+// Returns non-overlapping bursts per player, sorted by gain descending.
+function computeBursts(fetchLog) {
+  // Rebuild per-player value time series from the fetch log.
+  // Each action stores the current cumulative value in `v`.
+  const playerMap = new Map(); // name -> { team, series: [{ts, value}] }
+
+  for (const entry of (fetchLog || [])) {
+    for (const action of (entry.actions || [])) {
+      if (action.v === undefined) continue;
+      if (!playerMap.has(action.n)) playerMap.set(action.n, { team: null, series: [] });
+      const ps = playerMap.get(action.n);
+      if (action.tm) ps.team = action.tm;
+      ps.series.push({ ts: entry.ts, value: action.v });
+    }
+  }
+
+  const allBursts = [];
+
+  for (const [name, { team, series }] of playerMap) {
+    if (series.length < 2) continue;
+
+    // Greedy left-to-right scan: find earliest burst, then skip past it.
+    let nextAllowedIdx = 0;
+
+    for (let i = 0; i < series.length; i++) {
+      if (i < nextAllowedIdx) continue;
+
+      const startTs  = series[i].ts;
+      const startVal = series[i].value;
+      const winEnd   = startTs + BURST_WINDOW_MS;
+
+      // Find the highest-gain point within the 15-min window
+      let bestGain   = 0;
+      let bestEndIdx = -1;
+
+      for (let j = i + 1; j < series.length; j++) {
+        if (series[j].ts > winEnd) break;
+        const gain = series[j].value - startVal;
+        if (gain > bestGain) { bestGain = gain; bestEndIdx = j; }
+      }
+
+      if (bestGain >= BURST_THRESHOLD) {
+        allBursts.push({
+          name,
+          team,
+          startTs,
+          endTs:  series[bestEndIdx].ts,
+          gain:   Math.round(bestGain * 100) / 100,
+        });
+        nextAllowedIdx = bestEndIdx + 1;
+        i = bestEndIdx;
+      }
+    }
+  }
+
+  allBursts.sort((a, b) => b.gain - a.gain || a.startTs - b.startTs);
+  return allBursts;
 }
 
 // Returns the top stat contributions over the window, sorted by value added (desc).
@@ -770,6 +834,7 @@ async function fetchRatings(mid) {
     hotWindowMins:   hotWindowMins,
     quietWindowMins: quietWindowMins,
     momentum,
+    bursts:          computeBursts(state.fetchLog),
     summary,
     fetchedAt:       new Date().toISOString(),
   };

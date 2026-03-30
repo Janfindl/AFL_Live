@@ -171,6 +171,21 @@ header{
   content:"🏆";position:absolute;right:8px;top:50%;transform:translateY(-50%);
   font-size:80px;opacity:.13;pointer-events:none;line-height:1;
 }
+.hc-header-burst{
+  background:linear-gradient(105deg,#1a0028 0%,#10001a 60%,#161b22 100%);
+  border-bottom:1px solid rgba(180,100,255,.35);
+  position:relative;overflow:hidden;
+}
+.hc-header-burst .hc-title{color:#c084fc}
+.hc-header-burst::after{
+  content:"⚡";position:absolute;right:8px;top:50%;transform:translateY(-50%);
+  font-size:80px;opacity:.13;pointer-events:none;line-height:1;
+}
+.burst-time{
+  font-size:10px;font-weight:700;color:#a78bfa;letter-spacing:.2px;
+  background:rgba(167,139,250,.12);border:1px solid rgba(167,139,250,.25);
+  padding:2px 7px;border-radius:4px;white-space:nowrap;
+}
 
 /* Quarter tab toggles */
 .qtop-tab{
@@ -518,7 +533,7 @@ header{
       </div>
       <span id="roundVenueLabel" style="font-size:10px;color:#484f58;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%"></span>
     </div>
-    <div class="live-badge"><div class="live-dot"></div> Live</div>
+    <div class="live-badge" id="liveBadge"><div class="live-dot"></div> Live</div>
   </div>
 
   <!-- Screen tabs centred -->
@@ -584,6 +599,7 @@ header{
       <button class="mpanel-tab" data-panel="1">🏆 Quarter</button>
       <button class="mpanel-tab" data-panel="2">🔥 Hot</button>
       <button class="mpanel-tab" data-panel="3">❄️ Cold</button>
+      <button class="mpanel-tab" data-panel="4">⚡ Burst</button>
     </div>
 
     <!-- Best | Quarter | Hot | Cold panels -->
@@ -638,6 +654,19 @@ header{
           <div class="hc-badge hc-badge-cold">Last <span id="quietWindowLbl">10</span> min · vs pace</div>
         </div>
         <div class="hc-list" id="quietList">
+          <div style="padding:20px;text-align:center;color:#8b949e;font-size:11px">
+            <span class="spinner"></span> Building history…
+          </div>
+        </div>
+      </div>
+
+      <!-- Burst -->
+      <div class="panel-col">
+        <div class="hc-header hc-header-burst">
+          <div class="hc-title">⚡ Burst</div>
+          <div class="hc-badge" style="background:rgba(180,100,255,.18);color:#c084fc">20+ pts · 15 min window</div>
+        </div>
+        <div class="hc-list" id="burstList">
           <div style="padding:20px;text-align:center;color:#8b949e;font-size:11px">
             <span class="spinner"></span> Building history…
           </div>
@@ -1193,6 +1222,12 @@ function render(data) {
   updateQTopTabs(data, qToShow);
   renderQTop(getQTop5ForQ(qToShow, data), qToShow);
 
+  // Live badge visibility
+  document.getElementById("liveBadge").style.display = data.inProgress ? "" : "none";
+
+  // Burst
+  renderBurst(data.bursts, data.quarterStartTs);
+
   // Momentum
   renderMomentum(data.momentum, data.teams, data.quarterStartTs, data.scoreEvents);
 
@@ -1334,6 +1369,55 @@ function renderQuiet(quiet5, windowMins) {
   }).join("");
 }
 
+// ── Burst list ────────────────────────────────────────────────────────────────
+function tsToGameTime(ts, quarterStartTs) {
+  const qs = quarterStartTs || {};
+  const entries = Object.entries(qs).map(([q, t]) => [Number(q), t]).sort((a, b) => a[0] - b[0]);
+  if (entries.length === 0) return "—";
+  let quarter = entries[0][0], qStartTs = entries[0][1];
+  for (const [q, qTs] of entries) {
+    if (ts >= qTs) { quarter = q; qStartTs = qTs; }
+  }
+  const elapsedMs = Math.max(0, ts - qStartTs);
+  const mins = Math.floor(elapsedMs / 60000);
+  const secs = Math.floor((elapsedMs % 60000) / 1000);
+  return `Q${quarter} ${mins}:${String(secs).padStart(2, "0")}`;
+}
+
+function renderBurst(bursts, quarterStartTs) {
+  const el = document.getElementById("burstList");
+  if (!bursts || bursts.length === 0) {
+    el.innerHTML = `<div style="padding:20px;text-align:center;color:#8b949e;font-size:11px">No bursts yet — needs 20+ pts in 15 min</div>`;
+    return;
+  }
+  el.innerHTML = bursts.map((b, i) => {
+    const col    = teamColor(b.team);
+    const abbr   = teamAbbr(b.team);
+    const cardBg = i % 2 === 0 ? "#13181f" : "#0f1318";
+    const t1     = tsToGameTime(b.startTs, quarterStartTs);
+    const t2     = tsToGameTime(b.endTs,   quarterStartTs);
+    return `<div class="hc-card" style="background:${cardBg}">
+      <div class="hc-glow" style="background:#c084fc"></div>
+      <div class="hc-rank-wrap">
+        <div class="hc-rank" style="background:rgba(192,132,252,.15);color:#c084fc">${i + 1}</div>
+      </div>
+      <div class="hc-info">
+        <div class="hc-name" style="color:${col.txt}">${esc(b.name)}</div>
+        <div class="hc-meta">
+          <span class="hc-team" style="background:${col.bg};color:${col.txt}">${abbr}</span>
+        </div>
+        <div class="hc-stats" style="margin-top:8px">
+          <span class="burst-time">${t1} – ${t2}</span>
+        </div>
+      </div>
+      <div class="hc-right">
+        <div class="hc-delta" style="color:#c084fc">+${b.gain.toFixed(1)}</div>
+        <div class="hc-delta-sub">value burst</div>
+      </div>
+    </div>`;
+  }).join("");
+}
+
 // ── Quarter top-5 ─────────────────────────────────────────────────────────────
 function getQTop5ForQ(q, data) {
   if (!q || !data) return null;
@@ -1456,7 +1540,7 @@ function renderQuarterLog(quarterLog, players) {
 
 // ── Momentum chart ────────────────────────────────────────────────────────────
 function renderMomentum(momentum, teams, quarterStartTs, scoreEvents) {
-  const el     = document.getElementById("momentumChart");
+  const el = document.getElementById("momentumChart");
   const [t1, t2] = teams;
   const c1 = teamColor(t1).txt, c2 = teamColor(t2).txt;
 
@@ -1465,124 +1549,124 @@ function renderMomentum(momentum, teams, quarterStartTs, scoreEvents) {
     return;
   }
 
-  const W = 1000, H = 90, SCORE_H = 14, chartH = H - SCORE_H, midY = chartH / 2;
-  const n = momentum.length;
-  const firstTs = momentum[0].ts, lastTs = momentum[n-1].ts;
-  const tsRange = Math.max(lastTs - firstTs, 1);
-  const tsToX = ts => Math.max(0, Math.min(W, ((ts - firstTs) / tsRange) * W));
+  // Layout constants
+  const W       = 1000;
+  const LABEL_H = 14;                     // top strip: Q labels + winner labels
+  const SCORE_H = 14;                     // bottom strip: goal/behind markers
+  const H       = 90 + LABEL_H;          // total SVG height = 104
+  const chartH  = H - LABEL_H - SCORE_H; // bar area height = 76
+  const midY    = LABEL_H + chartH / 2;  // centre line y = 52
 
-  // ── Build 2-minute discrete bins ────────────────────────────────────────────
-  const BIN_MS = 2 * 60 * 1000;
-  const numBins = Math.max(1, Math.ceil((lastTs - firstTs) / BIN_MS));
+  // Fixed time axis anchored to Q1 start, spanning 120 game minutes
+  const GAME_MS   = 120 * 60 * 1000;
+  const BIN_MS    = 2  * 60 * 1000;
+  const gameStartTs = (quarterStartTs && quarterStartTs[1]) ? quarterStartTs[1] : momentum[0].ts;
+  const tsToX = ts => Math.max(0, Math.min(W, (ts - gameStartTs) / GAME_MS * W));
+
+  // Fixed bar width based on time (2 min / 120 min * 1000px ≈ 16.7px)
+  const fixedBinW = BIN_MS / GAME_MS * W;
+  const gap = Math.max(0.5, fixedBinW * 0.12);
+  const bw  = Math.max(1, fixedBinW - gap);
+
+  // Build 2-minute bins on the fixed time grid
+  const lastTs  = momentum[momentum.length - 1].ts;
+  const numBins = Math.ceil((lastTs - gameStartTs) / BIN_MS) + 1;
   const bins = [];
   for (let b = 0; b < numBins; b++) {
-    const binStart = firstTs + b * BIN_MS;
+    const binStart = gameStartTs + b * BIN_MS;
     const binEnd   = binStart + BIN_MS;
-    const inBin    = momentum.filter(p => p.ts >= binStart && p.ts < binEnd);
-    const before   = momentum.filter(p => p.ts < binStart);
-    const baseT1   = before.length > 0 ? before[before.length - 1].t1 : momentum[0].t1;
-    const baseT2   = before.length > 0 ? before[before.length - 1].t2 : momentum[0].t2;
+    if (binStart > lastTs + BIN_MS) break;
+    const inBin  = momentum.filter(p => p.ts >= binStart && p.ts < binEnd);
+    const before = momentum.filter(p => p.ts < binStart);
+    const baseT1 = before.length > 0 ? before[before.length - 1].t1 : momentum[0].t1;
+    const baseT2 = before.length > 0 ? before[before.length - 1].t2 : momentum[0].t2;
     if (inBin.length > 0) {
       const endT1   = inBin[inBin.length - 1].t1;
       const endT2   = inBin[inBin.length - 1].t2;
       const homeVal = Math.max(0, endT1 - baseT1);
       const awayVal = Math.max(0, endT2 - baseT2);
-      // skip bins with no actual change (quarter breaks / no-play periods)
-      if (homeVal > 0 || awayVal > 0) {
-        bins.push({ binStart, binEnd, homeVal, awayVal });
-      }
+      if (homeVal > 0 || awayVal > 0) bins.push({ binStart, binEnd, homeVal, awayVal });
     }
   }
 
-  // Net per bin: positive = home dominated, negative = away dominated
-  // Bins are play-only (gaps removed), spaced evenly across chart width
   const nets   = bins.map(b => b.homeVal - b.awayVal);
   const maxAbs = Math.max(...nets.map(Math.abs), 1);
-  const nb     = Math.max(bins.length, 1);
-  const barW   = W / nb;
-  const gap    = Math.max(1, barW * 0.18);
-  const bw     = Math.max(1, barW - gap);
-  const scaleH = midY - 4;
+  const scaleH = chartH / 2 - 4;
 
+  // Bars positioned at real timestamps
   const bars = nets.map((net, i) => {
-    const h   = (Math.abs(net) / maxAbs) * scaleH;
+    const h = (Math.abs(net) / maxAbs) * scaleH;
     if (h < 0.5) return "";
     const col = net >= 0 ? c1 : c2;
-    const x   = (i * barW + gap / 2).toFixed(1);
+    const x   = tsToX(bins[i].binStart).toFixed(1);
     const y   = net >= 0 ? (midY - h).toFixed(1) : midY.toFixed(1);
     return `<rect x="${x}" y="${y}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" fill="${col}" opacity="0.85"/>`;
   }).join("");
 
-  // ── Quarter markers (mapped to play-only bin index) ──────────────────────────
-  // Find the first bin index that falls at or after each quarter start
-  const binIdxToX = idx => idx * barW;
-  const q1Label = bins.length > 0
-    ? `<text x="3" y="9" fill="#484f58" font-size="9" font-family="sans-serif" font-weight="700">Q1</text>`
-    : "";
-  const qMarkers = Object.entries(quarterStartTs||{})
-    .filter(([q]) => Number(q) >= 2)
-    .map(([q, ts]) => {
-      const idx = bins.findIndex(b => b.binStart >= ts);
-      if (idx < 0) return "";
-      const x = binIdxToX(idx).toFixed(1);
-      return `<line x1="${x}" y1="0" x2="${x}" y2="${chartH}" stroke="#484f58" stroke-width="1" stroke-dasharray="3,3"/>
-              <text x="${+x+3}" y="9" fill="#484f58" font-size="9" font-family="sans-serif" font-weight="700">Q${q}</text>`;
-    }).join("");
+  // Quarter markers: dashed vertical lines + Q label in top strip (left-aligned)
+  const qEntries = Object.entries(quarterStartTs || {})
+    .map(([q, ts]) => [Number(q), ts])
+    .sort((a, b) => a[0] - b[0]);
 
-  // ── Quarter winner labels (completed quarters only) ──────────────────────────
-  const qWinLabels = Object.entries(quarterStartTs||{})
-    .sort((a, b) => Number(a[0]) - Number(b[0]))
-    .map(([q, startTs], i, arr) => {
-      const nextTs = arr[i + 1]?.[1];
-      if (!nextTs) return ""; // skip current/incomplete quarter
-      const qBins   = bins.filter(b => b.binStart >= startTs && b.binStart < nextTs);
-      if (qBins.length === 0) return "";
-      const homeSum = qBins.reduce((s, b) => s + b.homeVal, 0);
-      const awaySum = qBins.reduce((s, b) => s + b.awayVal, 0);
-      const diff    = homeSum - awaySum;
-      if (Math.abs(diff) < 0.1) return "";
-      const winAbbr = diff > 0 ? teamAbbr(t1) : teamAbbr(t2);
-      const winC    = diff > 0 ? c1 : c2;
-      const margin  = Math.abs(diff).toFixed(1);
-      // Anchor to the start of the quarter (same x as the Qx label), just below it
-      const startIdx = bins.indexOf(qBins[0]);
-      const x = (startIdx * barW + 4).toFixed(1);
-      const y = diff > 0 ? (midY - 3).toFixed(1) : (midY + 15).toFixed(1);
-      return `<text x="${x}" y="${y}" text-anchor="start"
-        fill="${winC}" font-size="12" font-family="sans-serif" font-weight="800" opacity="0.95"
-        >${winAbbr} +${margin}</text>`;
-    }).join("");
+  const qMarkers = qEntries.map(([q, ts]) => {
+    const x = tsToX(ts).toFixed(1);
+    const labelY = LABEL_H - 3; // baseline y for 9px text in 14px strip
+    if (q === 1) {
+      // Q1 is at x≈0, just show label — no line needed
+      return `<text x="3" y="${labelY}" fill="#484f58" font-size="9" font-family="sans-serif" font-weight="700">Q1</text>`;
+    }
+    return `<line x1="${x}" y1="0" x2="${x}" y2="${H - SCORE_H}" stroke="#484f58" stroke-width="1" stroke-dasharray="3,3"/>
+            <text x="${(+x + 3).toFixed(1)}" y="${labelY}" fill="#484f58" font-size="9" font-family="sans-serif" font-weight="700">Q${q}</text>`;
+  }).join("");
 
-  // ── Score event markers (mapped to nearest play bin) ────────────────────────
-  const scoreMarkers = (scoreEvents||[])
+  // Quarter winner labels: right-aligned before the NEXT quarter marker, in top strip
+  // This keeps them out of the bar chart area entirely
+  const qWinLabels = qEntries.map(([q, startTs], i) => {
+    const nextEntry = qEntries[i + 1];
+    if (!nextEntry) return ""; // Q4 ongoing — no end marker yet
+    const [, nextTs] = nextEntry;
+    const qBins = bins.filter(b => b.binStart >= startTs && b.binStart < nextTs);
+    if (qBins.length === 0) return "";
+    const homeSum = qBins.reduce((s, b) => s + b.homeVal, 0);
+    const awaySum = qBins.reduce((s, b) => s + b.awayVal, 0);
+    const diff    = homeSum - awaySum;
+    if (Math.abs(diff) < 0.1) return "";
+    const winAbbr = diff > 0 ? teamAbbr(t1) : teamAbbr(t2);
+    const winC    = diff > 0 ? c1 : c2;
+    const margin  = Math.abs(diff).toFixed(1);
+    const x = (tsToX(nextTs) - 3).toFixed(1);
+    return `<text x="${x}" y="${LABEL_H - 3}" text-anchor="end"
+      fill="${winC}" font-size="11" font-family="sans-serif" font-weight="800" opacity="0.95"
+      >${winAbbr} +${margin}</text>`;
+  }).join("");
+
+  // Score event markers positioned by real timestamp
+  const firstTs = momentum[0].ts;
+  const scoreMarkers = (scoreEvents || [])
     .filter(e => e.ts >= firstTs && e.ts <= lastTs + 30000)
     .map(e => {
-      // find the bin that contains this event (or the nearest one before it)
-      let idx = bins.findLastIndex(b => b.binStart <= e.ts);
-      if (idx < 0) idx = 0;
-      const x   = (binIdxToX(idx) + barW / 2).toFixed(1);
+      const x   = tsToX(e.ts).toFixed(1);
       const col = teamColor(e.team).txt;
-      const y0  = chartH + 1;
+      const y0  = H - SCORE_H + 1;
       return e.type === 'G'
         ? `<polygon points="${x},${y0+1} ${+x-5},${y0+SCORE_H-2} ${+x+5},${y0+SCORE_H-2}" fill="${col}" opacity="0.9"/>`
         : `<circle cx="${x}" cy="${y0+7}" r="3.5" fill="${col}" opacity="0.4"/>`;
     }).join("");
 
-  // ── Leader label (overall net across all bins) ───────────────────────────────
+  // Overall leader label
   const totalNet   = nets.reduce((s, v) => s + v, 0);
-  const leader     = totalNet >= 0 ? t1 : t2;
   const leaderC    = totalNet >= 0 ? c1 : c2;
-  const leaderAbbr = teamAbbr(leader);
+  const leaderAbbr = teamAbbr(totalNet >= 0 ? t1 : t2);
 
   el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
     ${bars}
     <line x1="0" y1="${midY}" x2="${W}" y2="${midY}" stroke="#30363d" stroke-width="1"/>
-    ${q1Label}${qMarkers}
+    ${qMarkers}
     ${qWinLabels}
     <text x="${W-4}" y="${midY-4}" text-anchor="end"
           fill="${leaderC}" font-size="11" font-family="sans-serif" font-weight="800"
           >${leaderAbbr}</text>
-    <line x1="0" y1="${chartH}" x2="${W}" y2="${chartH}" stroke="#30363d" stroke-width="0.5"/>
+    <line x1="0" y1="${H - SCORE_H}" x2="${W}" y2="${H - SCORE_H}" stroke="#30363d" stroke-width="0.5"/>
     ${scoreMarkers}
   </svg>`;
 }
