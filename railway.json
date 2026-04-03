@@ -1,0 +1,10 @@
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "deploy": {
+    "watchPatterns": [
+      "server.js",
+      "package.json",
+      "package-lock.json"
+    ]
+  }
+}
