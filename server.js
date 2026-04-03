@@ -292,12 +292,30 @@ async function ghPushGame(mid) {
 function scheduleGhPush(mid, urgent = false) {
   if (!GH_TOKEN || !GH_REPO) return;
   if (ghPushQueue.has(mid)) clearTimeout(ghPushQueue.get(mid));
-  const delay = urgent ? 5000 : 5 * 60 * 1000;  // 5 s for game-end, 5 min otherwise
+  const delay = urgent ? 5000 : 60 * 1000;  // 5 s for game-end, 1 min otherwise
   ghPushQueue.set(mid, setTimeout(() => {
     ghPushQueue.delete(mid);
     ghPushGame(mid).catch(e => console.error(`[github] push mid=${mid}:`, e.message));
   }, delay));
 }
+
+// On SIGTERM (Railway redeploy/shutdown), flush all pending GitHub pushes before exiting
+// so in-progress game data is never lost when a new deploy is triggered.
+async function flushAndExit() {
+  const pending = [...ghPushQueue.keys()];
+  if (pending.length > 0) {
+    console.log(`[github] SIGTERM — flushing ${pending.length} pending push(es)...`);
+    for (const mid of pending) {
+      clearTimeout(ghPushQueue.get(mid));
+      ghPushQueue.delete(mid);
+      try { await ghPushGame(mid); }
+      catch(e) { console.error(`[github] flush push mid=${mid}: ${e.message}`); }
+    }
+  }
+  process.exit(0);
+}
+process.on("SIGTERM", flushAndExit);
+process.on("SIGINT",  flushAndExit);
 
 // ── saveGameData: write locally + schedule GitHub push ────────────────────────
 function saveGameData(mid, state) {
