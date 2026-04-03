@@ -649,8 +649,7 @@ async function fetchRatings(mid) {
   });
 
   // ── 5-min hot delta ───────────────────────────────────────────────────────────
-  const qMinTs        = state.quarterStartTs[currentQ] || 0;
-  const hotRef        = getRefSnapshot(HOT_WINDOW_MS, qMinTs, snapshotHistory);
+  const hotRef        = getRefSnapshot(HOT_WINDOW_MS, 0, snapshotHistory);
   const hotWindowMs   = hotRef ? Date.now() - hotRef.ts : 0;
   const hotWindowMins = Math.round(hotWindowMs / 6000) / 10;
 
@@ -661,7 +660,7 @@ async function fetchRatings(mid) {
   });
 
   // ── 10-min cold delta ─────────────────────────────────────────────────────────
-  const quietRef      = getRefSnapshot(QUIET_WINDOW_MS, qMinTs, snapshotHistory);
+  const quietRef      = getRefSnapshot(QUIET_WINDOW_MS, 0, snapshotHistory);
   const quietWindowMs = quietRef ? Date.now() - quietRef.ts : 0;
   const quietWindowMins = Math.round(quietWindowMs / 6000) / 10;
   const quietWindowFrac = quietWindowMins / GAME_MINS;
@@ -721,7 +720,6 @@ async function fetchRatings(mid) {
     }
     state.trackedQuarter              = currentQ;
     state.quarterStartTs[currentQ]    = Date.now();
-    snapshotHistory.length            = 0;  // flush hot/cold — new quarter starts clean
     state.quarterBaseline             = {};
     all.forEach(p => {
       state.quarterBaseline[p.name] = { v: p.value };
