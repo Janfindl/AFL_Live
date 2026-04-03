@@ -1022,11 +1022,19 @@ async function loadFixture() {
       `<option value="${i}">${r.roundName}</option>`
     ).join("");
 
-    // Auto-select: most recent round with at least one played/live game
+    // Auto-select priority:
+    // 1. Any round with a live game
+    // 2. Most recent round with saved data
+    // 3. Most recent round with any completed game
     let defaultIdx = 0;
+    let fallbackIdx = 0;
     for (let i = fixtureRounds.length - 1; i >= 0; i--) {
-      if (fixtureRounds[i].games.some(g => g.complete > 0)) { defaultIdx = i; break; }
+      const games = fixtureRounds[i].games;
+      if (games.some(g => g.complete > 0 && g.complete < 100)) { defaultIdx = i; break; }
+      if (fallbackIdx === 0 && games.some(g => g.complete >= 100 && savedGames.has(g.fw_id))) fallbackIdx = i;
+      if (fallbackIdx === 0 && games.some(g => g.complete > 0)) fallbackIdx = i;
     }
+    if (defaultIdx === 0) defaultIdx = fallbackIdx;
     selEl.value = defaultIdx;
     renderFixtureRound(defaultIdx);
   } catch(e) {
