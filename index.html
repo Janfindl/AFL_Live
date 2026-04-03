@@ -172,18 +172,18 @@ header{
   font-size:80px;opacity:.13;pointer-events:none;line-height:1;
 }
 .hc-header-burst{
-  background:linear-gradient(105deg,#1f0a10 0%,#150008 60%,#161b22 100%);
-  border-bottom:1px solid rgba(251,113,133,.35);
+  background:linear-gradient(105deg,#1a0028 0%,#10001a 60%,#161b22 100%);
+  border-bottom:1px solid rgba(180,100,255,.35);
   position:relative;overflow:hidden;
 }
-.hc-header-burst .hc-title{color:#fb7185}
+.hc-header-burst .hc-title{color:#c084fc}
 .hc-header-burst::after{
   content:"⚡";position:absolute;right:8px;top:50%;transform:translateY(-50%);
   font-size:80px;opacity:.13;pointer-events:none;line-height:1;
 }
 .burst-time{
-  font-size:10px;font-weight:700;color:#fda4af;letter-spacing:.2px;
-  background:rgba(251,113,133,.12);border:1px solid rgba(251,113,133,.25);
+  font-size:10px;font-weight:700;color:#a78bfa;letter-spacing:.2px;
+  background:rgba(167,139,250,.12);border:1px solid rgba(167,139,250,.25);
   padding:2px 7px;border-radius:4px;white-space:nowrap;
 }
 .burst-quarter{
@@ -671,7 +671,7 @@ header{
       <div class="panel-col">
         <div class="hc-header hc-header-burst">
           <div class="hc-title">⚡ Burst</div>
-          <div class="hc-badge" style="background:rgba(251,113,133,.18);color:#fb7185">10+ pts · 10 min window</div>
+          <div class="hc-badge" style="background:rgba(180,100,255,.18);color:#c084fc">10+ pts · 10 min window</div>
         </div>
         <div class="hc-list" id="burstList">
           <div style="padding:20px;text-align:center;color:#8b949e;font-size:11px">
@@ -1422,9 +1422,9 @@ function renderBurst(bursts, quarterStartTs) {
     const qClass = qNum ? `q${qNum}` : "";
     const qBadge = qNum ? `<span class="burst-quarter ${qClass}">Q${qNum}</span>` : "";
     return `<div class="hc-card" style="background:${cardBg}">
-      <div class="hc-glow" style="background:#fb7185"></div>
+      <div class="hc-glow" style="background:#c084fc"></div>
       <div class="hc-rank-wrap">
-        <div class="hc-rank" style="background:rgba(251,113,133,.15);color:#fb7185">${i + 1}</div>
+        <div class="hc-rank" style="background:rgba(192,132,252,.15);color:#c084fc">${i + 1}</div>
       </div>
       <div class="hc-info">
         <div class="hc-name" style="color:${col.txt}">${esc(b.name)}</div>
@@ -1438,7 +1438,7 @@ function renderBurst(bursts, quarterStartTs) {
         <div class="hc-stats" style="margin-top:5px">${statChips(b.statContribs, true)}</div>
       </div>
       <div class="hc-right">
-        <div class="hc-delta" style="color:#fb7185">+${b.gain.toFixed(1)}</div>
+        <div class="hc-delta" style="color:#c084fc">+${b.gain.toFixed(1)}</div>
         <div class="hc-delta-sub">value burst</div>
       </div>
     </div>`;
@@ -1724,7 +1724,7 @@ function getSorted(players) {
 
 const RATING_COLORS = [
   "#CC0000","#FF0000","#FF6600","#FFCC00","#CCCC00",
-  "#99CC00","#33CC66","#33CCCC","#33CCFF","#CC33FF"
+  "#99CC00","#33CC66","#33CCCC","#33CCFF","#fb7185"
 ];
 // Mapping: 10→[9], 9.0-9.5→[8], 8.0-8.5→[7], … 2.0-2.5→[1], 0-1.5→[0]
 function ratingColor(r) {
