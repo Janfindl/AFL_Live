@@ -16,22 +16,22 @@ const HISTORY_MAX     = 42;              // ~10.5 min of snapshots at 15-sec int
 
 // ── Formula ───────────────────────────────────────────────────────────────────
 const WEIGHTS = {
-  CP:   0.916753,
-  ED:   0.799711,
-  CM:   0.924184,
-  "1%": 0.680905,
-  SI:   0.453731,
-  MG:   0.019095,
-  TO:  -0.718576,
-  ITC:  0.438471,
-  G:    4.479627,
-  B:   -1.096947,
-  T:    0.810325,
-  GA:   1.002275,
-  HO:   0.283985,
-  FA:  -1.105267,
+  CP:   0.970085,
+  ED:   0.644891,
+  CM:   0.693636,
+  "1%": 0.636595,
+  SI:   0.404205,
+  MG:   0.018249,
+  TO:  -0.279263,
+  ITC:  0.398164,
+  G:    4.089152,
+  B:   -1.444759,
+  T:    0.712906,
+  GA:   1.012134,
+  HO:   0.251832,
+  CG:  -1.124769,
 };
-const CONSTANT = 5.909483;
+const CONSTANT = 9.257290;
 
 function calcRating(value) {
   let raw;
@@ -78,7 +78,9 @@ function parseGameTime(sb) {
 }
 
 // Projected value = accrued + 30 × fraction of game remaining.
-// e.g. at 20 min with 15pts: 15 + (30 × 100/120) = 40.0
+// The 30 is a deliberate prior representing a ~5.0 midpoint rating floor.
+// It decays to zero by full time, letting real accumulated stats take over.
+// e.g. at half time: accrued + 30 × 0.5 = accrued + 15
 function projectValue(val, elapsedMins) {
   const fracRemaining = elapsedMins >= GAME_MINS ? 0
     : Math.max(0, (GAME_MINS - (elapsedMins || 0)) / GAME_MINS);
@@ -142,7 +144,7 @@ function parseTable(html, colMap) {
   return players;
 }
 
-const BASIC_MAP = { _name: 1, G: 6, B: 7, T: 8, HO: 9, GA: 10, FF: 15, FA: 16 };
+const BASIC_MAP = { _name: 1, G: 6, B: 7, T: 8, HO: 9, GA: 10, CG: 13, FF: 15, FA: 16 };
 const ADV_MAP   = { _name: 1, CP: 2, ED: 4, CM: 6, "1%": 8, SI: 12, MG: 13, TO: 14, ITC: 15 };
 
 function mergeTeam(basicHtml, advHtml, teamName) {
@@ -886,18 +888,35 @@ async function fetchRatings(mid) {
 // ── Fixture cache helpers ─────────────────────────────────────────────────────
 
 // Convert Squiggle's timezone-naive Australian Eastern date string to UTC ms.
-// AEDT = UTC+11 (Oct–Apr),  AEST = UTC+10 (Apr–Oct).
+// DST (AEDT, UTC+11) runs from first Sunday of October → first Sunday of April.
+// Everything else is AEST (UTC+10).
+function firstSundayOfMonth(year, month0) {
+  // Returns the day-of-month of the first Sunday in the given month (0-based index).
+  return 1 + (7 - new Date(Date.UTC(year, month0, 1)).getUTCDay()) % 7;
+}
+
 function aestToUtcMs(dateStr) {
   if (!dateStr) return null;
-  const month   = parseInt(dateStr.slice(5, 7), 10);
-  const offsetH = (month <= 3 || month >= 10) ? 11 : 10;
+  const year  = parseInt(dateStr.slice(0, 4), 10);
+  const month = parseInt(dateStr.slice(5, 7), 10); // 1-based
+  const day   = parseInt(dateStr.slice(8, 10), 10);
+
+  // DST ends first Sunday of April; DST starts first Sunday of October.
+  const dstEndDay   = firstSundayOfMonth(year, 3);  // April  (month0=3)
+  const dstStartDay = firstSundayOfMonth(year, 9);  // October (month0=9)
+
+  const inDST =
+    (month > 10 || (month === 10 && day >= dstStartDay)) ||
+    (month <  4 || (month ===  4 && day <  dstEndDay));
+
+  const offsetH = inDST ? 11 : 10;
   const utcMs   = new Date(dateStr.replace(" ", "T") + "Z").getTime();
   return isNaN(utcMs) ? null : utcMs - offsetH * 3600000;
 }
 
 async function refreshFixture(force = false) {
   const now = Date.now();
-  if (!force && fixtureCache && now - fixtureCache.ts < 3600000) return; // 1-hour cache
+  if (!force && fixtureCache && now - fixtureCache.ts < 600000) return; // 10-min cache
   const raw = await new Promise((resolve, reject) => {
     const r = https.request({
       hostname: "api.squiggle.com.au",
