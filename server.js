@@ -563,6 +563,7 @@ function getState(mid) {
     lastFetchState:    {},
     snapshotHistory:   [],   // rolling snapshots for hot/cold deltas (in-memory only)
     fullTimeTs:        saved?.fullTimeTs        ?? null,  // timestamp of first full-time detection
+    burstCache:        { ts: 0, bursts: [] },             // recomputed every 2 min (in-memory only)
   };
   // Rebuild lastFetchState by replaying the saved fetch log
   for (const entry of state.fetchLog) {
@@ -907,7 +908,13 @@ async function fetchRatings(mid) {
     hotWindowMins:   hotWindowMins,
     quietWindowMins: quietWindowMins,
     momentum,
-    bursts:          computeBursts(state.fetchLog),
+    bursts:          (() => {
+      const now = Date.now();
+      if (now - state.burstCache.ts >= 2 * 60 * 1000) {
+        state.burstCache = { ts: now, bursts: computeBursts(state.fetchLog) };
+      }
+      return state.burstCache.bursts;
+    })(),
     summary,
     fetchedAt:       new Date().toISOString(),
   };
