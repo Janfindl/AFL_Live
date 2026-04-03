@@ -975,9 +975,28 @@ function fetchLiveMidsFromFootywire() {
 
 const autoRecording = new Set(); // fw_ids currently being auto-recorded
 
+// Returns true if the current time falls within the active window of any
+// scheduled game: from 10 minutes before kickoff to 3 hours after.
+function isAnyGameWindowActive() {
+  if (!fixtureCache) return false;
+  const now = Date.now();
+  const PRE_MS  = 10 * 60 * 1000;   // 10 min before kickoff
+  const POST_MS = 180 * 60 * 1000;  // 3 hours after kickoff
+  for (const round of fixtureCache.rounds) {
+    for (const g of round.games) {
+      if (!g.dateTs) continue;
+      if (now >= g.dateTs - PRE_MS && now <= g.dateTs + POST_MS) return true;
+    }
+  }
+  return false;
+}
+
 async function autoRecordTick() {
-  // Keep Squiggle fixture fresh for the /api/fixture UI endpoint
+  // Keep fixture loaded (reads from file once, then cached)
   refreshFixture();
+
+  // Only hit Footywire if we're within a game window or already tracking something
+  if (!isAnyGameWindowActive() && autoRecording.size === 0) return;
 
   // Use Footywire directly to find live games — no Squiggle lag
   let liveMids = new Set();
