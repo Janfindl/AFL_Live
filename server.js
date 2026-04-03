@@ -943,8 +943,10 @@ function aestToUtcMs(dateStr) {
 
 const FIXTURE_FILE = path.join(__dirname, "data", "fixture_2026.json");
 
+const FIXTURE_REFRESH_MS = 6 * 60 * 60 * 1000; // re-read file every 6 hours
+
 function refreshFixture() {
-  if (fixtureCache) return; // already loaded
+  if (fixtureCache && Date.now() - fixtureCache.ts < FIXTURE_REFRESH_MS) return;
   const raw = JSON.parse(fs.readFileSync(FIXTURE_FILE, "utf8"));
   const rounds = {};
   for (const g of (raw.games || [])) {
