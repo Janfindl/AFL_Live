@@ -708,20 +708,20 @@ header{
             <th data-col="rating">Rtg</th>
             <th class="left" data-col="name">Player</th>
             <th data-col="change">Chg</th>
-            <th data-col="CP"  title="Contested Possessions">CP</th>
             <th data-col="ED"  title="Effective Disposals">ED</th>
+            <th data-col="CP"  title="Contested Possessions">CP</th>
             <th data-col="CM"  title="Contested Marks">CM</th>
-            <th data-col="1%"  title="One Percenters">1%</th>
-            <th data-col="SI"  title="Score Involvements">SI</th>
             <th data-col="MG"  title="Metres Gained">MG</th>
+            <th data-col="1%"  title="One Percenters">1%</th>
+            <th data-col="T"   title="Tackles">T</th>
+            <th data-col="HO"  title="Hit Outs">HO</th>
             <th data-col="TO"  title="Turnovers">TO</th>
+            <th data-col="CG"  title="Clangers">CG</th>
             <th data-col="ITC" title="Intercepts">ITC</th>
             <th data-col="G"   title="Goals">G</th>
             <th data-col="B"   title="Behinds">B</th>
-            <th data-col="T"   title="Tackles">T</th>
+            <th data-col="SI"  title="Score Involvements">SI</th>
             <th data-col="GA"  title="Goal Assists">GA</th>
-            <th data-col="HO"  title="Hit Outs">HO</th>
-            <th data-col="CG"  title="Clangers">CG</th>
             <th data-col="Q1"  title="Quarter 1 Value">Q1</th>
             <th data-col="Q2"  title="Quarter 2 Value">Q2</th>
             <th data-col="Q3"  title="Quarter 3 Value">Q3</th>
@@ -1819,8 +1819,8 @@ function renderTable(players, quarterLog) {
         <span class="ttag" style="background:${col.bg};color:${col.txt}">${abbr}</span>
       </td>
       <td>${chgBadge(p)}</td>
-      ${nc(p.CP)}${nc(p.ED)}${nc(p.CM)}${nc(p["1%"])}${nc(p.SI)}${nc(p.MG)}
-      ${nc(p.TO,true)}${nc(p.ITC)}${nc(p.G)}${nc(p.B)}${nc(p.T)}${nc(p.GA)}${nc(p.HO)}${nc(p.CG,true)}
+      ${nc(p.ED)}${nc(p.CP)}${nc(p.CM)}${nc(p.MG)}${nc(p["1%"])}${nc(p.T)}${nc(p.HO)}
+      ${nc(p.TO,true)}${nc(p.CG,true)}${nc(p.ITC)}${nc(p.G)}${nc(p.B)}${nc(p.SI)}${nc(p.GA)}
       ${qCells}
       <td>${p.value.toFixed(1)}</td>
       <td style="color:${rc};font-weight:700">${p.projectedValue.toFixed(1)}</td>
