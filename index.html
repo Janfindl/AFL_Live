@@ -671,7 +671,7 @@ header{
       <div class="panel-col">
         <div class="hc-header hc-header-burst">
           <div class="hc-title">⚡ Burst</div>
-          <div class="hc-badge" style="background:rgba(180,100,255,.18);color:#c084fc">15+ pts · 10 min window</div>
+          <div class="hc-badge" style="background:rgba(180,100,255,.18);color:#c084fc">10+ pts · 10 min window</div>
         </div>
         <div class="hc-list" id="burstList">
           <div style="padding:20px;text-align:center;color:#8b949e;font-size:11px">
@@ -1435,6 +1435,7 @@ function renderBurst(bursts, quarterStartTs) {
         <div class="hc-stats" style="margin-top:6px">
           <span class="burst-time">${t1} – ${t2}</span>
         </div>
+        <div class="hc-stats" style="margin-top:5px">${statChips(b.statContribs, true)}</div>
       </div>
       <div class="hc-right">
         <div class="hc-delta" style="color:#c084fc">+${b.gain.toFixed(1)}</div>

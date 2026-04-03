@@ -398,17 +398,24 @@ function getRefSnapshot(windowMs, minTs = 0, snapshotHistory) {
 // Scans the fetch log for any 15-minute window where a player gained 20+ value.
 // Returns non-overlapping bursts per player, sorted by gain descending.
 function computeBursts(fetchLog) {
-  // Rebuild per-player value time series from the fetch log.
-  // Each action stores the current cumulative value in `v`.
-  const playerMap = new Map(); // name -> { team, series: [{ts, value}] }
+  // Rebuild per-player value + cumulative stat time series from the fetch log.
+  const playerMap   = new Map(); // name -> { team, series: [{ts, value, q, stats}] }
+  const runningStats = new Map(); // name -> current cumulative stats
 
   for (const entry of (fetchLog || [])) {
     for (const action of (entry.actions || [])) {
       if (action.v === undefined) continue;
-      if (!playerMap.has(action.n)) playerMap.set(action.n, { team: null, series: [] });
-      const ps = playerMap.get(action.n);
+      const name = action.n;
+      if (!playerMap.has(name)) playerMap.set(name, { team: null, series: [] });
+      const ps = playerMap.get(name);
       if (action.tm) ps.team = action.tm;
-      ps.series.push({ ts: entry.ts, value: action.v, q: entry.q });
+
+      // Maintain running cumulative stats (fetchLog stores only changed fields after baseline)
+      if (!runningStats.has(name)) runningStats.set(name, {});
+      const cur = runningStats.get(name);
+      STAT_KEYS.forEach(k => { if (typeof action[k] === "number") cur[k] = action[k]; });
+
+      ps.series.push({ ts: entry.ts, value: action.v, q: entry.q, stats: { ...cur } });
     }
   }
 
@@ -427,7 +434,6 @@ function computeBursts(fetchLog) {
       const startVal = series[i].value;
       const winEnd   = startTs + BURST_WINDOW_MS;
 
-      // Find the highest-gain point within the 15-min window
       let bestGain   = 0;
       let bestEndIdx = -1;
 
@@ -438,13 +444,25 @@ function computeBursts(fetchLog) {
       }
 
       if (bestGain >= BURST_THRESHOLD) {
+        const startStats = series[i].stats;
+        const endStats   = series[bestEndIdx].stats;
+        const statContribs = STAT_KEYS
+          .map(stat => {
+            const delta        = (endStats[stat] || 0) - (startStats[stat] || 0);
+            const contribution = Math.round(delta * WEIGHTS[stat] * 100) / 100;
+            return { stat, delta, contribution };
+          })
+          .filter(x => Math.abs(x.contribution) >= 0.01)
+          .sort((a, b) => b.contribution - a.contribution);
+
         allBursts.push({
           name,
           team,
           startTs,
-          endTs:   series[bestEndIdx].ts,
-          gain:    Math.round(bestGain * 100) / 100,
-          quarter: series[i].q,
+          endTs:       series[bestEndIdx].ts,
+          gain:        Math.round(bestGain * 100) / 100,
+          quarter:     series[i].q,
+          statContribs,
         });
         nextAllowedIdx = bestEndIdx + 1;
         i = bestEndIdx;
@@ -452,7 +470,8 @@ function computeBursts(fetchLog) {
     }
   }
 
-  allBursts.sort((a, b) => b.gain - a.gain || a.startTs - b.startTs);
+  // Sort chronologically — earliest burst first
+  allBursts.sort((a, b) => a.startTs - b.startTs);
   return allBursts;
 }
 
