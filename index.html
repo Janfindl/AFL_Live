@@ -809,9 +809,9 @@ document.querySelectorAll(".stab").forEach(tab => {
     document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
     document.getElementById("screen-" + target).classList.add("active");
     if (target === "players") {
-      sortCol = "value"; sortDir = 1;
+      sortCol = "rating"; sortDir = 1;
       document.querySelectorAll(".ctable thead th").forEach(h => h.classList.remove("sort-asc","sort-desc"));
-      document.querySelector('.ctable thead th[data-col="value"]').classList.add("sort-desc"); // sortDir=1 = desc
+      document.querySelector('.ctable thead th[data-col="rating"]').classList.add("sort-desc");
       if (currentData) renderTable(currentData.players, currentData.quarterLog);
     }
   });
@@ -1161,7 +1161,7 @@ const STAT_WEIGHTS = {
 let currentData = null;
 let prevValues  = {};
 let activeTeam  = "all";
-let sortCol     = "value";
+let sortCol     = "rating";
 let sortDir     =  1;   // 1=descending, -1=ascending
 let countdown   = REFRESH;
 let selectedQ   = null;
@@ -1713,7 +1713,11 @@ function getSorted(players) {
   return [...players].sort((a,b) => {
     let av=a[sortCol]??0, bv=b[sortCol]??0;
     if(typeof av==="string"){av=av.toLowerCase();bv=bv.toLowerCase()}
-    return av<bv ? sortDir : av>bv ? -sortDir : 0;
+    const primary = av<bv ? sortDir : av>bv ? -sortDir : 0;
+    if (primary !== 0) return primary;
+    // Tiebreaker: descending value when sorting by rating, otherwise no secondary sort
+    if (sortCol === "rating") return (b.value??0) - (a.value??0);
+    return 0;
   });
 }
 
