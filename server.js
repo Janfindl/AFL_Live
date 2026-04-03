@@ -10,8 +10,8 @@ const GAME_MINS    = 120;
 const QUARTER_MINS = GAME_MINS / 4;
 const HOT_WINDOW_MS   = 5  * 60 * 1000;  // 5-minute hot window
 const QUIET_WINDOW_MS = 10 * 60 * 1000;  // 10-minute cold window
-const BURST_WINDOW_MS = 15 * 60 * 1000;  // 15-minute burst window
-const BURST_THRESHOLD = 15;              // min value gain to qualify as a burst
+const BURST_WINDOW_MS = 10 * 60 * 1000;  // 10-minute burst window
+const BURST_THRESHOLD = 10;              // min value gain to qualify as a burst
 const HISTORY_MAX     = 42;              // ~10.5 min of snapshots at 15-sec intervals
 
 // ── Formula ───────────────────────────────────────────────────────────────────
@@ -408,7 +408,7 @@ function computeBursts(fetchLog) {
       if (!playerMap.has(action.n)) playerMap.set(action.n, { team: null, series: [] });
       const ps = playerMap.get(action.n);
       if (action.tm) ps.team = action.tm;
-      ps.series.push({ ts: entry.ts, value: action.v });
+      ps.series.push({ ts: entry.ts, value: action.v, q: entry.q });
     }
   }
 
@@ -442,8 +442,9 @@ function computeBursts(fetchLog) {
           name,
           team,
           startTs,
-          endTs:  series[bestEndIdx].ts,
-          gain:   Math.round(bestGain * 100) / 100,
+          endTs:   series[bestEndIdx].ts,
+          gain:    Math.round(bestGain * 100) / 100,
+          quarter: series[i].q,
         });
         nextAllowedIdx = bestEndIdx + 1;
         i = bestEndIdx;

@@ -186,6 +186,13 @@ header{
   background:rgba(167,139,250,.12);border:1px solid rgba(167,139,250,.25);
   padding:2px 7px;border-radius:4px;white-space:nowrap;
 }
+.burst-quarter{
+  font-size:11px;font-weight:800;padding:2px 8px;border-radius:4px;letter-spacing:.3px;
+}
+.burst-quarter.q1{background:rgba(96,165,250,.2);color:#60a5fa;border:1px solid rgba(96,165,250,.4)}
+.burst-quarter.q2{background:rgba(74,222,128,.2);color:#4ade80;border:1px solid rgba(74,222,128,.4)}
+.burst-quarter.q3{background:rgba(251,191,36,.2);color:#fbbf24;border:1px solid rgba(251,191,36,.4)}
+.burst-quarter.q4{background:rgba(248,113,113,.2);color:#f87171;border:1px solid rgba(248,113,113,.4)}
 
 /* Quarter tab toggles */
 .qtop-tab{
@@ -1402,7 +1409,7 @@ function tsToGameTime(ts, quarterStartTs) {
 function renderBurst(bursts, quarterStartTs) {
   const el = document.getElementById("burstList");
   if (!bursts || bursts.length === 0) {
-    el.innerHTML = `<div style="padding:20px;text-align:center;color:#8b949e;font-size:11px">No bursts yet — needs 15+ pts in 10 min</div>`;
+    el.innerHTML = `<div style="padding:20px;text-align:center;color:#8b949e;font-size:11px">No bursts yet — needs 10+ pts in 10 min</div>`;
     return;
   }
   el.innerHTML = bursts.map((b, i) => {
@@ -1411,6 +1418,9 @@ function renderBurst(bursts, quarterStartTs) {
     const cardBg = i % 2 === 0 ? "#13181f" : "#0f1318";
     const t1     = tsToGameTime(b.startTs, quarterStartTs);
     const t2     = tsToGameTime(b.endTs,   quarterStartTs);
+    const qNum   = b.quarter || "";
+    const qClass = qNum ? `q${qNum}` : "";
+    const qBadge = qNum ? `<span class="burst-quarter ${qClass}">Q${qNum}</span>` : "";
     return `<div class="hc-card" style="background:${cardBg}">
       <div class="hc-glow" style="background:#c084fc"></div>
       <div class="hc-rank-wrap">
@@ -1418,10 +1428,11 @@ function renderBurst(bursts, quarterStartTs) {
       </div>
       <div class="hc-info">
         <div class="hc-name" style="color:${col.txt}">${esc(b.name)}</div>
-        <div class="hc-meta">
+        <div class="hc-meta" style="display:flex;align-items:center;gap:6px">
+          ${qBadge}
           <span class="hc-team" style="background:${col.bg};color:${col.txt}">${abbr}</span>
         </div>
-        <div class="hc-stats" style="margin-top:8px">
+        <div class="hc-stats" style="margin-top:6px">
           <span class="burst-time">${t1} – ${t2}</span>
         </div>
       </div>
