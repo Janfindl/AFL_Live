@@ -967,37 +967,54 @@ async function refreshFixture(force = false) {
 // regardless of whether anyone is watching. This ensures full game records are
 // saved to disk (DATA_DIR) even if the user isn't on the dashboard.
 
+// Scrape Footywire's live stats landing page to get all currently-live match IDs.
+// This is more reliable than Squiggle which can lag in updating game status.
+function fetchLiveMidsFromFootywire() {
+  return new Promise((resolve, reject) => {
+    const req = https.request({
+      hostname: "www.footywire.com",
+      path:     "/afl/footy/live_stats",
+      method:   "GET",
+      timeout:  8000,
+      headers:  { "User-Agent": "Mozilla/5.0" },
+    }, res => {
+      let raw = "";
+      res.on("data", d => raw += d);
+      res.on("end", () => {
+        const mids = new Set();
+        const re = /mid=(\d+)/g;
+        let m;
+        while ((m = re.exec(raw)) !== null) mids.add(Number(m[1]));
+        resolve(mids);
+      });
+    });
+    req.on("timeout", () => { req.destroy(); reject(new Error("Footywire live_stats timeout")); });
+    req.on("error", reject);
+    req.end();
+  });
+}
+
 const autoRecording = new Set(); // fw_ids currently being auto-recorded
 
 async function autoRecordTick() {
-  // Refresh fixture every 10 min so we pick up newly-started games
+  // Keep Squiggle fixture fresh for the /api/fixture UI endpoint
   try { await refreshFixture(); } catch(e) { /* squiggle hiccup — skip */ }
 
+  // Use Footywire directly to find live games — no Squiggle lag
+  let liveMids = new Set();
+  try {
+    liveMids = await fetchLiveMidsFromFootywire();
+  } catch(e) {
+    console.error(`[autoRecord] Footywire live detection failed: ${e.message}`);
+  }
+
   const now = Date.now();
-  const candidates = new Set();
+  const candidates = new Set(liveMids);
 
-  for (const round of (fixtureCache?.rounds || [])) {
-    for (const g of round.games) {
-      const minsElapsed = g.dateTs ? (now - g.dateTs) / 60000 : -Infinity;
-      const alreadySaved = fs.existsSync(gameFile(g.fw_id));
-      // Check if we're within the stat-correction window (12 min after full time).
-      // Use in-memory fullTimeTs if available; fall back to kickoff-time estimate.
-      const gs = gameStates.get(String(g.fw_id));
-      const inCorrectionWindow =
-        (gs?.fullTimeTs && now - gs.fullTimeTs < 12 * 60 * 1000) ||
-        (g.complete === 100 && minsElapsed >= 125 && minsElapsed < 165 && alreadySaved);
-
-      // Record if:
-      //  • Squiggle says in-progress (0 < complete < 100)
-      //  • OR upcoming game whose kickoff was ≤2 min ago (not yet in Squiggle)
-      //  • OR recently completed and not yet saved (server restarted mid-game)
-      //  • OR within stat-correction window after full time
-      if ((g.complete > 0 && g.complete < 100) ||
-          (g.complete === 0 && minsElapsed >= -2 && minsElapsed < 270) ||
-          (g.complete === 100 && minsElapsed < 270 && !alreadySaved) ||
-          inCorrectionWindow) {
-        candidates.add(g.fw_id);
-      }
+  // Also keep tracking any game in the post-full-time stat-correction window
+  for (const [mid, gs] of gameStates) {
+    if (gs.fullTimeTs && now - gs.fullTimeTs < 12 * 60 * 1000) {
+      candidates.add(Number(mid));
     }
   }
 
