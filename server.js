@@ -301,16 +301,20 @@ function scheduleGhPush(mid, urgent = false) {
 
 // On SIGTERM (Railway redeploy/shutdown), flush all pending GitHub pushes before exiting
 // so in-progress game data is never lost when a new deploy is triggered.
+// All games are pushed in parallel and the whole flush is capped at 20s so we
+// always finish within Railway's 30s SIGTERM grace window.
 async function flushAndExit() {
   const pending = [...ghPushQueue.keys()];
   if (pending.length > 0) {
-    console.log(`[github] SIGTERM — flushing ${pending.length} pending push(es)...`);
-    for (const mid of pending) {
-      clearTimeout(ghPushQueue.get(mid));
-      ghPushQueue.delete(mid);
-      try { await ghPushGame(mid); }
-      catch(e) { console.error(`[github] flush push mid=${mid}: ${e.message}`); }
-    }
+    console.log(`[github] SIGTERM — flushing ${pending.length} pending push(es) in parallel...`);
+    for (const mid of pending) { clearTimeout(ghPushQueue.get(mid)); ghPushQueue.delete(mid); }
+    const timeout = new Promise(r => setTimeout(r, 20000));
+    await Promise.race([
+      Promise.allSettled(pending.map(mid =>
+        ghPushGame(mid).catch(e => console.error(`[github] flush push mid=${mid}: ${e.message}`))
+      )),
+      timeout,
+    ]);
   }
   process.exit(0);
 }
@@ -321,9 +325,14 @@ process.on("SIGINT",  flushAndExit);
 function saveGameData(mid, state) {
   try { fs.writeFileSync(gameFile(mid), JSON.stringify(state)); }
   catch (e) { console.error("saveGameData:", e.message); }
-  const isFullTime = (state.elapsedMins ?? 0) >= GAME_MINS;
-  scheduleGhPush(mid, isFullTime);
+  const isFullTime    = (state.elapsedMins ?? 0) >= GAME_MINS;
+  const completedQs   = Object.keys(state.completedQuarters || {}).length;
+  const prevCompletedQs = _prevCompletedQuarters.get(mid) || 0;
+  const isQuarterEnd  = completedQs > prevCompletedQs;
+  _prevCompletedQuarters.set(mid, completedQs);
+  scheduleGhPush(mid, isFullTime || isQuarterEnd);
 }
+const _prevCompletedQuarters = new Map(); // mid -> number of completed quarters last push
 function buildCachedResponse(cached) {
   const summary = {};
   for (const tm of cached.teams || []) {
