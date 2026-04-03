@@ -914,31 +914,11 @@ function aestToUtcMs(dateStr) {
   return isNaN(utcMs) ? null : utcMs - offsetH * 3600000;
 }
 
-async function refreshFixture(force = false) {
-  const now = Date.now();
-  if (!force && fixtureCache && now - fixtureCache.ts < 600000) return; // 10-min cache
-  const raw = await new Promise((resolve, reject) => {
-    const r = https.request({
-      hostname: "api.squiggle.com.au",
-      path:     "/?q=games;year=2026",
-      method:   "GET",
-      timeout:  10000,
-      headers:  { "User-Agent": "AFL-Live-Ratings/1.0 (contact: github.com/afl-live)" },
-    }, res2 => {
-      let d = "";
-      res2.on("data", c => d += c);
-      res2.on("end", () => {
-        if (!d.trim().startsWith("{")) {
-          reject(new Error(`Squiggle non-JSON (HTTP ${res2.statusCode}): ${d.slice(0, 120)}`));
-          return;
-        }
-        try { resolve(JSON.parse(d)); } catch(e) { reject(e); }
-      });
-    });
-    r.on("timeout", () => { r.destroy(); reject(new Error("Squiggle timeout")); });
-    r.on("error", reject);
-    r.end();
-  });
+const FIXTURE_FILE = path.join(__dirname, "data", "fixture_2026.json");
+
+function refreshFixture() {
+  if (fixtureCache) return; // already loaded
+  const raw = JSON.parse(fs.readFileSync(FIXTURE_FILE, "utf8"));
   const rounds = {};
   for (const g of (raw.games || [])) {
     const fw_id = g.id - 27089;
@@ -958,8 +938,7 @@ async function refreshFixture(force = false) {
       complete: g.complete, timestr: g.timestr || "",
     });
   }
-  const sorted = Object.values(rounds).sort((a, b) => a.roundNum - b.roundNum);
-  fixtureCache = { ts: now, rounds: sorted };
+  fixtureCache = { ts: Date.now(), rounds: Object.values(rounds).sort((a, b) => a.roundNum - b.roundNum) };
 }
 
 // ── Background auto-recorder ──────────────────────────────────────────────────
@@ -998,7 +977,7 @@ const autoRecording = new Set(); // fw_ids currently being auto-recorded
 
 async function autoRecordTick() {
   // Keep Squiggle fixture fresh for the /api/fixture UI endpoint
-  try { await refreshFixture(); } catch(e) { /* squiggle hiccup — skip */ }
+  refreshFixture();
 
   // Use Footywire directly to find live games — no Squiggle lag
   let liveMids = new Set();
@@ -1075,7 +1054,7 @@ http.createServer(async (req, res) => {
   }
   if (parsed.pathname === "/api/fixture") {
     try {
-      await refreshFixture();
+      refreshFixture();
       // Include the set of fw_ids with saved game data so the client can
       // show/hide the Review button without a separate round-trip.
       const savedGames = fs.readdirSync(DATA_DIR)
