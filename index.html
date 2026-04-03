@@ -721,7 +721,7 @@ header{
             <th data-col="T"   title="Tackles">T</th>
             <th data-col="GA"  title="Goal Assists">GA</th>
             <th data-col="HO"  title="Hit Outs">HO</th>
-            <th data-col="FA"  title="Free Kicks Against">FA</th>
+            <th data-col="CG"  title="Centre Bounce Attendances">CG</th>
             <th data-col="Q1"  title="Quarter 1 Value">Q1</th>
             <th data-col="Q2"  title="Quarter 2 Value">Q2</th>
             <th data-col="Q3"  title="Quarter 3 Value">Q3</th>
@@ -1820,7 +1820,7 @@ function renderTable(players, quarterLog) {
       </td>
       <td>${chgBadge(p)}</td>
       ${nc(p.CP)}${nc(p.ED)}${nc(p.CM)}${nc(p["1%"])}${nc(p.SI)}${nc(p.MG)}
-      ${nc(p.TO,true)}${nc(p.ITC)}${nc(p.G)}${nc(p.B)}${nc(p.T)}${nc(p.GA)}${nc(p.HO)}${nc(p.FA,true)}
+      ${nc(p.TO,true)}${nc(p.ITC)}${nc(p.G)}${nc(p.B)}${nc(p.T)}${nc(p.GA)}${nc(p.HO)}${nc(p.CG,true)}
       ${qCells}
       <td>${p.value.toFixed(1)}</td>
       <td style="color:${rc};font-weight:700">${p.projectedValue.toFixed(1)}</td>
