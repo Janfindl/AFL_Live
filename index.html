@@ -773,44 +773,62 @@ function teamLogo(name) {
 }
 
 // ── Team colours ──────────────────────────────────────────────────────────────
+// txt/bg: used for score text, chart colours etc (keep semi-transparent)
+// pill/pillAlt: solid badge colours. pillHue: clash-detection group
 const TEAM_COLORS = {
-  "Adelaide":              { txt:"#E82334", bg:"rgba(0,38,100,.22)"     },
-  "Adelaide Crows":        { txt:"#E82334", bg:"rgba(0,38,100,.22)"     },
-  "Brisbane Lions":        { txt:"#F5A800", bg:"rgba(111,28,66,.22)"    },
-  "Brisbane":              { txt:"#F5A800", bg:"rgba(111,28,66,.22)"    },
-  "Carlton":               { txt:"#1C5DB8", bg:"rgba(0,20,80,.26)"      },
-  "Collingwood":           { txt:"#C8C8C8", bg:"rgba(200,200,200,.09)"  },
-  "Essendon":              { txt:"#E03244", bg:"rgba(204,32,49,.14)"    },
-  "Fremantle":             { txt:"#9060CC", bg:"rgba(100,60,160,.18)"   },
-  "Geelong":               { txt:"#1F7EC8", bg:"rgba(31,126,200,.18)"   },
-  "Geelong Cats":          { txt:"#1F7EC8", bg:"rgba(31,126,200,.18)"   },
-  "Gold Coast":            { txt:"#FFB800", bg:"rgba(220,40,20,.15)"    },
-  "Gold Coast Suns":       { txt:"#FFB800", bg:"rgba(220,40,20,.15)"    },
-  "GWS":                   { txt:"#F47920", bg:"rgba(120,120,120,.14)"  },
-  "GWS Giants":            { txt:"#F47920", bg:"rgba(120,120,120,.14)"  },
-  "GWS GIANTS":            { txt:"#F47920", bg:"rgba(120,120,120,.14)"  },
-  "Greater Western Sydney":{ txt:"#F47920", bg:"rgba(120,120,120,.14)"  },
-  "Hawthorn":              { txt:"#D49010", bg:"rgba(77,32,4,.22)"      },
-  "Hawthorn Hawks":        { txt:"#D49010", bg:"rgba(77,32,4,.22)"      },
-  "Melbourne":             { txt:"#1A70C8", bg:"rgba(26,104,200,.17)"   },
-  "Melbourne Demons":      { txt:"#1A70C8", bg:"rgba(26,104,200,.17)"   },
-  "North Melbourne":       { txt:"#4A7ACC", bg:"rgba(0,53,128,.2)"      },
-  "Kangaroos":             { txt:"#4A7ACC", bg:"rgba(0,53,128,.2)"      },
-  "Port Adelaide":         { txt:"#00BCC8", bg:"rgba(0,188,200,.13)"    },
-  "Port Adelaide Power":   { txt:"#00BCC8", bg:"rgba(0,188,200,.13)"    },
-  "Richmond":              { txt:"#FFD200", bg:"rgba(255,210,0,.11)"    },
-  "Richmond Tigers":       { txt:"#FFD200", bg:"rgba(255,210,0,.11)"    },
-  "St Kilda":              { txt:"#E83848", bg:"rgba(10,10,10,.35)"     },
-  "St Kilda Saints":       { txt:"#E83848", bg:"rgba(10,10,10,.35)"     },
-  "Sydney":                { txt:"#E8001C", bg:"rgba(232,0,28,.14)"     },
-  "Sydney Swans":          { txt:"#E8001C", bg:"rgba(232,0,28,.14)"     },
-  "West Coast":            { txt:"#F2A900", bg:"rgba(0,48,135,.2)"      },
-  "West Coast Eagles":     { txt:"#F2A900", bg:"rgba(0,48,135,.2)"      },
-  "Western Bulldogs":      { txt:"#CC1030", bg:"rgba(0,60,160,.18)"     },
-  "Footscray":             { txt:"#CC1030", bg:"rgba(0,60,160,.18)"     },
+  "Adelaide":              { txt:"#E82334", bg:"rgba(0,38,100,.22)",    pill:{bg:"#E82334",txt:"#FFFFFF"}, pillAlt:{bg:"#002264",txt:"#FFFFFF"}, pillHue:"red"    },
+  "Adelaide Crows":        { txt:"#E82334", bg:"rgba(0,38,100,.22)",    pill:{bg:"#E82334",txt:"#FFFFFF"}, pillAlt:{bg:"#002264",txt:"#FFFFFF"}, pillHue:"red"    },
+  "Brisbane Lions":        { txt:"#F5A800", bg:"rgba(111,28,66,.22)",   pill:{bg:"#7B1D46",txt:"#F5A800"}, pillAlt:{bg:"#F5A800",txt:"#7B1D46"}, pillHue:"maroon" },
+  "Brisbane":              { txt:"#F5A800", bg:"rgba(111,28,66,.22)",   pill:{bg:"#7B1D46",txt:"#F5A800"}, pillAlt:{bg:"#F5A800",txt:"#7B1D46"}, pillHue:"maroon" },
+  "Carlton":               { txt:"#1C5DB8", bg:"rgba(0,20,80,.26)",     pill:{bg:"#002B5C",txt:"#FFFFFF"}, pillAlt:{bg:"#FFFFFF",txt:"#002B5C"}, pillHue:"blue"   },
+  "Collingwood":           { txt:"#C8C8C8", bg:"rgba(200,200,200,.09)", pill:{bg:"#000000",txt:"#FFFFFF"}, pillAlt:{bg:"#FFFFFF",txt:"#000000"}, pillHue:"black"  },
+  "Essendon":              { txt:"#E03244", bg:"rgba(204,32,49,.14)",   pill:{bg:"#CC2028",txt:"#000000"}, pillAlt:{bg:"#000000",txt:"#CC2028"}, pillHue:"red"    },
+  "Fremantle":             { txt:"#9060CC", bg:"rgba(100,60,160,.18)",  pill:{bg:"#2C1F6B",txt:"#FFFFFF"}, pillAlt:{bg:"#CC2028",txt:"#FFFFFF"}, pillHue:"purple" },
+  "Geelong":               { txt:"#1F7EC8", bg:"rgba(31,126,200,.18)",  pill:{bg:"#1B3E6F",txt:"#FFFFFF"}, pillAlt:{bg:"#FFFFFF",txt:"#1B3E6F"}, pillHue:"blue"   },
+  "Geelong Cats":          { txt:"#1F7EC8", bg:"rgba(31,126,200,.18)",  pill:{bg:"#1B3E6F",txt:"#FFFFFF"}, pillAlt:{bg:"#FFFFFF",txt:"#1B3E6F"}, pillHue:"blue"   },
+  "Gold Coast":            { txt:"#FFB800", bg:"rgba(220,40,20,.15)",   pill:{bg:"#E8173C",txt:"#FFB800"}, pillAlt:{bg:"#FFB800",txt:"#E8173C"}, pillHue:"red"    },
+  "Gold Coast Suns":       { txt:"#FFB800", bg:"rgba(220,40,20,.15)",   pill:{bg:"#E8173C",txt:"#FFB800"}, pillAlt:{bg:"#FFB800",txt:"#E8173C"}, pillHue:"red"    },
+  "GWS":                   { txt:"#F47920", bg:"rgba(120,120,120,.14)", pill:{bg:"#F26724",txt:"#FFFFFF"}, pillAlt:{bg:"#595959",txt:"#F26724"}, pillHue:"orange" },
+  "GWS Giants":            { txt:"#F47920", bg:"rgba(120,120,120,.14)", pill:{bg:"#F26724",txt:"#FFFFFF"}, pillAlt:{bg:"#595959",txt:"#F26724"}, pillHue:"orange" },
+  "GWS GIANTS":            { txt:"#F47920", bg:"rgba(120,120,120,.14)", pill:{bg:"#F26724",txt:"#FFFFFF"}, pillAlt:{bg:"#595959",txt:"#F26724"}, pillHue:"orange" },
+  "Greater Western Sydney":{ txt:"#F47920", bg:"rgba(120,120,120,.14)", pill:{bg:"#F26724",txt:"#FFFFFF"}, pillAlt:{bg:"#595959",txt:"#F26724"}, pillHue:"orange" },
+  "Hawthorn":              { txt:"#D49010", bg:"rgba(77,32,4,.22)",     pill:{bg:"#4B2C13",txt:"#F5A800"}, pillAlt:{bg:"#F5A800",txt:"#4B2C13"}, pillHue:"brown"  },
+  "Hawthorn Hawks":        { txt:"#D49010", bg:"rgba(77,32,4,.22)",     pill:{bg:"#4B2C13",txt:"#F5A800"}, pillAlt:{bg:"#F5A800",txt:"#4B2C13"}, pillHue:"brown"  },
+  "Melbourne":             { txt:"#1A70C8", bg:"rgba(26,104,200,.17)",  pill:{bg:"#CC2031",txt:"#FFFFFF"}, pillAlt:{bg:"#041E42",txt:"#CC2031"}, pillHue:"red"    },
+  "Melbourne Demons":      { txt:"#1A70C8", bg:"rgba(26,104,200,.17)",  pill:{bg:"#CC2031",txt:"#FFFFFF"}, pillAlt:{bg:"#041E42",txt:"#CC2031"}, pillHue:"red"    },
+  "North Melbourne":       { txt:"#4A7ACC", bg:"rgba(0,53,128,.2)",     pill:{bg:"#003087",txt:"#FFFFFF"}, pillAlt:{bg:"#FFFFFF",txt:"#003087"}, pillHue:"blue"   },
+  "Kangaroos":             { txt:"#4A7ACC", bg:"rgba(0,53,128,.2)",     pill:{bg:"#003087",txt:"#FFFFFF"}, pillAlt:{bg:"#FFFFFF",txt:"#003087"}, pillHue:"blue"   },
+  "Port Adelaide":         { txt:"#00BCC8", bg:"rgba(0,188,200,.13)",   pill:{bg:"#008295",txt:"#000000"}, pillAlt:{bg:"#000000",txt:"#008295"}, pillHue:"teal"   },
+  "Port Adelaide Power":   { txt:"#00BCC8", bg:"rgba(0,188,200,.13)",   pill:{bg:"#008295",txt:"#000000"}, pillAlt:{bg:"#000000",txt:"#008295"}, pillHue:"teal"   },
+  "Richmond":              { txt:"#FFD200", bg:"rgba(255,210,0,.11)",   pill:{bg:"#000000",txt:"#FFD200"}, pillAlt:{bg:"#FFD200",txt:"#000000"}, pillHue:"black"  },
+  "Richmond Tigers":       { txt:"#FFD200", bg:"rgba(255,210,0,.11)",   pill:{bg:"#000000",txt:"#FFD200"}, pillAlt:{bg:"#FFD200",txt:"#000000"}, pillHue:"black"  },
+  "St Kilda":              { txt:"#E83848", bg:"rgba(10,10,10,.35)",    pill:{bg:"#E32235",txt:"#FFFFFF"}, pillAlt:{bg:"#000000",txt:"#E32235"}, pillHue:"red"    },
+  "St Kilda Saints":       { txt:"#E83848", bg:"rgba(10,10,10,.35)",    pill:{bg:"#E32235",txt:"#FFFFFF"}, pillAlt:{bg:"#000000",txt:"#E32235"}, pillHue:"red"    },
+  "Sydney":                { txt:"#E8001C", bg:"rgba(232,0,28,.14)",    pill:{bg:"#E2001A",txt:"#FFFFFF"}, pillAlt:{bg:"#FFFFFF",txt:"#E2001A"}, pillHue:"red"    },
+  "Sydney Swans":          { txt:"#E8001C", bg:"rgba(232,0,28,.14)",    pill:{bg:"#E2001A",txt:"#FFFFFF"}, pillAlt:{bg:"#FFFFFF",txt:"#E2001A"}, pillHue:"red"    },
+  "West Coast":            { txt:"#F2A900", bg:"rgba(0,48,135,.2)",     pill:{bg:"#003087",txt:"#F2A900"}, pillAlt:{bg:"#F2A900",txt:"#003087"}, pillHue:"blue"   },
+  "West Coast Eagles":     { txt:"#F2A900", bg:"rgba(0,48,135,.2)",     pill:{bg:"#003087",txt:"#F2A900"}, pillAlt:{bg:"#F2A900",txt:"#003087"}, pillHue:"blue"   },
+  "Western Bulldogs":      { txt:"#CC1030", bg:"rgba(0,60,160,.18)",    pill:{bg:"#CC1030",txt:"#FFFFFF"}, pillAlt:{bg:"#003087",txt:"#FFFFFF"}, pillHue:"red"    },
+  "Footscray":             { txt:"#CC1030", bg:"rgba(0,60,160,.18)",    pill:{bg:"#CC1030",txt:"#FFFFFF"}, pillAlt:{bg:"#003087",txt:"#FFFFFF"}, pillHue:"red"    },
 };
 function teamColor(name) {
   return TEAM_COLORS[name] || { txt:"#8b949e", bg:"rgba(139,148,158,.1)" };
+}
+
+// Current game's teams — set by render() so teamPillStyle can detect clashes
+let currentTeams = [];
+function teamPillStyle(name) {
+  const col = TEAM_COLORS[name];
+  if (!col) return { bg:"#30363d", txt:"#8b949e" };
+  const pill    = col.pill;
+  const pillAlt = col.pillAlt || pill;
+  // If both teams share a hue family, home team (index 0) keeps primary, away uses alt
+  const opponent = currentTeams.find(t => t !== name);
+  const oppCol   = opponent ? TEAM_COLORS[opponent] : null;
+  if (oppCol && col.pillHue && oppCol.pillHue === col.pillHue) {
+    return currentTeams[0] === name ? pill : pillAlt;
+  }
+  return pill;
 }
 function teamAbbr(name) {
   const map = {
@@ -1318,6 +1336,7 @@ async function fetchAndRender() {
 // ── Render ────────────────────────────────────────────────────────────────────
 function render(data) {
   const [t1, t2] = data.teams;
+  currentTeams = data.teams || [];
   const c1 = teamColor(t1), c2 = teamColor(t2);
 
   // Header
@@ -1487,7 +1506,7 @@ function renderHot(hot5, windowMins) {
       <div class="hc-info">
         <div class="hc-name" style="color:${col.txt}">${esc(p.name)}</div>
         <div class="hc-meta">
-          <span class="hc-team" style="background:${col.bg};color:${col.txt}">${abbr}</span>
+          <span class="hc-team" style="background:${teamPillStyle(p.team).bg};color:${teamPillStyle(p.team).txt}">${abbr}</span>
         </div>
         <div class="hc-stats">${statChips(p.statContribs, true)}</div>
       </div>
@@ -1527,7 +1546,7 @@ function renderQuiet(quiet5, windowMins) {
       <div class="hc-info">
         <div class="hc-name" style="color:${col.txt}">${esc(p.name)}</div>
         <div class="hc-meta">
-          <span class="hc-team" style="background:${col.bg};color:${col.txt}">${abbr}</span>
+          <span class="hc-team" style="background:${teamPillStyle(p.team).bg};color:${teamPillStyle(p.team).txt}">${abbr}</span>
           <span style="font-size:9px;color:#8b949e">exp&nbsp;+${exp.toFixed(1)}</span>
         </div>
         <div class="hc-stats">${statChips(coldContribs, false)}</div>
@@ -1583,7 +1602,7 @@ function renderBurst(bursts, quarterStartTs) {
         <div class="hc-name" style="color:${col.txt}">${esc(b.name)}</div>
         <div class="hc-meta" style="display:flex;align-items:center;gap:6px">
           ${qBadge}
-          <span class="hc-team" style="background:${col.bg};color:${col.txt}">${abbr}</span>
+          <span class="hc-team" style="background:${teamPillStyle(b.team).bg};color:${teamPillStyle(b.team).txt}">${abbr}</span>
         </div>
         <div class="hc-stats" style="margin-top:6px">
           <span class="burst-time">${t1} – ${t2}</span>
@@ -1662,7 +1681,7 @@ function renderQTop(qTop5, quarter) {
       <div class="hc-info">
         <div class="hc-name" style="color:${col.txt}">${esc(p.name)}</div>
         <div class="hc-meta">
-          <span class="hc-team" style="background:${col.bg};color:${col.txt}">${abbr}</span>
+          <span class="hc-team" style="background:${teamPillStyle(p.team).bg};color:${teamPillStyle(p.team).txt}">${abbr}</span>
           ${ratingPill(p.rating)}
         </div>
         <div class="hc-stats">${statChips(contribs, true)}</div>
@@ -1942,7 +1961,7 @@ function renderBest(players) {
       <div class="hc-info">
         <div class="hc-name" style="color:${col.txt}">${esc(p.name)}</div>
         <div class="hc-meta">
-          <span class="hc-team" style="background:${col.bg};color:${col.txt}">${abbr}</span>
+          <span class="hc-team" style="background:${teamPillStyle(p.team).bg};color:${teamPillStyle(p.team).txt}">${abbr}</span>
           ${ratingPill(p.rating)}
         </div>
         <div class="hc-stats">${statChips(p.statContribs, true)}</div>
