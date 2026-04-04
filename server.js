@@ -620,6 +620,35 @@ function getState(mid) {
       }
     }
     state.snapshotHistory = rawSnaps.slice(-HISTORY_MAX);
+
+    // Rebuild quarterBaseline from fetchLog so quarterDelta is correct after restarts.
+    // Replay the log to find where the current tracked quarter starts, and capture
+    // the cumulative player stats just before that point as the baseline.
+    if (state.trackedQuarter !== null) {
+      const q        = state.trackedQuarter;
+      const runningQ = new Map(); // name -> { _v, ...stats }
+      let   baseline = null;
+
+      for (const logEntry of state.fetchLog) {
+        // First entry in this quarter — freeze current cumulative state as baseline
+        if (logEntry.q === q && baseline === null) {
+          baseline = {};
+          for (const [name, cur] of runningQ) {
+            baseline[name] = { v: cur._v || 0 };
+            STAT_KEYS.forEach(k => { baseline[name][k] = cur[k] || 0; });
+          }
+        }
+        for (const action of (logEntry.actions || [])) {
+          const name = action.n;
+          if (!runningQ.has(name)) runningQ.set(name, {});
+          const cur = runningQ.get(name);
+          if (typeof action.v === "number") cur._v = action.v;
+          STAT_KEYS.forEach(k => { if (typeof action[k] === "number") cur[k] = action[k]; });
+        }
+      }
+
+      if (baseline !== null) state.quarterBaseline = baseline;
+    }
   }
   // Patch any null completedQuarters entries using the fetch log
   for (const [q, qData] of Object.entries(state.completedQuarters)) {
