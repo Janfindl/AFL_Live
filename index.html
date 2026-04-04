@@ -1740,11 +1740,30 @@ function renderMomentum(momentum, teams, quarterStartTs, scoreEvents) {
   const chartH  = H - LABEL_H - SCORE_H; // bar area height = 76
   const midY    = LABEL_H + chartH / 2;  // centre line y = 52
 
-  // Fixed time axis anchored to Q1 start, spanning 120 game minutes
-  const GAME_MS   = 120 * 60 * 1000;
-  const BIN_MS    = 2  * 60 * 1000;
+  // Compressed game-time axis: each quarter = 25% of chart width, breaks collapsed
+  const Q_MINS    = 30;
+  const GAME_MINS = 120;
+  const BIN_MS    = 2 * 60 * 1000;
   const gameStartTs = (quarterStartTs && quarterStartTs[1]) ? quarterStartTs[1] : momentum[0].ts;
-  const tsToX = ts => Math.max(0, Math.min(W, (ts - gameStartTs) / GAME_MS * W));
+
+  // Sort quarter start entries once
+  const qSorted = Object.entries(quarterStartTs || {})
+    .map(([q, t]) => [Number(q), t])
+    .sort((a, b) => a[0] - b[0]);
+
+  // Map real timestamp → game-time minutes (quarter breaks collapsed)
+  function tsToGameMins(ts) {
+    let quarter = 1, qStart = gameStartTs;
+    for (const [q, t] of qSorted) {
+      if (ts >= t) { quarter = q; qStart = t; }
+    }
+    const nextQ    = qSorted.find(([q]) => q === quarter + 1);
+    const qEnd     = nextQ ? nextQ[1] : Infinity;
+    const elapsed  = Math.max(0, Math.min(ts, qEnd) - qStart) / 60000;
+    return (quarter - 1) * Q_MINS + Math.min(elapsed, Q_MINS);
+  }
+
+  const tsToX = ts => Math.max(0, Math.min(W, tsToGameMins(ts) / GAME_MINS * W));
 
   // Fixed bar width based on time (2 min / 120 min * 1000px ≈ 16.7px)
   const fixedBinW = BIN_MS / GAME_MS * W;
@@ -1787,11 +1806,7 @@ function renderMomentum(momentum, teams, quarterStartTs, scoreEvents) {
   }).join("");
 
   // Quarter markers: dashed vertical lines + Q label in top strip (left-aligned)
-  const qEntries = Object.entries(quarterStartTs || {})
-    .map(([q, ts]) => [Number(q), ts])
-    .sort((a, b) => a[0] - b[0]);
-
-  const qMarkers = qEntries.map(([q, ts]) => {
+  const qMarkers = qSorted.map(([q, ts]) => {
     const x = tsToX(ts).toFixed(1);
     const labelY = LABEL_H - 3; // baseline y for 9px text in 14px strip
     if (q === 1) {
@@ -1804,8 +1819,8 @@ function renderMomentum(momentum, teams, quarterStartTs, scoreEvents) {
 
   // Quarter winner labels: right-aligned before the NEXT quarter marker, in top strip
   // This keeps them out of the bar chart area entirely
-  const qWinLabels = qEntries.map(([q, startTs], i) => {
-    const nextEntry = qEntries[i + 1];
+  const qWinLabels = qSorted.map(([q, startTs], i) => {
+    const nextEntry = qSorted[i + 1];
     if (!nextEntry) return ""; // Q4 ongoing — no end marker yet
     const [, nextTs] = nextEntry;
     const qBins = bins.filter(b => b.binStart >= startTs && b.binStart < nextTs);
