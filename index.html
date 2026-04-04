@@ -1272,7 +1272,8 @@ function render(data) {
   document.getElementById("tabT1").textContent = t1;
   document.getElementById("tabT2").textContent = t2;
   document.getElementById("updatedAt").textContent   =
-    "Updated " + new Date(data.fetchedAt).toLocaleTimeString();
+    (data._servedAt ? new Date(data._servedAt).toLocaleTimeString() : "—") +
+    (data._source ? ` [${data._source}]` : "");
 
   // Elapsed
   const el = data.elapsedMins;

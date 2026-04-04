@@ -476,7 +476,8 @@ http.createServer(async (req, res) => {
       const savedAt = cached.savedAt ? new Date(cached.savedAt).getTime() : 0;
       const isLive  = savedAt > 0 && (Date.now() - savedAt) < IN_PROGRESS_STALE_MS;
       cached.inProgress = isLive ? !!(cached.inProgress) : false;
-      console.log(`  → OK  players=${(cached.players||[]).length}  live=${isLive}  age=${Math.round((Date.now()-savedAt)/1000)}s`);
+      cached._servedAt  = new Date().toISOString();
+      console.log(`  → OK  players=${(cached.players||[]).length}  live=${isLive}  age=${Math.round((Date.now()-savedAt)/1000)}s  src=${cached._source||'?'}`);
       res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-cache" });
       res.end(JSON.stringify(cached));
     } catch (err) {
