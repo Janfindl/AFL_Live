@@ -332,18 +332,23 @@ async function getGameData(mid) {
       const buf = await ghGetFile(`data/game_${mid}.json`);
       if (buf) {
         const data = JSON.parse(buf.toString("utf8"));
-        fs.writeFileSync(gameFile(mid), buf);   // keep disk in sync
+        data._source = "github";
+        fs.writeFileSync(gameFile(mid), buf);
         gameCache.set(mid, { data, fetchedAt: now });
         return data;
       }
+      console.warn(`[cache] GitHub returned no content for mid=${mid}`);
     } catch (e) {
       console.error(`[cache] GitHub pull mid=${mid}: ${e.message}`);
     }
+  } else {
+    console.warn(`[cache] No GitHub config (GH_TOKEN=${!!GH_TOKEN} GH_REPO=${!!GH_REPO}) — disk only`);
   }
 
   // Fall back to disk
   const diskData = loadGameData(mid);
   if (diskData) {
+    diskData._source = "disk";
     gameCache.set(mid, { data: diskData, fetchedAt: now });
     return diskData;
   }

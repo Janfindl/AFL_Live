@@ -1252,9 +1252,9 @@ async function fetchAndRender() {
     data.players.forEach(p => prevValues[p.name] = p.value);
     currentData = data;
     if (!data.inProgress) {
-      showStatus("Final");
+      showStatus(`Final [${data._source||'?'}]`);
     } else {
-      showStatus("Updated");
+      showStatus(`Updated [${data._source||'?'}]`);
     }
   } catch(e) { showStatus("⚠ "+e.message, true); }
 }
