@@ -801,6 +801,8 @@ async function fetchRatings(mid) {
       state.quarterBaseline[p.name] = { v: p.value };
       STAT_KEYS.forEach(k => { state.quarterBaseline[p.name][k] = p[k] || 0; });
     });
+    // Urgent push at quarter START so new baseline is in GitHub within 5s
+    scheduleGhPush(mid, true);
   }
   // Helper: extract value from completedQuarters entry (supports old number format)
   function cqv(entry) { return typeof entry === "object" && entry !== null ? entry.v : entry; }
@@ -1280,6 +1282,9 @@ http.createServer(async (req, res) => {
   syncFromGitHub()
     .catch(e => console.error("[github] startup sync failed:", e.message))
     .finally(() => {
+      // Clear any game states loaded before sync completed (race condition),
+      // forcing them to reload from the freshly-synced disk files.
+      gameStates.clear();
       autoRecordTick();
       setInterval(autoRecordTick, 15000);
     });
