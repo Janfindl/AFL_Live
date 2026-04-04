@@ -33,8 +33,8 @@ const WEIGHTS = {
 };
 
 function calcRating(value) {
-  // Linear: PV 15 → 1, PV 70 → 10, clamped
-  const raw = 1 + (Math.min(Math.max(value, 15), 70) - 15) * (9 / 55);
+  // Linear: PV 10 → 1, PV 70 → 10, clamped
+  const raw = 1 + (Math.min(Math.max(value, 10), 70) - 10) * (9 / 60);
   return Math.round(raw * 2) / 2;
 }
 
