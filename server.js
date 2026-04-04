@@ -105,11 +105,16 @@ async function ghPutFile(repoPath, buf) {
   if (r.body?.content?.sha) ghShaCache.set(repoPath, r.body.content.sha);
 }
 
-function fetchRawUrl(url) {
+function fetchRawUrl(url, token) {
   return new Promise((resolve, reject) => {
-    const req = https.get(url, { timeout: 12000 }, res => {
+    const headers = token ? { "Authorization": `Bearer ${token}`, "User-Agent": "AFL-Live-Ratings/1.0" } : {};
+    const req = https.get(url, { timeout: 12000, headers }, res => {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-        return fetchRawUrl(res.headers.location).then(resolve).catch(reject);
+        return fetchRawUrl(res.headers.location, token).then(resolve).catch(reject);
+      }
+      if (res.statusCode !== 200) {
+        res.resume();
+        return reject(new Error(`raw fetch HTTP ${res.statusCode}`));
       }
       const chunks = [];
       res.on("data", c => chunks.push(c));
@@ -355,11 +360,12 @@ async function getGameData(mid) {
 
   if (cached && (now - cached.fetchedAt) < CACHE_TTL_MS) return cached.data;
 
-  // Fetch fresh from GitHub
+  // Fetch fresh from GitHub via raw URL (bypasses Contents API size limits)
   if (GH_TOKEN && GH_REPO) {
     try {
-      const buf = await ghGetFile(`data/game_${mid}.json`);
-      if (buf) {
+      const rawUrl = `https://raw.githubusercontent.com/${GH_REPO}/${GH_BRANCH}/data/game_${mid}.json`;
+      const buf = await fetchRawUrl(rawUrl, GH_TOKEN);
+      if (buf && buf.length > 0) {
         const data = JSON.parse(buf.toString("utf8"));
         data._source = "github";
         fs.writeFileSync(gameFile(mid), buf);
