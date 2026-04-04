@@ -1244,7 +1244,7 @@ async function fetchAndRender() {
   if (!activeMid) return;
   showStatus('<span class="spinner"></span> Refreshing…');
   try {
-    const res  = await fetch(`/api/ratings?mid=${encodeURIComponent(activeMid)}`);
+    const res  = await fetch(`/api/ratings?mid=${encodeURIComponent(activeMid)}&_t=${Date.now()}`, { cache: "no-store" });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     if (data.error) throw new Error(data.error);
