@@ -368,11 +368,11 @@ async function getGameData(mid) {
       if (buf && buf.length > 0) {
         const data = JSON.parse(buf.toString("utf8"));
         data._source = "github";
-        fs.writeFileSync(gameFile(mid), buf);
+        try { fs.writeFileSync(gameFile(mid), buf); } catch (we) { console.warn(`[cache] disk write mid=${mid}: ${we.message}`); }
         gameCache.set(mid, { data, fetchedAt: now });
-        return data;
+        return data;  // return even if disk write failed
       }
-      console.warn(`[cache] GitHub returned no content for mid=${mid}`);
+      console.warn(`[cache] GitHub raw returned empty for mid=${mid}`);
     } catch (e) {
       console.error(`[cache] GitHub pull mid=${mid}: ${e.message}`);
     }
