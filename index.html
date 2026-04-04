@@ -1766,7 +1766,7 @@ function renderMomentum(momentum, teams, quarterStartTs, scoreEvents) {
   const tsToX = ts => Math.max(0, Math.min(W, tsToGameMins(ts) / GAME_MINS * W));
 
   // Fixed bar width based on time (2 min / 120 min * 1000px ≈ 16.7px)
-  const fixedBinW = BIN_MS / GAME_MS * W;
+  const fixedBinW = BIN_MS / (GAME_MINS * 60 * 1000) * W;
   const gap = Math.max(0.5, fixedBinW * 0.12);
   const bw  = Math.max(1, fixedBinW - gap);
 
