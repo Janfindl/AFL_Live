@@ -527,6 +527,7 @@ header{
 .comm-trigger.burst       {background:rgba(168,85,247,.15);color:#a855f7}
 .comm-trigger.quarter_end {background:rgba(255,210,0,.15);color:#ffd700}
 .comm-trigger.momentum    {background:rgba(59,130,246,.15);color:#60a5fa}
+.comm-trigger.outlier     {background:rgba(251,146,60,.15);color:#fb923c}
 .comm-time{font-size:11px;color:#6e7681}
 .comm-line{font-size:14px;line-height:1.55;color:#e6edf3}
 .comm-empty{
@@ -1387,8 +1388,8 @@ async function fetchAndRender() {
 let commentaryLog = [];
 let commUnread    = 0;
 
-const COMM_ICONS  = { goal:"🎯", burst:"⚡", quarter_end:"🏁", momentum:"📈" };
-const COMM_LABELS = { goal:"Goal", burst:"Burst", quarter_end:"Quarter End", momentum:"Momentum" };
+const COMM_ICONS  = { goal:"🎯", burst:"⚡", quarter_end:"🏁", momentum:"📈", outlier:"🔬" };
+const COMM_LABELS = { goal:"Goal", burst:"Burst", quarter_end:"Quarter End", momentum:"Momentum", outlier:"Outlier" };
 
 function renderCommentary() {
   const feed  = document.getElementById("commFeed");
