@@ -20,17 +20,23 @@ const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "data");
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
-const MODEL              = "claude-haiku-4-5-20251001";
-const MAX_TOKENS         = 100;
-const MAX_TOKENS_OUTLIER = 150;
-const MAX_LOG            = 60;   // max commentary lines stored per game
-const RATE_LIMIT_MS      = 2 * 60 * 1000;   // min gap between same trigger type
-const OUTLIER_NOVELTY_MS = 15 * 60 * 1000;  // min gap between outlier calls for same player
-const OUTLIER_THRESHOLD  = 2.0;             // min z-score to flag a stat
-const OUTLIER_MIN_STATS  = 2;              // player needs this many outlier stats to trigger
+const MODEL                  = "claude-haiku-4-5-20251001";
+const MAX_TOKENS             = 100;
+const MAX_TOKENS_OUTLIER     = 75;
+const MAX_TOKENS_QUARTER_END = 200;
+const MAX_LOG                = 60;
+const RATE_LIMIT_MS          = 2 * 60 * 1000;
+const OUTLIER_THRESHOLD      = 2.0;
+const OUTLIER_MIN_STATS      = 2;
+// Minimum raw-value change before a previously-mentioned outlier can fire again
+const OUTLIER_REVISIT_DELTA  = 2;
+const OUTLIER_REVISIT_PCT    = 0.25;
+
+// Stats that feed into Player Value — these carry more commentary weight
+const PV_STATS = new Set(["CP","ED","CM","1%","SI","MG","TO","ITC","G","B","T","GA","HO","CG"]);
 
 // Fields that are metadata, not game stats
-const OUTLIER_SKIP = new Set(["name", "team", "value", "projectedValue", "rating", "quarterDelta"]);
+const OUTLIER_SKIP = new Set(["name","team","value","projectedValue","rating","quarterDelta"]);
 
 // ── Corpus ────────────────────────────────────────────────────────────────────
 
@@ -219,10 +225,15 @@ function buildPrompt(trigger) {
     exampleTags = ["stat_based", "analysis"];
     const qNames = ["", "first", "second", "third", "fourth"];
     const qLabel = qNames[trigger.quarter] || `Q${trigger.quarter}`;
-    const top    = data.players?.[0];
-    eventLine = `End of the ${qLabel} quarter. Score: ${t1} ${s1} – ${t2} ${s2}.`;
-    dataLine  = top
-      ? `Best on ground: ${top.name} (${top.team}), ${top.CP || 0} contested possessions, ${top.G || 0} goals, ${top.T || 0} tackles, rating ${top.rating || "?"}/10.`
+    // Sort by rating desc, pick top 5 across both teams
+    const sorted = [...(data.players || [])].sort((a, b) => (b.rating || 0) - (a.rating || 0));
+    const top5 = sorted.slice(0, 5);
+    const playerSummary = top5.map(p =>
+      `${p.name} (${p.team}): ${p.CP || 0} CP, ${p.G || 0}g, ${p.T || 0} tackles, ${p.SI || 0} SI, ${p.HO ? `${p.HO} HO, ` : ""}rating ${p.rating || "?"}/10`
+    ).join("; ");
+    eventLine = `End of the ${qLabel} quarter. ${t1} ${s1} – ${t2} ${s2}.`;
+    dataLine  = playerSummary
+      ? `Most influential players this quarter: ${playerSummary}.`
       : "";
 
   } else if (trigger.type === "momentum") {
@@ -242,12 +253,18 @@ function buildPrompt(trigger) {
     ? `Real AFL pundit examples (match this style):\n${examples.map(e => `• "${e}"`).join("\n")}\n\n`
     : "";
 
+  const isQEnd = trigger.type === "quarter_end";
+  const instruction = isQEnd
+    ? `Write a 2-3 sentence quarter summary. Lead with the most impactful player or contest. ` +
+      `Be data-specific and varied in tone — never sound mechanical or formulaic. No preamble.`
+    : `Generate one short comment (1-2 sentences max).\n\nRespond with only the commentary line. No preamble.`;
+
   return (
-    `You are a live AFL radio/TV pundit. Generate one short comment (1-2 sentences max).\n\n` +
+    `You are a live AFL radio/TV pundit. ${instruction}\n\n` +
     exBlock +
     `Event: ${eventLine}\n` +
     (dataLine ? `Stats: ${dataLine}\n` : "") +
-    `\nRespond with only the commentary line. No preamble.`
+    (isQEnd ? "" : `\nRespond with only the commentary line. No preamble.`)
   );
 }
 
@@ -255,27 +272,32 @@ function buildOutlierPrompt(trigger, t1, t2, s1, s2, mi) {
   const { player, stats, recentBurst } = trigger;
   const leader    = s1 > s2 ? t1 : s1 < s2 ? t2 : null;
   const margin    = Math.abs(s1 - s2);
-  const scoreLine = leader ? `${leader} lead by ${margin}` : "scores level";
+  const scoreLine = leader ? `${leader} lead by ${margin}` : "level";
 
-  const statBlock = stats
-    .map(s => `  • ${s.stat}: ${s.value}  (z=${s.z >= 0 ? "+" : ""}${s.z}, game avg ${s.mean} ± ${s.stddev})`)
-    .join("\n");
+  // PV stats first, then others
+  const sorted = [...stats].sort((a, b) => {
+    const ap = PV_STATS.has(a.stat) ? 0 : 1;
+    const bp = PV_STATS.has(b.stat) ? 0 : 1;
+    return ap - bp || Math.abs(b.z) - Math.abs(a.z);
+  });
+
+  const statBlock = sorted
+    .map(s => `${s.stat}: ${s.value} (field avg ${s.mean})`)
+    .join(", ");
 
   let burstLine = "";
   if (recentBurst) {
     const top2 = recentBurst.statContribs.slice(0, 2)
       .map(c => `${c.delta > 0 ? "+" : ""}${c.delta} ${c.stat}`).join(", ");
-    burstLine = `\nRecent surge: +${recentBurst.gain} value pts in last 10 min (${top2}).`;
+    burstLine = ` Surging last 10 min: ${top2}.`;
   }
 
   return (
-    `You are a live AFL pundit.\n\n` +
-    `${player.name} (${player.team}) is a multi-stat outlier at ${mi}.\n\n` +
-    `Outlier stats vs all players in this game:\n${statBlock}\n` +
-    burstLine + `\n` +
-    `Score: ${t1} ${s1} – ${t2} ${s2} (${scoreLine}).\n\n` +
-    `In 2-3 sentences: what do these stats mean together, how has it changed the game, ` +
-    `and what it signals from here. No preamble.`
+    `You are a live AFL pundit. One pundit line, max 20 words. Vivid, specific, no clichés. ` +
+    `Vary your opening — never start with the player's name. ` +
+    `Never use mathematical or statistical terminology.\n\n` +
+    `${player.name} (${player.team}) at ${mi}: ${statBlock}.${burstLine} ` +
+    `Score: ${t1} ${s1}–${t2} ${s2} (${scoreLine}).\n\nOne line only. No preamble.`
   );
 }
 
@@ -323,14 +345,29 @@ function callClaude(prompt, maxTokens = MAX_TOKENS) {
 
 // ── Rate limiting ─────────────────────────────────────────────────────────────
 
-const _lastTriggerTs = new Map();  // `${mid}:${type}` -> ts
-const _outlierTs     = new Map();  // `${mid}:${playerName}` -> ts
+const _lastTriggerTs = new Map();   // `${mid}:${type}` -> ts
+// Per-quarter outlier state: `${mid}:Q${q}:${playerName}` -> [{stat,value}]
+// A player is suppressed within a quarter unless their outlier stats shift meaningfully.
+const _outlierState = new Map();
+
+function _outlierKey(mid, trigger) {
+  const q = trigger.data?.quarter || 0;
+  return `${mid}:Q${q}:${trigger.player.name}`;
+}
 
 function isRateLimited(mid, trigger) {
   if (trigger.type === "outlier") {
-    const key  = `${mid}:${trigger.player.name}`;
-    const last = _outlierTs.get(key) || 0;
-    return (Date.now() - last) < OUTLIER_NOVELTY_MS;
+    const prev = _outlierState.get(_outlierKey(mid, trigger));
+    if (!prev) return false; // first mention this quarter
+    // Allow re-mention only if a stat moved meaningfully since last call
+    const prevMap = Object.fromEntries(prev.map(s => [s.stat, s.value]));
+    for (const s of trigger.stats) {
+      const p = prevMap[s.stat];
+      if (p == null) return false; // new outlier stat appeared
+      const delta = Math.abs(s.value - p);
+      if (delta >= OUTLIER_REVISIT_DELTA || (p > 0 && delta / p >= OUTLIER_REVISIT_PCT)) return false;
+    }
+    return true; // stats haven't moved enough — suppress
   }
   const key  = `${mid}:${trigger.type}`;
   const last = _lastTriggerTs.get(key) || 0;
@@ -339,7 +376,8 @@ function isRateLimited(mid, trigger) {
 
 function markTriggered(mid, trigger) {
   if (trigger.type === "outlier") {
-    _outlierTs.set(`${mid}:${trigger.player.name}`, Date.now());
+    _outlierState.set(_outlierKey(mid, trigger),
+      trigger.stats.map(s => ({ stat: s.stat, value: s.value })));
   } else {
     _lastTriggerTs.set(`${mid}:${trigger.type}`, Date.now());
   }
@@ -381,7 +419,9 @@ async function onPush(mid, data, prev) {
       const prompt = buildPrompt(trigger);
       if (!prompt) continue;
 
-      const maxTok = trigger.type === "outlier" ? MAX_TOKENS_OUTLIER : MAX_TOKENS;
+      const maxTok = trigger.type === "outlier"     ? MAX_TOKENS_OUTLIER
+                   : trigger.type === "quarter_end" ? MAX_TOKENS_QUARTER_END
+                   : MAX_TOKENS;
       const line   = await callClaude(prompt, maxTok);
       if (!line) continue;
 
