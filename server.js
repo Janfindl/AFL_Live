@@ -105,13 +105,14 @@ async function ghPutFile(repoPath, buf) {
   if (r.body?.content?.sha) ghShaCache.set(repoPath, r.body.content.sha);
 }
 
-function ghGetFileRaw(repoPath) {
+// Git Blobs API — returns raw content for any file size, no CDN involved
+function ghGetBlob(blobSha) {
   return new Promise((resolve, reject) => {
     const req = https.request({
       hostname: "api.github.com",
-      path:     `/repos/${GH_REPO}/contents/${repoPath}?ref=${GH_BRANCH}`,
+      path:     `/repos/${GH_REPO}/git/blobs/${blobSha}`,
       method:   "GET",
-      timeout:  12000,
+      timeout:  15000,
       headers: {
         "Authorization":        `Bearer ${GH_TOKEN}`,
         "User-Agent":           "AFL-Live-Ratings/1.0",
@@ -121,13 +122,13 @@ function ghGetFileRaw(repoPath) {
     }, res => {
       if (res.statusCode !== 200) {
         res.resume();
-        return reject(new Error(`GitHub raw API HTTP ${res.statusCode}`));
+        return reject(new Error(`GitHub blob HTTP ${res.statusCode}`));
       }
       const chunks = [];
       res.on("data", c => chunks.push(c));
       res.on("end", () => resolve(Buffer.concat(chunks)));
     });
-    req.on("timeout", () => { req.destroy(); reject(new Error("GitHub raw API timeout")); });
+    req.on("timeout", () => { req.destroy(); reject(new Error("GitHub blob timeout")); });
     req.on("error", reject);
     req.end();
   });
@@ -143,11 +144,11 @@ async function ghGetFile(repoPath) {
     ghShaCache.set(repoPath, r.body.sha);
     return Buffer.from(r.body.content.replace(/\n/g, ""), "base64");
   }
-  // GitHub omits inline content for large files — use raw API directly
-  if (r.body?.size > 0) {
-    console.log(`[github] ${repoPath} has no inline content, using raw API`);
-    const buf = await ghGetFileRaw(repoPath);
-    if (r.body?.sha) ghShaCache.set(repoPath, r.body.sha);
+  // GitHub omits inline content for large files — fetch via Blobs API using SHA
+  if (r.body?.sha) {
+    console.log(`[github] ${repoPath} large file, fetching blob ${r.body.sha.slice(0,7)}`);
+    const buf = await ghGetBlob(r.body.sha);
+    ghShaCache.set(repoPath, r.body.sha);
     return buf;
   }
   console.warn(`[github] GET ${repoPath} → 200 but no content or download_url`);
@@ -368,20 +369,33 @@ async function getGameData(mid) {
 
   if (cached && (now - cached.fetchedAt) < CACHE_TTL_MS) return cached.data;
 
-  // Fetch fresh from GitHub API using raw accept header (bypasses Contents API size limits)
+  // Fetch fresh from GitHub: get blob SHA via Contents API, then fetch blob (handles any file size)
   if (GH_TOKEN && GH_REPO) {
     try {
-      console.log(`[cache] fetching gh-raw mid=${mid}`);
-      const buf = await ghGetFileRaw(`data/game_${mid}.json`);
-      console.log(`[cache] gh-raw ok mid=${mid} bytes=${buf?.length}`);
+      const repoPath = `data/game_${mid}.json`;
+      console.log(`[cache] fetching meta mid=${mid}`);
+      const meta = await ghRequest("GET", `/repos/${GH_REPO}/contents/${repoPath}?ref=${GH_BRANCH}`);
+      if (meta.status !== 200 || !meta.body?.sha) throw new Error(`Contents API HTTP ${meta.status}`);
+      const sha = meta.body.sha;
+      ghShaCache.set(repoPath, sha);
+      let buf;
+      if (meta.body.content) {
+        // Small file — inline content available, skip extra blob call
+        buf = Buffer.from(meta.body.content.replace(/\n/g, ""), "base64");
+        console.log(`[cache] meta inline mid=${mid} bytes=${buf.length}`);
+      } else {
+        console.log(`[cache] fetching blob ${sha.slice(0,7)} mid=${mid}`);
+        buf = await ghGetBlob(sha);
+        console.log(`[cache] blob ok mid=${mid} bytes=${buf?.length}`);
+      }
       if (buf && buf.length > 0) {
         const data = JSON.parse(buf.toString("utf8"));
         data._source = "github";
         try { fs.writeFileSync(gameFile(mid), buf); } catch (we) { console.warn(`[cache] disk write mid=${mid}: ${we.message}`); }
         gameCache.set(mid, { data, fetchedAt: now });
-        return data;  // return even if disk write failed
+        return data;
       }
-      console.warn(`[cache] GitHub raw returned empty for mid=${mid}`);
+      console.warn(`[cache] GitHub returned empty for mid=${mid}`);
     } catch (e) {
       console.error(`[cache] GitHub pull mid=${mid}: ${e.message}`);
     }
