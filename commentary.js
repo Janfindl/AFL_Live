@@ -26,7 +26,7 @@ const MAX_TOKENS_OUTLIER     = 75;
 const MAX_TOKENS_QUARTER_END = 200;
 const MAX_LOG                = 60;
 const RATE_LIMIT_MS          = 2 * 60 * 1000;
-const OUTLIER_THRESHOLD      = 2.0;
+const OUTLIER_THRESHOLD      = 2.5;
 const OUTLIER_MIN_STATS      = 2;
 // Minimum raw-value change before a previously-mentioned outlier can fire again
 const OUTLIER_REVISIT_DELTA  = 2;
