@@ -22,8 +22,8 @@ const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "data");
 
 const MODEL                  = "claude-haiku-4-5-20251001";
 const MAX_TOKENS             = 100;
-const MAX_TOKENS_OUTLIER     = 75;
-const MAX_TOKENS_QUARTER_END = 200;
+const MAX_TOKENS_OUTLIER     = 112;
+const MAX_TOKENS_QUARTER_END = 400;
 const MAX_LOG                = 60;
 const RATE_LIMIT_MS          = 2 * 60 * 1000;
 const OUTLIER_THRESHOLD      = 2.5;
@@ -117,20 +117,26 @@ function findTopOutlier(players, gameStats) {
 function detectTriggers(data, prev) {
   const triggers = [];
 
-  // ── New score events (goals) ──────────────────────────────────────────────
+  // ── New score events (goals + behinds) ───────────────────────────────────
   const prevEventCount = prev?.scoreEvents?.length || 0;
   const newEvents = (data.scoreEvents || []).slice(prevEventCount);
   for (const ev of newEvents) {
-    if (ev.type !== "G") continue;
-    const scorer = findScorer(ev.team, data.players, prev?.players);
-    triggers.push({ type: "goal", team: ev.team, scorer, data });
+    if (ev.type === "G") {
+      const scorer = findScorer(ev.team, data.players, prev?.players);
+      triggers.push({ type: "goal", team: ev.team, scorer, data });
+    } else if (ev.type === "B") {
+      triggers.push({ type: "behind", team: ev.team, data });
+    }
   }
 
-  // ── New burst detected ────────────────────────────────────────────────────
+  // ── New burst detected (suppress if same player just scored a goal) ───────
+  const goalScorers = new Set(
+    triggers.filter(t => t.type === "goal" && t.scorer).map(t => t.scorer.name)
+  );
   const prevBurstCount = prev?.bursts?.length || 0;
   const newBursts = (data.bursts || []).slice(prevBurstCount);
   for (const burst of newBursts) {
-    triggers.push({ type: "burst", burst, data });
+    if (!goalScorers.has(burst.name)) triggers.push({ type: "burst", burst, data });
   }
 
   // ── Quarter transition ────────────────────────────────────────────────────
@@ -227,9 +233,9 @@ function buildPrompt(trigger) {
     const qLabel = qNames[trigger.quarter] || `Q${trigger.quarter}`;
     // Sort by rating desc, pick top 5 across both teams
     const sorted = [...(data.players || [])].sort((a, b) => (b.rating || 0) - (a.rating || 0));
-    const top5 = sorted.slice(0, 5);
-    const playerSummary = top5.map(p =>
-      `${p.name} (${p.team}): ${p.CP || 0} CP, ${p.G || 0}g, ${p.T || 0} tackles, ${p.SI || 0} SI, ${p.HO ? `${p.HO} HO, ` : ""}rating ${p.rating || "?"}/10`
+    const top7 = sorted.slice(0, 7);
+    const playerSummary = top7.map(p =>
+      `${p.name} (${p.team}): ${p.CP || 0} CP, ${p.G || 0}g ${p.B || 0}b, ${p.T || 0} tackles, ${p.SI || 0} SI, ${p.ED || 0} efficiency, ${p.HO ? `${p.HO} HO, ` : ""}${p.TO ? `${p.TO} turnovers, ` : ""}rating ${p.rating || "?"}/10`
     ).join("; ");
     eventLine = `End of the ${qLabel} quarter. ${t1} ${s1} – ${t2} ${s2}.`;
     dataLine  = playerSummary
@@ -240,6 +246,12 @@ function buildPrompt(trigger) {
     exampleTags = ["colour", "stat_based"];
     eventLine = `${trigger.swingTeam} are surging — they have significantly outplayed ${trigger.otherTeam} over the last five minutes. ${mi}`;
     dataLine  = `${trigger.swingTeam} value swing: +${trigger.delta} pts. Score: ${t1} ${s1} – ${t2} ${s2}.`;
+
+  } else if (trigger.type === "behind") {
+    const leader    = s1 > s2 ? t1 : s1 < s2 ? t2 : null;
+    const margin    = Math.abs(s1 - s2);
+    const scoreLine = leader ? `${leader} by ${margin}` : "level";
+    return { directLine: `Behind to ${trigger.team}. ${t1} ${s1}–${t2} ${s2} (${scoreLine}).` };
 
   } else if (trigger.type === "outlier") {
     return buildOutlierPrompt(trigger, t1, t2, s1, s2, mi);
@@ -255,8 +267,9 @@ function buildPrompt(trigger) {
 
   const isQEnd = trigger.type === "quarter_end";
   const instruction = isQEnd
-    ? `Write a 2-3 sentence quarter summary. Lead with the most impactful player or contest. ` +
-      `Be data-specific and varied in tone — never sound mechanical or formulaic. No preamble.`
+    ? `Write a 4-5 sentence quarter summary focused entirely on the most influential players and how they changed the game. ` +
+      `Name each standout player specifically. Use their stats to show impact — not just volume but what it meant for the contest. ` +
+      `Vary your sentence openings. Be vivid and pundit-like, not mechanical. No preamble.`
     : `Generate one short comment (1-2 sentences max).\n\nRespond with only the commentary line. No preamble.`;
 
   return (
@@ -293,8 +306,8 @@ function buildOutlierPrompt(trigger, t1, t2, s1, s2, mi) {
   }
 
   return (
-    `You are a live AFL pundit. One pundit line, max 20 words. Vivid, specific, no clichés. ` +
-    `Vary your opening — never start with the player's name. ` +
+    `You are a live AFL pundit. One pundit line, max 30 words. Vivid, specific, no clichés. ` +
+    `Always mention the player's name. Vary your opening — do not start with the player's name. ` +
     `Never use mathematical or statistical terminology.\n\n` +
     `${player.name} (${player.team}) at ${mi}: ${statBlock}.${burstLine} ` +
     `Score: ${t1} ${s1}–${t2} ${s2} (${scoreLine}).\n\nOne line only. No preamble.`
@@ -416,14 +429,28 @@ async function onPush(mid, data, prev) {
     markTriggered(mid, trigger);
 
     try {
-      const prompt = buildPrompt(trigger);
-      if (!prompt) continue;
+      const result = buildPrompt(trigger);
+      if (!result) continue;
 
-      const maxTok = trigger.type === "outlier"     ? MAX_TOKENS_OUTLIER
-                   : trigger.type === "quarter_end" ? MAX_TOKENS_QUARTER_END
-                   : MAX_TOKENS;
-      const line   = await callClaude(prompt, maxTok);
-      if (!line) continue;
+      let line;
+      if (typeof result === "object" && result.directLine) {
+        line = result.directLine;
+      } else {
+        const maxTok = trigger.type === "outlier"     ? MAX_TOKENS_OUTLIER
+                     : trigger.type === "quarter_end" ? MAX_TOKENS_QUARTER_END
+                     : MAX_TOKENS;
+        line = await callClaude(result, maxTok);
+        if (!line) continue;
+      }
+
+      // Resolve score and player/team for this trigger
+      const t1 = data.teams?.[0] || "";
+      const t2 = data.teams?.[1] || "";
+      const s1 = data.summary?.[t1]?.score ?? 0;
+      const s2 = data.summary?.[t2]?.score ?? 0;
+      const entryTeam   = trigger.team || trigger.burst?.team || trigger.player?.team || trigger.swingTeam || null;
+      const entryPlayer = trigger.scorer?.name || trigger.burst?.name
+                        || (trigger.type === "outlier" ? trigger.player?.name : null) || null;
 
       const entry = {
         ts:        Date.now(),
@@ -431,10 +458,12 @@ async function onPush(mid, data, prev) {
         line,
         q:         data.quarter,
         matchInfo: data.matchInfo || null,
-        ...(trigger.type === "outlier" ? { player: trigger.player.name } : {}),
+        score:     `${t1} ${s1}–${t2} ${s2}`,
+        team:      entryTeam,
+        player:    entryPlayer,
       };
       addToLog(String(mid), entry);
-      console.log(`[commentary] mid=${mid} [${trigger.type}${trigger.player ? ` ${trigger.player.name}` : ""}] ${line.slice(0, 90)}`);
+      console.log(`[commentary] mid=${mid} [${trigger.type}${entryPlayer ? ` ${entryPlayer}` : ""}] ${line.slice(0, 90)}`);
     } catch (e) {
       console.error(`[commentary] mid=${mid} trigger=${trigger.type}:`, e.message);
     }

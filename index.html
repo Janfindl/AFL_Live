@@ -528,8 +528,20 @@ header{
 .comm-trigger.quarter_end {background:rgba(255,210,0,.15);color:#ffd700}
 .comm-trigger.momentum    {background:rgba(59,130,246,.15);color:#60a5fa}
 .comm-trigger.outlier     {background:rgba(251,146,60,.15);color:#fb923c}
+.comm-trigger.behind      {background:rgba(139,148,158,.12);color:#8b949e}
 .comm-time{font-size:11px;color:#6e7681}
 .comm-line{font-size:14px;line-height:1.55;color:#e6edf3}
+.comm-score{font-size:11px;color:#6e7681;margin-top:4px;letter-spacing:.2px}
+.comm-goal-flash{
+  display:inline-block;font-size:13px;font-weight:900;
+  letter-spacing:1.5px;padding:3px 12px;border-radius:6px;
+  margin-bottom:6px;text-transform:uppercase
+}
+.comm-team-badge{
+  display:inline-block;font-size:10px;font-weight:700;
+  padding:2px 7px;border-radius:8px;letter-spacing:.3px;
+  margin-left:4px;vertical-align:middle
+}
 .comm-empty{
   flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
   color:#6e7681;font-size:13px;text-align:center;padding:40px;gap:6px
@@ -1392,8 +1404,15 @@ async function fetchAndRender() {
 let commentaryLog = [];
 let commUnread    = 0;
 
-const COMM_ICONS  = { goal:"🎯", burst:"⚡", quarter_end:"🏁", momentum:"📈", outlier:"🔬" };
-const COMM_LABELS = { goal:"Goal", burst:"Burst", quarter_end:"Quarter End", momentum:"Momentum", outlier:"Outlier" };
+const COMM_ICONS  = { goal:"🎯", burst:"⚡", quarter_end:"🏁", momentum:"📈", outlier:"🔬", behind:"·" };
+const COMM_LABELS = { goal:"Goal", burst:"Burst", quarter_end:"Quarter End", momentum:"Momentum", outlier:"Outlier", behind:"Behind" };
+
+function commTeamBadge(teamName) {
+  if (!teamName) return "";
+  const col = TEAM_COLORS[teamName];
+  if (!col) return "";
+  return `<span class="comm-team-badge" style="background:${col.pill.bg};color:${col.pill.txt}">${teamName}</span>`;
+}
 
 function renderCommentary() {
   const feed  = document.getElementById("commFeed");
@@ -1401,24 +1420,41 @@ function renderCommentary() {
   if (!feed) return;
   if (!commentaryLog.length) {
     if (empty) empty.style.display = "flex";
-    // Clear any old entries but keep the empty placeholder
     Array.from(feed.children).forEach(c => { if (c !== empty) c.remove(); });
     return;
   }
   if (empty) empty.style.display = "none";
-  // Render newest-first
   feed.innerHTML = [...commentaryLog].reverse().map(e => {
     const icon  = COMM_ICONS[e.trigger]  || "💬";
     const label = COMM_LABELS[e.trigger] || e.trigger;
     const timeStr = e.matchInfo
       ? e.matchInfo.replace(/\s+\d+[\u2013-]\d+$/, "").trim()
       : (e.q ? `Q${e.q}` : "");
+
+    // Goal flash banner
+    let goalFlash = "";
+    if (e.trigger === "goal" && e.team) {
+      const col = TEAM_COLORS[e.team];
+      const bg  = col?.pill?.bg  || "#22c55e";
+      const txt = col?.pill?.txt || "#ffffff";
+      goalFlash = `<div class="comm-goal-flash" style="background:${bg};color:${txt}">⚽ GOAL — ${e.team}</div>`;
+    }
+
+    // Team badge for entries with a known team
+    const badge = commTeamBadge(e.team);
+
+    // Score line
+    const scoreLine = e.score ? `<div class="comm-score">${e.score}</div>` : "";
+
     return `<div class="comm-entry">
+      ${goalFlash}
       <div class="comm-meta">
         <span class="comm-trigger ${e.trigger}">${icon} ${label}</span>
+        ${badge}
         ${timeStr ? `<span class="comm-time">${timeStr}</span>` : ""}
       </div>
       <div class="comm-line">${e.line}</div>
+      ${scoreLine}
     </div>`;
   }).join("");
 }
