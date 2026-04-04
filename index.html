@@ -1032,13 +1032,7 @@ async function tryAutoLoad(mid) {
     data.players.forEach(p => prevValues[p.name] = p.value);
     currentData = data;
     clearInterval(tickInterval);
-    if (data.inProgress) {
-      tickInterval = setInterval(tick, 1000);
-    } else {
-      tickInterval = null;
-      cdEl.textContent = "—";
-      ringFill.style.strokeDashoffset = CIRC;
-    }
+    tickInterval = setInterval(tick, 1000);
     return true;
   } catch { return false; }
 }
@@ -1134,13 +1128,7 @@ async function startGame(mid) {
     data.players.forEach(p => prevValues[p.name] = p.value);
     currentData = data;
     clearInterval(tickInterval);
-    if (data.inProgress) {
-      tickInterval = setInterval(tick, 1000);
-    } else {
-      tickInterval = null;
-      cdEl.textContent = "—";
-      ringFill.style.strokeDashoffset = CIRC;
-    }
+    tickInterval = setInterval(tick, 1000);
   } catch(e) {
     document.getElementById("gsOverlay").style.display = "flex";
     document.getElementById("gsErr").textContent = "⚠ " + e.message;
