@@ -373,9 +373,13 @@ async function getGameData(mid) {
   if (GH_TOKEN && GH_REPO) {
     try {
       const repoPath = `data/game_${mid}.json`;
-      console.log(`[cache] fetching meta mid=${mid}`);
-      const meta = await ghRequest("GET", `/repos/${GH_REPO}/contents/${repoPath}?ref=${GH_BRANCH}`);
-      if (meta.status !== 200 || !meta.body?.sha) throw new Error(`Contents API HTTP ${meta.status}`);
+      const apiPath  = `/repos/${GH_REPO}/contents/${repoPath}?ref=${GH_BRANCH}`;
+      console.log(`[cache] fetching meta mid=${mid} path=${apiPath}`);
+      const meta = await ghRequest("GET", apiPath);
+      if (meta.status !== 200 || !meta.body?.sha) {
+        const msg = typeof meta.body === "object" ? JSON.stringify(meta.body) : String(meta.body).slice(0, 120);
+        throw new Error(`Contents API HTTP ${meta.status}: ${msg}`);
+      }
       const sha = meta.body.sha;
       ghShaCache.set(repoPath, sha);
       let buf;
