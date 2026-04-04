@@ -509,6 +509,35 @@ header{
   .ctable th:nth-child(20), .ctable td:nth-child(20){display:none}
   .pname{font-size:14px}
 }
+/* ── Commentary screen ── */
+#screen-commentary{overflow-y:auto;-webkit-overflow-scrolling:touch}
+.comm-feed{flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:10px}
+.comm-entry{
+  background:#161b22;border:1px solid #30363d;border-radius:8px;
+  padding:10px 14px;animation:comm-in .3s ease
+}
+@keyframes comm-in{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.comm-meta{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.comm-trigger{
+  display:inline-flex;align-items:center;gap:3px;
+  padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.4px
+}
+.comm-trigger.goal        {background:rgba(34,197,94,.15);color:#22c55e}
+.comm-trigger.burst       {background:rgba(168,85,247,.15);color:#a855f7}
+.comm-trigger.quarter_end {background:rgba(255,210,0,.15);color:#ffd700}
+.comm-trigger.momentum    {background:rgba(59,130,246,.15);color:#60a5fa}
+.comm-time{font-size:11px;color:#6e7681}
+.comm-line{font-size:14px;line-height:1.55;color:#e6edf3}
+.comm-empty{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  color:#6e7681;font-size:13px;text-align:center;padding:40px;gap:6px
+}
+.stab-badge{
+  display:inline-block;background:#f85149;color:#fff;
+  font-size:9px;font-weight:800;border-radius:8px;
+  padding:0 5px;margin-left:4px;vertical-align:middle;line-height:15px
+}
 </style>
 </head>
 <body>
@@ -547,6 +576,7 @@ header{
   <div class="screen-tabs">
     <button class="stab active" data-screen="dashboard">Dashboard</button>
     <button class="stab"        data-screen="players">Players</button>
+    <button class="stab"        data-screen="commentary">Commentary</button>
   </div>
 
   <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
@@ -743,6 +773,16 @@ header{
 
   </div><!-- /screen-players -->
 
+  <!-- ══ SCREEN 3: COMMENTARY ══ -->
+  <div class="screen" id="screen-commentary">
+    <div id="commFeed" class="comm-feed">
+      <div class="comm-empty" id="commEmpty">
+        <span>Commentary fires automatically during live games.</span>
+        <span style="font-size:11px;opacity:.55">Requires ANTHROPIC_API_KEY to be set on the server.</span>
+      </div>
+    </div>
+  </div><!-- /screen-commentary -->
+
 </div><!-- /app-body -->
 
 <div id="status"></div>
@@ -865,6 +905,11 @@ document.querySelectorAll(".stab").forEach(tab => {
       document.querySelectorAll(".ctable thead th").forEach(h => h.classList.remove("sort-asc","sort-desc"));
       document.querySelector('.ctable thead th[data-col="rating"]').classList.add("sort-desc");
       if (currentData) renderTable(currentData.players, currentData.quarterLog);
+    }
+    if (target === "commentary") {
+      commUnread = 0;
+      updateCommBadge();
+      renderCommentary();
     }
   });
 });
@@ -1082,6 +1127,7 @@ async function tryAutoLoad(mid) {
     prevValues = {};
     currentData = null;
     countdown = REFRESH;
+    commentaryLog = []; commUnread = 0; updateCommBadge(); renderCommentary();
     render(data);
     data.players.forEach(p => prevValues[p.name] = p.value);
     currentData = data;
@@ -1099,6 +1145,7 @@ async function tryAutoLoad(mid) {
       if (ringFill) ringFill.style.strokeDashoffset = CIRC;
       showStatus("Final");
     }
+    fetchCommentary();
     return true;
   } catch { return false; }
 }
@@ -1192,6 +1239,7 @@ async function startGame(mid) {
     prevValues = {};
     currentData = null;
     countdown = REFRESH;
+    commentaryLog = []; commUnread = 0; updateCommBadge(); renderCommentary();
     render(data);
     data.players.forEach(p => prevValues[p.name] = p.value);
     currentData = data;
@@ -1210,6 +1258,7 @@ async function startGame(mid) {
       if (ringFill) ringFill.style.strokeDashoffset = CIRC;
       showStatus("Final");
     }
+    fetchCommentary();
   } catch(e) {
     document.getElementById("gsOverlay").style.display = "flex";
     document.getElementById("gsErr").textContent = "⚠ " + e.message;
@@ -1311,6 +1360,7 @@ async function fetchAndRender() {
     render(data);
     data.players.forEach(p => prevValues[p.name] = p.value);
     currentData = data;
+    fetchCommentary();
     if (data.inProgress) {
       showStatus(`Updated [${data._source||'?'}]`);
       scheduleRefresh();
@@ -1331,6 +1381,71 @@ async function fetchAndRender() {
     showStatus("⚠ " + e.message, true);
     scheduleRefresh(); // retry on error only
   }
+}
+
+// ── Commentary ────────────────────────────────────────────────────────────────
+let commentaryLog = [];
+let commUnread    = 0;
+
+const COMM_ICONS  = { goal:"🎯", burst:"⚡", quarter_end:"🏁", momentum:"📈" };
+const COMM_LABELS = { goal:"Goal", burst:"Burst", quarter_end:"Quarter End", momentum:"Momentum" };
+
+function renderCommentary() {
+  const feed  = document.getElementById("commFeed");
+  const empty = document.getElementById("commEmpty");
+  if (!feed) return;
+  if (!commentaryLog.length) {
+    if (empty) empty.style.display = "flex";
+    // Clear any old entries but keep the empty placeholder
+    Array.from(feed.children).forEach(c => { if (c !== empty) c.remove(); });
+    return;
+  }
+  if (empty) empty.style.display = "none";
+  // Render newest-first
+  feed.innerHTML = [...commentaryLog].reverse().map(e => {
+    const icon  = COMM_ICONS[e.trigger]  || "💬";
+    const label = COMM_LABELS[e.trigger] || e.trigger;
+    const timeStr = e.matchInfo
+      ? e.matchInfo.replace(/\s+\d+[\u2013-]\d+$/, "").trim()
+      : (e.q ? `Q${e.q}` : "");
+    return `<div class="comm-entry">
+      <div class="comm-meta">
+        <span class="comm-trigger ${e.trigger}">${icon} ${label}</span>
+        ${timeStr ? `<span class="comm-time">${timeStr}</span>` : ""}
+      </div>
+      <div class="comm-line">${e.line}</div>
+    </div>`;
+  }).join("");
+}
+
+function updateCommBadge() {
+  const tab = document.querySelector('.stab[data-screen="commentary"]');
+  if (!tab) return;
+  let badge = tab.querySelector(".stab-badge");
+  if (commUnread > 0) {
+    if (!badge) { badge = document.createElement("span"); badge.className = "stab-badge"; tab.appendChild(badge); }
+    badge.textContent = commUnread;
+  } else {
+    if (badge) badge.remove();
+  }
+}
+
+async function fetchCommentary() {
+  if (!activeMid) return;
+  try {
+    const res = await fetch(`/api/commentary?mid=${encodeURIComponent(activeMid)}&_t=${Date.now()}`, { cache: "no-store" });
+    if (!res.ok) return;
+    const log = await res.json();
+    if (!Array.isArray(log)) return;
+    const prevLen = commentaryLog.length;
+    commentaryLog = log;
+    const newCount = log.length - prevLen;
+    if (newCount > 0) {
+      const onTab = document.querySelector('.stab[data-screen="commentary"]')?.classList.contains("active");
+      if (!onTab) { commUnread += newCount; updateCommBadge(); }
+      else renderCommentary();
+    }
+  } catch { /* network hiccup */ }
 }
 
 // ── Render ────────────────────────────────────────────────────────────────────

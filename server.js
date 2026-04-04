@@ -11,6 +11,10 @@ const GIT_SHA = (() => {
   catch { return "unknown"; }
 })();
 
+// Commentary engine — optional, loads gracefully if module not present
+let commentary = null;
+try { commentary = require("./commentary"); } catch (e) { console.warn("[commentary] module not loaded:", e.message); }
+
 const PORT     = process.env.PORT || 3000;
 const GAME_MINS = 120;
 
@@ -442,9 +446,15 @@ http.createServer(async (req, res) => {
       try {
         const data = JSON.parse(body);
         data._source = "push";
+        const prevEntry = gameCache.get(String(mid));
+        const prevData  = prevEntry?.data || null;
         gameCache.set(String(mid), { data, fetchedAt: Date.now() });
         try { fs.writeFileSync(gameFile(mid), JSON.stringify(data)); } catch {}
         console.log(`[push] mid=${mid} players=${(data.players||[]).length} inProgress=${data.inProgress}`);
+        // Fire-and-forget commentary generation
+        if (commentary && data.inProgress) {
+          commentary.onPush(String(mid), data, prevData).catch(() => {});
+        }
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ ok: true }));
       } catch(e) {
@@ -544,6 +554,14 @@ http.createServer(async (req, res) => {
         res.end(JSON.stringify({ error: "Invalid JSON: " + e.message }));
       }
     });
+    return;
+  }
+
+  if (parsed.pathname === "/api/commentary") {
+    const mid = parsed.searchParams.get("mid");
+    const log = (commentary && mid) ? commentary.getLog(mid) : [];
+    res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-cache" });
+    res.end(JSON.stringify(log));
     return;
   }
 
