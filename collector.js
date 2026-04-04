@@ -1,5 +1,6 @@
 "use strict";
 // v2026-04-04 — standalone data collector (no HTTP server)
+const http  = require("http");
 const https = require("https");
 const path  = require("path");
 const fs    = require("fs");
@@ -159,9 +160,33 @@ function loadGameData(mid) {
   try { return JSON.parse(fs.readFileSync(gameFile(mid), "utf8")); }
   catch { return null; }
 }
+function pushToServer(mid, data) {
+  const url = process.env.SERVER_URL;
+  const secret = process.env.PUSH_SECRET;
+  if (!url || !secret) return;
+  try {
+    const body = JSON.stringify(data);
+    const parsed = new URL(`${url}/api/push?mid=${mid}&secret=${encodeURIComponent(secret)}`);
+    const mod = parsed.protocol === "https:" ? https : http;
+    const req = mod.request({
+      hostname: parsed.hostname,
+      port:     parsed.port || (parsed.protocol === "https:" ? 443 : 80),
+      path:     parsed.pathname + parsed.search,
+      method:   "POST",
+      timeout:  8000,
+      headers:  { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(body) },
+    }, res => { res.resume(); });
+    req.on("error", () => {});
+    req.on("timeout", () => req.destroy());
+    req.write(body);
+    req.end();
+  } catch {}
+}
+
 function saveGameData(mid, data) {
   try { fs.writeFileSync(gameFile(mid), JSON.stringify(data)); }
   catch (e) { console.error("saveGameData:", e.message); }
+  pushToServer(mid, data);
   scheduleGhPush(mid);
 }
 

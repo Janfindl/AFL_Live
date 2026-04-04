@@ -428,6 +428,32 @@ http.createServer(async (req, res) => {
     return;
   }
 
+  // Collector pushes game data directly — bypasses GitHub read path entirely
+  if (parsed.pathname === "/api/push" && req.method === "POST") {
+    const secret = parsed.searchParams.get("secret");
+    const mid    = parsed.searchParams.get("mid");
+    if (!process.env.PUSH_SECRET || secret !== process.env.PUSH_SECRET) {
+      res.writeHead(401); res.end("Unauthorized"); return;
+    }
+    if (!mid) { res.writeHead(400); res.end("mid required"); return; }
+    let body = "";
+    req.on("data", d => body += d);
+    req.on("end", () => {
+      try {
+        const data = JSON.parse(body);
+        data._source = "push";
+        gameCache.set(String(mid), { data, fetchedAt: Date.now() });
+        try { fs.writeFileSync(gameFile(mid), JSON.stringify(data)); } catch {}
+        console.log(`[push] mid=${mid} players=${(data.players||[]).length} inProgress=${data.inProgress}`);
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ ok: true }));
+      } catch(e) {
+        res.writeHead(400); res.end(e.message);
+      }
+    });
+    return;
+  }
+
   if (parsed.pathname === "/api/fixture") {
     try {
       refreshFixture();
@@ -561,7 +587,9 @@ http.createServer(async (req, res) => {
 }).listen(PORT, () => {
   console.log(`AFL Live Ratings → http://localhost:${PORT}`);
   console.log(`Data directory   → ${DATA_DIR}`);
-  console.log(`GitHub repo      → ${GH_REPO || "(not configured — set GITHUB_TOKEN + GITHUB_REPO)"}`);
+  console.log(`GitHub repo      → ${GH_REPO || "(none)"}`);
+  console.log(`GitHub token     → ${GH_TOKEN ? `set (${GH_TOKEN.slice(0,6)}…)` : "NOT SET"}`);
+  console.log(`Push secret      → ${process.env.PUSH_SECRET ? "set" : "not set"}`);
   syncFromGitHub()
     .catch(e => console.error("[github] startup sync failed:", e.message));
 });
