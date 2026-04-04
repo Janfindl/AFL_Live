@@ -913,9 +913,10 @@ function renderFixtureRound(roundIdx) {
   grid.innerHTML = round.games.map(g => {
     const hLogo = teamLogo(g.hteam);
     const aLogo = teamLogo(g.ateam);
-    const isLive     = (g.complete > 0 && g.complete < 100) || !!liveGames[g.fw_id];
+    const inWindow   = g.dateTs && serverNow() >= g.dateTs - 10*60*1000 && serverNow() <= g.dateTs + 3*60*60*1000;
+    const isLive     = (g.complete > 0 && g.complete < 100) || !!liveGames[g.fw_id] || (g.complete === 0 && inWindow);
     const isDone     = g.complete >= 100 && !liveGames[g.fw_id];
-    const isUpcoming = g.complete === 0 && !liveGames[g.fw_id];
+    const isUpcoming = !isLive && !isDone;
     const hasData    = savedGames.has(g.fw_id) || isLive;
     const cardCls    = isLive ? "live" : isUpcoming ? "upcoming" : "";
     const hCol = (TEAM_COLORS[g.hteam] || {}).txt || "#e6edf3";
