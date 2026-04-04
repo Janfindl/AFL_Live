@@ -1810,7 +1810,18 @@ function renderMomentum(momentum, teams, quarterStartTs, scoreEvents) {
     }
   }
 
-  const nets   = bins.map(b => b.homeVal - b.awayVal);
+  // Drop bins that fall in quarter breaks (elapsed > 40 mins in their quarter).
+  // Break-period stat adjustments have elapsed > Q_MINS and would all clamp to the
+  // same x position (the quarter boundary), causing bar pile-up.
+  const playBins = bins.filter(b => {
+    let q = 1, qStart = gameStartTs;
+    for (const [qn, t] of qSorted) { if (b.binStart >= t) { q = qn; qStart = t; } }
+    const nextQ = qSorted.find(([qn]) => qn === q + 1);
+    if (!nextQ) return true; // Q4 — no following break, always keep
+    return (b.binStart - qStart) / 60000 < Q_MINS + 10; // 40-min cutoff (30 + 10 time-on buffer)
+  });
+
+  const nets   = playBins.map(b => b.homeVal - b.awayVal);
   const maxAbs = Math.max(...nets.map(Math.abs), 1);
   const scaleH = chartH / 2 - 4;
 
@@ -1819,7 +1830,7 @@ function renderMomentum(momentum, teams, quarterStartTs, scoreEvents) {
     const h = (Math.abs(net) / maxAbs) * scaleH;
     if (h < 0.5) return "";
     const col = net >= 0 ? c1 : c2;
-    const x   = tsToX(bins[i].binStart).toFixed(1);
+    const x   = tsToX(playBins[i].binStart).toFixed(1);
     const y   = net >= 0 ? (midY - h).toFixed(1) : midY.toFixed(1);
     return `<rect x="${x}" y="${y}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" fill="${col}" opacity="0.85"/>`;
   }).join("");
@@ -1842,7 +1853,7 @@ function renderMomentum(momentum, teams, quarterStartTs, scoreEvents) {
     const nextEntry = qSorted[i + 1];
     if (!nextEntry) return ""; // Q4 ongoing — no end marker yet
     const [, nextTs] = nextEntry;
-    const qBins = bins.filter(b => b.binStart >= startTs && b.binStart < nextTs);
+    const qBins = playBins.filter(b => b.binStart >= startTs && b.binStart < nextTs);
     if (qBins.length === 0) return "";
     const homeSum = qBins.reduce((s, b) => s + b.homeVal, 0);
     const awaySum = qBins.reduce((s, b) => s + b.awayVal, 0);
