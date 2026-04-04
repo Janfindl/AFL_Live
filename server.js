@@ -1134,7 +1134,7 @@ http.createServer(async (req, res) => {
         .filter(f => /^game_\d+\.json$/.test(f))
         .map(f => parseInt(f.slice(5, -5), 10));
       res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-cache" });
-      res.end(JSON.stringify({ serverNow: Date.now(), rounds: fixtureCache.rounds, savedGames }));
+      res.end(JSON.stringify({ serverNow: Date.now(), rounds: fixtureCache.rounds, savedGames, liveGames: [...autoRecording] }));
     } catch (e) {
       console.error("[fixture]", e.message);
       res.writeHead(500, { "Content-Type": "application/json" });
