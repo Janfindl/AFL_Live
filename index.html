@@ -1501,7 +1501,7 @@ function renderHot(hot5, windowMins) {
     return `<div class="hc-card" data-key="${esc(p.name)}" style="background:${cardBg}">
       <div class="hc-glow" style="background:${col.txt}"></div>
       <div class="hc-rank-wrap">
-        <div class="hc-rank" style="background:${col.bg};color:${col.txt}">${i+1}</div>
+        <div class="hc-rank" style="background:${teamPillStyle(p.team).bg};color:${teamPillStyle(p.team).txt}">${i+1}</div>
       </div>
       <div class="hc-info">
         <div class="hc-name" style="color:${col.txt}">${esc(p.name)}</div>
@@ -1541,7 +1541,7 @@ function renderQuiet(quiet5, windowMins) {
     return `<div class="hc-card" data-key="${esc(p.name)}" style="background:${cardBg}">
       <div class="hc-glow" style="background:${col.txt}"></div>
       <div class="hc-rank-wrap">
-        <div class="hc-rank" style="background:${col.bg};color:${col.txt}">${i+1}</div>
+        <div class="hc-rank" style="background:${teamPillStyle(p.team).bg};color:${teamPillStyle(p.team).txt}">${i+1}</div>
       </div>
       <div class="hc-info">
         <div class="hc-name" style="color:${col.txt}">${esc(p.name)}</div>
@@ -1676,7 +1676,7 @@ function renderQTop(qTop5, quarter) {
     return `<div class="hc-card" data-key="${esc(p.name)}" style="background:${cardBg}">
       <div class="hc-glow" style="background:${col.txt}"></div>
       <div class="hc-rank-wrap">
-        <div class="hc-rank" style="background:${col.bg};color:${col.txt}">${i+1}</div>
+        <div class="hc-rank" style="background:${teamPillStyle(p.team).bg};color:${teamPillStyle(p.team).txt}">${i+1}</div>
       </div>
       <div class="hc-info">
         <div class="hc-name" style="color:${col.txt}">${esc(p.name)}</div>
@@ -1732,7 +1732,7 @@ function renderQuarterLog(quarterLog, players) {
       <td class="left rnk">${i+1}</td>
       <td class="left">
         <span class="pname">${esc(p.name)}</span>
-        <span class="ttag" style="background:${col.bg};color:${col.txt}">${abbr}</span>
+        <span class="ttag" style="background:${teamPillStyle(p.team).bg};color:${teamPillStyle(p.team).txt}">${abbr}</span>
       </td>
       ${qCells}
       <td class="qlog-total" style="color:${totalColor}">${totalSign}${total.toFixed(1)}</td>
@@ -1967,7 +1967,7 @@ function renderBest(players) {
     return `<div class="hc-card" data-key="${esc(p.name)}" style="background:${cardBg}">
       <div class="hc-glow" style="background:${col.txt}"></div>
       <div class="hc-rank-wrap">
-        <div class="hc-rank" style="background:${col.bg};color:${col.txt}">${i + 1}</div>
+        <div class="hc-rank" style="background:${teamPillStyle(p.team).bg};color:${teamPillStyle(p.team).txt}">${i + 1}</div>
       </div>
       <div class="hc-info">
         <div class="hc-name" style="color:${col.txt}">${esc(p.name)}</div>
@@ -2020,7 +2020,7 @@ function renderTable(players, quarterLog) {
       <td class="rtg-cell">${ratingPill(p.rating)}</td>
       <td class="left">
         <span class="pname">${esc(p.name)}</span>
-        <span class="ttag" style="background:${col.bg};color:${col.txt}">${abbr}</span>
+        <span class="ttag" style="background:${teamPillStyle(p.team).bg};color:${teamPillStyle(p.team).txt}">${abbr}</span>
       </td>
       <td>${chgBadge(p)}</td>
       ${nc(p.ED)}${nc(p.CP)}${nc(p.CM)}${nc(p.MG)}${nc(p["1%"])}${nc(p.T)}${nc(p.HO)}
