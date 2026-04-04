@@ -594,6 +594,33 @@ function getState(mid) {
       Object.assign(state.lastFetchState[n], fields);
     }
   }
+  // Rebuild snapshotHistory from fetch log so hot/cold works immediately on load
+  if (state.fetchLog.length > 0) {
+    const running = new Map(); // name -> { value, ...stats }
+    const rawSnaps = [];
+    for (const logEntry of state.fetchLog) {
+      for (const action of (logEntry.actions || [])) {
+        const name = action.n;
+        if (!running.has(name)) running.set(name, {});
+        const cur = running.get(name);
+        if (action.tm) cur.tm = action.tm;
+        if (typeof action.v === "number") cur.value = action.v;
+        STAT_KEYS.forEach(k => { if (typeof action[k] === "number") cur[k] = action[k]; });
+      }
+      if (running.size > 0) {
+        const snap = { ts: logEntry.ts, map: {} };
+        for (const [name, p] of running) {
+          if (typeof p.value === "number") {
+            const s = { value: p.value };
+            STAT_KEYS.forEach(k => { s[k] = typeof p[k] === "number" ? p[k] : 0; });
+            snap.map[name] = s;
+          }
+        }
+        rawSnaps.push(snap);
+      }
+    }
+    state.snapshotHistory = rawSnaps.slice(-HISTORY_MAX);
+  }
   // Patch any null completedQuarters entries using the fetch log
   for (const [q, qData] of Object.entries(state.completedQuarters)) {
     for (const [name, val] of Object.entries(qData)) {
