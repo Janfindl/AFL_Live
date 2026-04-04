@@ -33,14 +33,9 @@ const WEIGHTS = {
 const CONSTANT = 9.257290;
 
 function calcRating(value) {
-  let raw;
-  if      (value <= 0)  raw = 0;
-  else if (value <= 20) raw = (value / 20) * 4;
-  else if (value <= 35) raw = 4 + ((value - 20) / 15) * 2;
-  else if (value <= 50) raw = 6 + ((value - 35) / 15) * 2;
-  else if (value <= 70) raw = 8 + ((value - 50) / 20) * 2;
-  else                  raw = 10;
-  return Math.round(Math.min(10, Math.max(0, raw)) * 2) / 2;
+  // Linear: PV 10 → 1, PV 70 → 10, clamped
+  const raw = 1 + (Math.min(Math.max(value, 10), 70) - 10) * (9 / 60);
+  return Math.round(raw * 2) / 2;
 }
 
 function calculateValue(p, elapsedFrac = 1) {
