@@ -29,8 +29,8 @@ const OUTLIER_NOVELTY_MS = 15 * 60 * 1000;  // min gap between outlier calls for
 const OUTLIER_THRESHOLD  = 2.0;             // min z-score to flag a stat
 const OUTLIER_MIN_STATS  = 2;              // player needs this many outlier stats to trigger
 
-// Stats scanned for outliers (skip pure volume accumulators)
-const OUTLIER_STATS = ["CP", "G", "T", "SI", "HO", "CM", "ITC", "CG", "TO"];
+// Fields that are metadata, not game stats
+const OUTLIER_SKIP = new Set(["name", "team", "value", "projectedValue", "rating", "quarterDelta"]);
 
 // ── Corpus ────────────────────────────────────────────────────────────────────
 
@@ -64,9 +64,11 @@ function getExamples(tags, n = 3) {
 // ── Outlier detection ─────────────────────────────────────────────────────────
 
 function computeGameStats(players) {
+  if (!players.length) return {};
   const result = {};
-  for (const stat of OUTLIER_STATS) {
-    const vals   = players.map(p => p[stat] || 0);
+  const keys = Object.keys(players[0]).filter(k => !OUTLIER_SKIP.has(k) && typeof players[0][k] === "number");
+  for (const stat of keys) {
+    const vals    = players.map(p => p[stat] || 0);
     const nonzero = vals.filter(v => v > 0);
     if (nonzero.length < 6) continue;
     const mean     = vals.reduce((a, b) => a + b, 0) / vals.length;
