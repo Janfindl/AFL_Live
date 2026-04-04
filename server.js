@@ -488,7 +488,7 @@ http.createServer(async (req, res) => {
   }
 
   try {
-    res.writeHead(200, { "Content-Type": "text/html" });
+    res.writeHead(200, { "Content-Type": "text/html", "Cache-Control": "no-cache" });
     res.end(fs.readFileSync(HTML_PATH, "utf8"));
   } catch {
     res.writeHead(404); res.end("Not found");
