@@ -116,7 +116,12 @@ function parseTable(html, colMap) {
     if (cells.length < 10) continue;
     const name = cells[colMap._name];
     if (!name) continue;
-    const p = players[name] || (players[name] = { name });
+    // Use jersey number as tiebreaker for same-name players (e.g. two C. Warner)
+    const jersey = cells[0] || "";
+    const key = players[name] && players[name]._jersey !== jersey
+      ? `${name}#${jersey}`
+      : name;
+    const p = players[key] || (players[key] = { name, _jersey: jersey });
     for (const [stat, idx] of Object.entries(colMap)) {
       if (stat === "_name") continue;
       const num = parseFloat(cells[idx]);
@@ -132,13 +137,23 @@ const ADV_MAP   = { _name: 1, CP: 2, ED: 4, CM: 6, "1%": 8, SI: 12, MG: 13, TO: 
 function mergeTeam(basicHtml, advHtml, teamName) {
   const basic = parseTable(basicHtml, BASIC_MAP);
   const adv   = parseTable(advHtml,   ADV_MAP);
-  const names = new Set([...Object.keys(basic), ...Object.keys(adv)]);
-  return [...names].map(name => ({
-    team: teamName,
-    ...(basic[name] || {}),
-    ...(adv[name]   || {}),
-    name,
-  }));
+  const keys  = new Set([...Object.keys(basic), ...Object.keys(adv)]);
+  // Find display names that appear more than once (name collisions after jersey tiebreaker)
+  const nameCounts = {};
+  for (const k of keys) {
+    const displayName = (basic[k] || adv[k] || {}).name || k;
+    nameCounts[displayName] = (nameCounts[displayName] || 0) + 1;
+  }
+  return [...keys].map(key => {
+    const merged = { team: teamName, ...(basic[key] || {}), ...(adv[key] || {}) };
+    // If this name collided, append jersey number to disambiguate display name
+    if (nameCounts[merged.name] > 1 && merged._jersey) {
+      merged.name = `${merged.name} (${merged._jersey})`;
+    }
+    delete merged._jersey;
+    merged.name = merged.name || key;
+    return merged;
+  });
 }
 
 // ── Persistent storage ────────────────────────────────────────────────────────
