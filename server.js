@@ -174,8 +174,10 @@ async function syncFromGitHub() {
   catch (e) { console.error("[github] list failed:", e.message); return; }
   for (const name of names) {
     if (!/^(game|momentum|sim)_\d+\.json$/.test(name)) continue;
-    const local = path.join(DATA_DIR, name);
-    if (fs.existsSync(local)) continue;
+    const local   = path.join(DATA_DIR, name);
+    const isSim   = name.startsWith("sim_");
+    // Always overwrite sim files (updated externally); skip game/momentum if already present
+    if (!isSim && fs.existsSync(local)) continue;
     try {
       const buf = await ghGetFile(`data/${name}`);
       if (buf) { fs.writeFileSync(local, buf); console.log(`[github] pulled  ${name}`); }

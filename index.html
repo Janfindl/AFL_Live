@@ -1441,10 +1441,11 @@ async function fetchCommentary() {
     const prevLen = commentaryLog.length;
     commentaryLog = log;
     const newCount = log.length - prevLen;
-    if (newCount > 0) {
-      const onTab = document.querySelector('.stab[data-screen="commentary"]')?.classList.contains("active");
-      if (!onTab) { commUnread += newCount; updateCommBadge(); }
-      else renderCommentary();
+    const onTab = document.querySelector('.stab[data-screen="commentary"]')?.classList.contains("active");
+    if (onTab) {
+      renderCommentary();
+    } else if (newCount > 0) {
+      commUnread += newCount; updateCommBadge();
     }
   } catch { /* network hiccup */ }
 }
