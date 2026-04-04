@@ -66,38 +66,6 @@
     "ts": 1775293998492,
     "type": "outlier",
     "timeStr": "2nd Qtr 0:30",
-    "player": "I Heeney",
-    "team": "Sydney Swans",
-    "stats": [
-      {
-        "stat": "CP",
-        "z": 4.04,
-        "value": 6,
-        "mean": 1.3,
-        "stddev": 1.2
-      },
-      {
-        "stat": "SI",
-        "z": 2.82,
-        "value": 4,
-        "mean": 1.2,
-        "stddev": 1
-      },
-      {
-        "stat": "CM",
-        "z": 2.01,
-        "value": 1,
-        "mean": 0.2,
-        "stddev": 0.4
-      }
-    ],
-    "combinedZ": 8.87,
-    "line": "Heeney's absolutely dominant ball-winning display—nearly four standard deviations above average in disposals with elite efficiency—has single-handedly orchestrated Sydney's devastating 33-point turnaround, turning this into a complete mismatch through sheer midfield control and scoreboard pressure. That recent goal plus 134 metres gained in ten minutes signals he's operating in a different stratosphere, and West Coast simply has no answer; expect the Swans to keep flooding the ball to their star and extending this margin unless the Eagles make desperate structural changes."
-  },
-  {
-    "ts": 1775294058528,
-    "type": "outlier",
-    "timeStr": "2nd Qtr 1:10",
     "player": "J Amartey",
     "team": "Sydney Swans",
     "stats": [
@@ -117,7 +85,32 @@
       }
     ],
     "combinedZ": 7.22,
-    "line": "Amartey is absolutely dominating the contested ball and hit-up play at an elite level—his 2 contested marks and 4 score involvements are far exceeding what we're seeing from any other player today, signaling he's the critical playmaker in Sydney's onslaught. That recent 10-point surge in just 10 minutes shows he's building serious momentum heading into the second half, and West Coast simply won't be able to contain him if they can't provide defensive attention. If he maintains this intensity, Sydney's 33-point buffer could blow out further, but even if West Coast finds some resistance, Amartey has already established himself as the difference-maker in"
+    "line": "The Swans' midfielder is wrestling control in the midfield—West Coast can't find the footy when it matters."
+  },
+  {
+    "ts": 1775294058528,
+    "type": "outlier",
+    "timeStr": "2nd Qtr 1:10",
+    "player": "I Heeney",
+    "team": "Sydney Swans",
+    "stats": [
+      {
+        "stat": "CP",
+        "z": 3.89,
+        "value": 6,
+        "mean": 1.4,
+        "stddev": 1.2
+      },
+      {
+        "stat": "SI",
+        "z": 2.82,
+        "value": 4,
+        "mean": 1.2,
+        "stddev": 1
+      }
+    ],
+    "combinedZ": 6.71,
+    "line": "Getting his hands on it when it matters—Heeney's turned this quarter into a personal showcase, West Coast's defence in absolute tatters."
   },
   {
     "ts": 1775294133540,
@@ -125,106 +118,6 @@
     "label": "GOAL  Sydney Swans",
     "timeStr": "2nd Quarter 2:43  5–44",
     "line": "Papley's been absolutely clinical today, that's his first major and he's already looking dangerous with three contested possessions—West Coast's defense is getting picked apart out there."
-  },
-  {
-    "ts": 1775294178489,
-    "type": "outlier",
-    "timeStr": "2nd Qtr 3:27",
-    "player": "T Papley",
-    "team": "Sydney Swans",
-    "stats": [
-      {
-        "stat": "SI",
-        "z": 2.68,
-        "value": 4,
-        "mean": 1.2,
-        "stddev": 1
-      },
-      {
-        "stat": "G",
-        "z": 2.01,
-        "value": 1,
-        "mean": 0.2,
-        "stddev": 0.4
-      }
-    ],
-    "combinedZ": 4.69,
-    "line": "Papley's exceptional efficiency—four score involvements and a goal well above game standards—has been the catalyst for Sydney's dominant 39-point buffer, as he's directly converting opportunities into scoreboard pressure that West Coast simply hasn't matched. This elite output in the second quarter suggests the Swans have seized control of the contest's momentum and territory, positioning themselves to potentially run away with the game if they maintain this intensity. If Papley continues at this level, West Coast will need a dramatic strategic shift to claw back into this contest, otherwise Sydney looks set for a comfortable victory."
-  },
-  {
-    "ts": 1775294238507,
-    "type": "outlier",
-    "timeStr": "2nd Qtr 4:30",
-    "player": "C Curnow",
-    "team": "Sydney Swans",
-    "stats": [
-      {
-        "stat": "G",
-        "z": 2.01,
-        "value": 1,
-        "mean": 0.2,
-        "stddev": 0.4
-      },
-      {
-        "stat": "CM",
-        "z": 2.01,
-        "value": 1,
-        "mean": 0.2,
-        "stddev": 0.4
-      }
-    ],
-    "combinedZ": 4.02,
-    "line": "Curnow has kicked a goal and taken a contested mark in the second quarter—both exceptional outputs for this stage of the game where players are averaging minimal impact in these categories. This clinical efficiency has been a microcosm of Sydney's dominance, with the Swans' 38-point lead suggesting they've converted their dominance into scoreboard pressure far more effectively than West Coast. If Curnow maintains this contested marking and finishing form, the Eagles will struggle to contain him in the second half, making Sydney heavy favorites to run out comfortable victors."
-  },
-  {
-    "ts": 1775294298547,
-    "type": "outlier",
-    "timeStr": "2nd Qtr 5:23",
-    "player": "B Grundy",
-    "team": "Sydney Swans",
-    "stats": [
-      {
-        "stat": "CG",
-        "z": 3.36,
-        "value": 2,
-        "mean": 0.2,
-        "stddev": 0.5
-      },
-      {
-        "stat": "CP",
-        "z": 2.45,
-        "value": 5,
-        "mean": 1.6,
-        "stddev": 1.4
-      }
-    ],
-    "combinedZ": 5.81,
-    "line": "Grundy's dominance in the ruck—2 contested possessions and 5 clearances well above game norms—has given Sydney complete control of the midfield and first-use advantage, directly enabling their 38-point cushion. The Swans are winning the contested ball battle decisively, which translates to winning the terms of engagement and controlling game flow. West Coast will struggle to manufacture any comeback without disrupting Sydney's ruck dominance, making Grundy's continued influence a critical factor in whether the Eagles can claw back into this contest."
-  },
-  {
-    "ts": 1775294358531,
-    "type": "outlier",
-    "timeStr": "2nd Qtr 6:11",
-    "player": "J Serong",
-    "team": "Sydney Swans",
-    "stats": [
-      {
-        "stat": "G",
-        "z": 2.01,
-        "value": 1,
-        "mean": 0.2,
-        "stddev": 0.4
-      },
-      {
-        "stat": "CM",
-        "z": 2.01,
-        "value": 1,
-        "mean": 0.2,
-        "stddev": 0.4
-      }
-    ],
-    "combinedZ": 4.02,
-    "line": "Serong's dual outlier performance—landing a crucial goal and a contested mark in the second quarter—has been a catalytic moment for Sydney's dominance, turning what could have been a competitive contest into a 39-point blowout. His ability to win contested possessions and convert them to scoreboard impact demonstrates the Swans' structural superiority in the air and around the contest, a decisive advantage West Coast simply hasn't matched. If Serong maintains this intensity, Sydney should cruise to a comfortable victory, though West Coast will need a dramatic momentum shift in the second half to make this remotely competitive."
   },
   {
     "ts": 1775294478569,
@@ -256,7 +149,7 @@
       }
     ],
     "combinedZ": 5.41,
-    "line": "Lindsay's exceptional disposal efficiency—two contested grabs and four turnovers in the second quarter—suggests he's winning contested ball but struggling with decision-making under pressure, likely a symptom of West Coast's overall dominance by Sydney. With the Eagles already down 45 points and hemorrhaging possessions, Lindsay's inability to cleanly use the football compounds their deficit; unless West Coast can stabilize their ball movement and reduce forced handballs, this game is effectively over."
+    "line": "The Eagles' midfield is getting monstered—Lindsay's touches are arriving on broken plays, not clean possessions."
   },
   {
     "ts": 1775294778602,
@@ -269,40 +162,15 @@
     "ts": 1775294898602,
     "type": "outlier",
     "timeStr": "2nd Qtr 15:15",
-    "player": "I Heeney",
-    "team": "Sydney Swans",
-    "stats": [
-      {
-        "stat": "CP",
-        "z": 3.46,
-        "value": 7,
-        "mean": 2,
-        "stddev": 1.4
-      },
-      {
-        "stat": "SI",
-        "z": 2.81,
-        "value": 5,
-        "mean": 1.7,
-        "stddev": 1.2
-      }
-    ],
-    "combinedZ": 6.27,
-    "line": "Heeney's exceptional ball-winning and spoiling work in the second quarter—particularly that recent goal and 134m gain—reflects Sydney's complete midfield dominance, with the Swans already 50 points up and controlling possession at will. This level of statistical outlier performance suggests West Coast's gameplan has completely broken down defensively, allowing their opponents to win contested footy with ease. Unless the Eagles find an immediate structural fix in the third quarter, Heeney's ability to accumulate at this rate signals this could become a blowout loss."
-  },
-  {
-    "ts": 1775294958650,
-    "type": "outlier",
-    "timeStr": "2nd Qtr 16:30",
     "player": "J Amartey",
     "team": "Sydney Swans",
     "stats": [
       {
         "stat": "CM",
-        "z": 3.98,
+        "z": 4.17,
         "value": 2,
         "mean": 0.2,
-        "stddev": 0.5
+        "stddev": 0.4
       },
       {
         "stat": "G",
@@ -312,8 +180,33 @@
         "stddev": 0.5
       }
     ],
-    "combinedZ": 7.59,
-    "line": "Amartey's explosive second quarter has been the catalyst for Sydney's dominant 50-point lead—he's pulling in contested marks and converting opportunities at a rate that's left West Coast's defense in tatters, with his two goals and elite disposal efficiency completely reshaping the game's momentum. This isn't just individual brilliance; it's become a game-breaking performance that's effectively put the result beyond doubt, and we should expect the Swans to maintain control from here unless West Coast can manufacture a historic comeback that frankly looks mathematically improbable given how comprehensively they've been outclassed."
+    "combinedZ": 7.78,
+    "line": "The Swans' midfielder has erupted into this contest—two goals, explosive last quarter involvement, dictating terms completely."
+  },
+  {
+    "ts": 1775294958650,
+    "type": "outlier",
+    "timeStr": "2nd Qtr 16:30",
+    "player": "I Heeney",
+    "team": "Sydney Swans",
+    "stats": [
+      {
+        "stat": "CP",
+        "z": 3.33,
+        "value": 7,
+        "mean": 2.1,
+        "stddev": 1.5
+      },
+      {
+        "stat": "SI",
+        "z": 2.77,
+        "value": 5,
+        "mean": 1.7,
+        "stddev": 1.2
+      }
+    ],
+    "combinedZ": 6.1,
+    "line": "Heeney's sprinting through gaps like West Coast's defense evaporated—absolute menace in the corridor right now."
   },
   {
     "ts": 1775295183643,
@@ -321,31 +214,6 @@
     "label": "BURST  R Bice (Sydney Swans)  +10.54",
     "timeStr": "2nd Quarter 20:29  8–58",
     "line": "Look, Bice has just taken over this game in that last ten minutes, hasn't he — getting himself into the right spaces, winning the contested possessions, and those inside 50s are really starting to trouble West Coast's defense now."
-  },
-  {
-    "ts": 1775295258648,
-    "type": "outlier",
-    "timeStr": "2nd Qtr 21:20",
-    "player": "B Grundy",
-    "team": "Sydney Swans",
-    "stats": [
-      {
-        "stat": "CG",
-        "z": 2.8,
-        "value": 2,
-        "mean": 0.3,
-        "stddev": 0.6
-      },
-      {
-        "stat": "CP",
-        "z": 2.49,
-        "value": 6,
-        "mean": 2.2,
-        "stddev": 1.5
-      }
-    ],
-    "combinedZ": 5.29,
-    "line": "Grundy's dominance in the ruck—two contested possessions well above league average and six clearances nearly two-and-a-half standard deviations above the game mean—has given Sydney complete control of the stoppage battle, directly translating to their commanding 51-point lead. The Swans are winning first possession, dictating play tempo, and controlling entries into their forward 50, which explains their explosive scoring efficiency. West Coast will need a seismic shift in the contest to claw back into this game, as long as Grundy maintains this ruck ascendancy."
   },
   {
     "ts": 1775295273714,
@@ -360,6 +228,31 @@
     "label": "BURST  C Curnow (Sydney Swans)  +11.59",
     "timeStr": "2nd Quarter 21:44  8–65",
     "line": "Curnow's been absolutely electric here in the second quarter, two goals two essentials and he's just worrying the living daylights out of that West Coast defense, the Swans are running away with it 65 to 8!"
+  },
+  {
+    "ts": 1775295378707,
+    "type": "outlier",
+    "timeStr": "2nd Qtr 23:45",
+    "player": "B Grundy",
+    "team": "Sydney Swans",
+    "stats": [
+      {
+        "stat": "CG",
+        "z": 2.8,
+        "value": 2,
+        "mean": 0.3,
+        "stddev": 0.6
+      },
+      {
+        "stat": "CP",
+        "z": 2.78,
+        "value": 7,
+        "mean": 2.3,
+        "stddev": 1.7
+      }
+    ],
+    "combinedZ": 5.58,
+    "line": "The big ruckman's suffocating presence is turning this contest into a one-sided wrestling match."
   },
   {
     "ts": 1775295423731,
@@ -390,31 +283,6 @@
     "line": "Well look, Grundy's had an absolute purple patch here in the second quarter, just pulling the footy out of the air and he's got that contested possession working overtime—that's where Sydney's really built this scoreboard lead, just dominating through the middle."
   },
   {
-    "ts": 1775295618742,
-    "type": "outlier",
-    "timeStr": "2nd Qtr 27:29",
-    "player": "J Lindsay",
-    "team": "West Coast Eagles",
-    "stats": [
-      {
-        "stat": "CG",
-        "z": 2.4,
-        "value": 2,
-        "mean": 0.4,
-        "stddev": 0.7
-      },
-      {
-        "stat": "TO",
-        "z": 2.08,
-        "value": 4,
-        "mean": 1.2,
-        "stddev": 1.3
-      }
-    ],
-    "combinedZ": 4.48,
-    "line": "Lindsay's aggressive involvement—two contested grabs and four turnovers—suggests he's trying to create something in a desperate deficit, but those unforced errors are actively hurting West Coast's ability to stem the bleeding against a rampaging Sydney outfit. The Swans' 63-point lead means West Coast is forced into high-risk football, and Lindsay's forcing the issue is a symptom of the Eagles' desperation rather than a solution. Unless West Coast's midfield can dramatically tighten their ball security, Sydney will coast home comfortably."
-  },
-  {
     "ts": 1775295723742,
     "type": "goal",
     "label": "GOAL  West Coast Eagles",
@@ -425,26 +293,26 @@
     "ts": 1775295798748,
     "type": "outlier",
     "timeStr": "2nd Qtr 30:00",
-    "player": "I Heeney",
+    "player": "J Amartey",
     "team": "Sydney Swans",
     "stats": [
       {
-        "stat": "CP",
-        "z": 2.52,
-        "value": 7,
-        "mean": 2.5,
-        "stddev": 1.8
+        "stat": "CM",
+        "z": 3.36,
+        "value": 2,
+        "mean": 0.2,
+        "stddev": 0.5
       },
       {
-        "stat": "SI",
-        "z": 2.46,
-        "value": 6,
-        "mean": 2.3,
-        "stddev": 1.5
+        "stat": "G",
+        "z": 2.7,
+        "value": 2,
+        "mean": 0.3,
+        "stddev": 0.6
       }
     ],
-    "combinedZ": 4.98,
-    "line": "Heeney's dominance in the second quarter—7 contested possessions and 6 scoring involvements—demonstrates elite ball-winning and conversion ability that's been the engine room of Sydney's demolition job on West Coast. That explosive 10-point value surge in the last 10 minutes, capped by a goal, shows he's operating at another level entirely and has single-handedly shifted momentum into the third quarter. If he maintains this intensity, West Coast will need a complete structural overhaul to stay competitive, as Heeney is essentially playing a man up in the midfield right now."
+    "combinedZ": 6.06,
+    "line": "Two goals in thirty minutes—the Swans' forward is hunting with genuine intent while West Coast's defence crumbles entirely."
   },
   {
     "ts": 1775295918789,
@@ -490,7 +358,7 @@
       }
     ],
     "combinedZ": 8.37,
-    "line": "Heeney is absolutely dominating this third quarter with elite disposal efficiency (8 contested possessions) and goal-kicking accuracy (2 goals) that's putting him in rare air compared to every other player on the park—he's nearly three standard deviations ahead in multiple categories. His explosive 10-minute surge has single-handedly extended Sydney's already commanding 33-point buffer, essentially putting this game beyond West Coast's reach. Expect the Eagles to throw more bodies at him defensively from here, but Heeney's current form suggests he's locked in for a potentially historic performance that could wind up among the best individual quarters this season."
+    "line": "Heeney's everywhere—two goals, eight handballs, absolutely suffocating West Coast's desperate comeback attempts."
   },
   {
     "ts": 1775297223949,
@@ -498,56 +366,6 @@
     "label": "GOAL  Sydney Swans",
     "timeStr": "3rd Quarter 1:40  20–89",
     "line": "Look at Heeney just taking this game by the scruff of the neck, that's a brilliant finish and the Swans are absolutely running away with it here in the third quarter, West Coast just can't get a hand on him!"
-  },
-  {
-    "ts": 1775297238931,
-    "type": "outlier",
-    "timeStr": "3rd Qtr 1:40",
-    "player": "J Amartey",
-    "team": "Sydney Swans",
-    "stats": [
-      {
-        "stat": "CM",
-        "z": 3.36,
-        "value": 2,
-        "mean": 0.2,
-        "stddev": 0.5
-      },
-      {
-        "stat": "G",
-        "z": 2.24,
-        "value": 2,
-        "mean": 0.4,
-        "stddev": 0.7
-      }
-    ],
-    "combinedZ": 5.6,
-    "line": "Amartey's explosive third quarter—two contested marks and two goals—represents a clinical finishing display that's completely dominant the midfield contest, with his contested mark rate nearly 17x the game average. This burst has turbocharged Sydney's already commanding 69-point lead, transforming them from competitive to runaway winners and essentially putting the game beyond West Coast's reach. Expect the Swans to maintain this intensity while managing workload, though Amartey's form suggests he could feasibly add to his tally if the Eagles mount any late momentum."
-  },
-  {
-    "ts": 1775297298931,
-    "type": "outlier",
-    "timeStr": "3rd Qtr 2:57",
-    "player": "J Lindsay",
-    "team": "West Coast Eagles",
-    "stats": [
-      {
-        "stat": "CG",
-        "z": 2.99,
-        "value": 3,
-        "mean": 0.5,
-        "stddev": 0.8
-      },
-      {
-        "stat": "TO",
-        "z": 2.09,
-        "value": 4,
-        "mean": 1.3,
-        "stddev": 1.3
-      }
-    ],
-    "combinedZ": 5.08,
-    "line": "Lindsay's explosive third quarter—three contested marks and four turnovers—shows he's aggressively trying to create something in a game where West Coast is being dismantled, but those turnovers are actively hurting his team's already desperate situation. With Sydney up by 68 points, his high-risk plays are more likely to fuel Sydney's dominance than spark an Eagles comeback, signaling West Coast's structural problems run too deep for individual heroics to matter."
   },
   {
     "ts": 1775297328958,
@@ -576,31 +394,6 @@
     "label": "BURST  J Lloyd (Sydney Swans)  +10.8",
     "timeStr": "3rd Quarter 6:55  21–107",
     "line": "Lloyd's been absolutely immense this quarter, that burst of nearly 11 points is extraordinary when you look at the defensive pressure he's applying — 76 metres gained in that stretch, it's the kind of dominance that just suffocates the opposition."
-  },
-  {
-    "ts": 1775297659033,
-    "type": "outlier",
-    "timeStr": "3rd Qtr 9:00",
-    "player": "L Melican",
-    "team": "Sydney Swans",
-    "stats": [
-      {
-        "stat": "CM",
-        "z": 2.56,
-        "value": 2,
-        "mean": 0.3,
-        "stddev": 0.7
-      },
-      {
-        "stat": "ITC",
-        "z": 2.02,
-        "value": 4,
-        "mean": 1.3,
-        "stddev": 1.3
-      }
-    ],
-    "combinedZ": 4.58,
-    "line": "Melican has been a dominant force in the air and contested situations during this third quarter, winning contested marks and intercept possessions at rates far exceeding the game average—exactly the kind of defensive intensity Sydney needs when holding an 85-point lead. This performance has essentially locked down West Coast's forward entries and transition game, suffocating any momentum the Eagles might build. If he maintains this level, Sydney's backline becomes nearly impenetrable, and West Coast faces a near-impossible task clawing back into a game that's already comprehensively lost."
   },
   {
     "ts": 1775297884036,
@@ -636,17 +429,10 @@
         "value": 9,
         "mean": 3,
         "stddev": 2.3
-      },
-      {
-        "stat": "SI",
-        "z": 2.28,
-        "value": 8,
-        "mean": 3.2,
-        "stddev": 2.1
       }
     ],
-    "combinedZ": 7.82,
-    "line": "Heeney is absolutely dominating the third quarter with a rare combination of forward penetration (3 goals, +2.89 standard deviations above average) and elite ball distribution (9 clutch possessions), orchestrating Sydney's devastating attack while West Coast has completely collapsed defensively—the 82-point margin reflects this performance translating into game control. His recent 10-minute explosion suggests he's found a mismatch he's ruthlessly exploiting, and unless West Coast makes desperate adjustments, Heeney should continue this feast in the final quarter as Sydney's midfield maintains dominance. The Swans appear to have this match wrapped up, with Heeney's multi-"
+    "combinedZ": 5.54,
+    "line": "That third-quarter burst has him prowling like a man possessed—Heeney's turned this into a coronation."
   },
   {
     "ts": 1775298094103,
@@ -689,17 +475,10 @@
         "value": 10,
         "mean": 3.6,
         "stddev": 2.5
-      },
-      {
-        "stat": "CP",
-        "z": 2.28,
-        "value": 9,
-        "mean": 3.5,
-        "stddev": 2.4
       }
     ],
-    "combinedZ": 8.64,
-    "line": "Heeney's exploded in the third quarter with an elite four-goal haul and dominant involvement (10 score involvements, 9 contested possessions), turning himself into a genuine outlier across multiple dimensions—he's operating at nearly 4 standard deviations above the game average in goalkicking. This has single-handedly buried West Coast, with Sydney now commanding a 107-point lead that reflects Heeney's transition into complete midfield-to-forward dominance. Expect the Eagles to collapse further as game scripts blow out and Heeney becomes a point-of-difference that West Coast simply cannot contain."
+    "combinedZ": 6.36,
+    "line": "The Swans' livewire is absolutely alive in this quarter—booting bags while teammates feast on his craftwork."
   },
   {
     "ts": 1775299009182,
@@ -730,86 +509,11 @@
     "line": "Papley's been absolutely clinical in front of goal today, that's two majors and he's just shown you why Sydney's got this game completely in the bag with a hundred point buffer."
   },
   {
-    "ts": 1775299759293,
-    "type": "outlier",
-    "timeStr": "4th Qtr 4:49",
-    "player": "B Grundy",
-    "team": "Sydney Swans",
-    "stats": [
-      {
-        "stat": "CP",
-        "z": 4.28,
-        "value": 15,
-        "mean": 3.9,
-        "stddev": 2.6
-      },
-      {
-        "stat": "SI",
-        "z": 2.02,
-        "value": 9,
-        "mean": 3.8,
-        "stddev": 2.6
-      }
-    ],
-    "combinedZ": 6.3,
-    "line": "Grundy has absolutely dominated the final quarter with elite disposal efficiency and impact, accumulating 15 possessions and 9 scoring involvements—both statistical extremes that showcase his class when it matters most. His late-game surge has compounded Sydney's already commanding 101-point lead, essentially putting the result beyond doubt and cementing the Swans' dominant performance. With the game effectively decided, expect Grundy's workload to normalize in the dying minutes, though he's demonstrated why he remains one of the competition's most influential big men in clutch moments."
-  },
-  {
-    "ts": 1775299819330,
-    "type": "outlier",
-    "timeStr": "4th Qtr 5:30",
-    "player": "I Heeney",
-    "team": "Sydney Swans",
-    "stats": [
-      {
-        "stat": "G",
-        "z": 3.54,
-        "value": 4,
-        "mean": 0.5,
-        "stddev": 1
-      },
-      {
-        "stat": "SI",
-        "z": 2.4,
-        "value": 10,
-        "mean": 3.8,
-        "stddev": 2.6
-      }
-    ],
-    "combinedZ": 5.94,
-    "line": "Heeney has been an absolute x-factor in the final quarter, kicking 4 goals and accumulating 10 score involvements—both elite outputs that have completely overwhelmed West Coast's defense when the game's already been decided. That recent 10-minute burst with another goal and 134 metres gained has essentially put the game beyond any mathematical doubt, extending Sydney's already commanding 101-point buffer into complete dominance. With this level of scoreboard pressure and Heeney in this form, expect the Swans to keep piling on majors and potentially break the 150-point barrier, while West Coast's resistance has completely crumbled."
-  },
-  {
     "ts": 1775299999328,
     "type": "goal",
     "label": "GOAL  Sydney Swans",
     "timeStr": "4th Quarter 8:39  35–143",
     "line": "Look, Jordan's done a bit of work through the midfield there and when you've got that momentum rolling like Sydney do right now, you're just feeding off it - that's the difference between the two sides today, the Swans are just humming along beautifully."
-  },
-  {
-    "ts": 1775300119367,
-    "type": "outlier",
-    "timeStr": "4th Qtr 10:32",
-    "player": "C Curnow",
-    "team": "Sydney Swans",
-    "stats": [
-      {
-        "stat": "G",
-        "z": 3.52,
-        "value": 4,
-        "mean": 0.6,
-        "stddev": 1
-      },
-      {
-        "stat": "CM",
-        "z": 2,
-        "value": 2,
-        "mean": 0.4,
-        "stddev": 0.8
-      }
-    ],
-    "combinedZ": 5.52,
-    "line": "Curnow has been absolutely dominant in the final quarter, kicking 4 goals—well above the game average—and is operating at an elite efficiency level that's statistically rare even at this level of competition. His late surge with 2 goals in the last 10 minutes has essentially put this game beyond doubt, extending Sydney's already commanding 109-point lead and cementing what's become a complete demolition of West Coast. From here, this is damage control for the Eagles; Curnow and the Swans have shifted from winning to utterly burying their opponents in front of goal."
   },
   {
     "ts": 1775300149377,
@@ -819,29 +523,29 @@
     "line": "Grundy's really made his presence felt here in the back end of the quarter, absolutely dominant around the contest mate, winning the ball clean and feeding it out to his teammates, that's the consistency you need from your big men in these situations."
   },
   {
-    "ts": 1775300479386,
+    "ts": 1775300179350,
     "type": "outlier",
-    "timeStr": "4th Qtr 16:33",
-    "player": "J Serong",
+    "timeStr": "4th Qtr 11:36",
+    "player": "B Grundy",
     "team": "Sydney Swans",
     "stats": [
       {
-        "stat": "ITC",
-        "z": 2.64,
-        "value": 7,
-        "mean": 2.2,
-        "stddev": 1.8
+        "stat": "CP",
+        "z": 4.76,
+        "value": 18,
+        "mean": 4.2,
+        "stddev": 2.9
       },
       {
         "stat": "SI",
-        "z": 2.04,
-        "value": 11,
-        "mean": 4.5,
-        "stddev": 3.2
+        "z": 2.73,
+        "value": 12,
+        "mean": 4.1,
+        "stddev": 2.9
       }
     ],
-    "combinedZ": 4.68,
-    "line": "Serong's exceptional involvement in the final quarter—7 intercepts and 11 spoils, both well above game averages—signals Sydney's dominant defensive structure is suffocating West Coast's forward entries and generating easy possession transitions. With the Swans already up by 113 points, his elite ball-winning activity reflects a team that's completely controlled the contest and can afford to play a structured, possession-based game to close it out. This level of defensive mastery indicates Sydney's gameplan is working to perfection, and West Coast will struggle to generate any meaningful scoring opportunities from here."
+    "combinedZ": 7.49,
+    "line": "Late-game possession feast for the Swans' ruckman—absolutely gorging while West Coast's midfield lies in ruins."
   },
   {
     "ts": 1775300614388,
@@ -849,56 +553,6 @@
     "label": "GOAL  Sydney Swans",
     "timeStr": "4th Quarter 18:49  35–154",
     "line": "Lloyd's got three for the night and that's crucial for the swans when you think about the scoreboard position here, eagles are struggling to find their way back into it mate, brilliant work by the midfielder."
-  },
-  {
-    "ts": 1775300659449,
-    "type": "outlier",
-    "timeStr": "4th Qtr 19:36",
-    "player": "B Grundy",
-    "team": "Sydney Swans",
-    "stats": [
-      {
-        "stat": "CP",
-        "z": 4.59,
-        "value": 18,
-        "mean": 4.5,
-        "stddev": 2.9
-      },
-      {
-        "stat": "SI",
-        "z": 2.13,
-        "value": 12,
-        "mean": 4.7,
-        "stddev": 3.4
-      }
-    ],
-    "combinedZ": 6.72,
-    "line": "Grundy's dominance in the final quarter—accumulating 18 disposals and 12 score involvements, both extreme outliers—reflects Sydney's control of a game already decided, with the Swans' 119-point lead allowing him to feast on loose footy in the midfield. His late-game surge suggests the Eagles have completely capitulated, making Grundy's volume stats more a symptom of West Coast's collapse than a game-changer at this point. From here, expect Sydney to manage home comfortably while Grundy's fantasy score remains inflated by garbage time—valuable for DFS but emblematic of how thoroughly the Swans have dismantled their opposition"
-  },
-  {
-    "ts": 1775300719408,
-    "type": "outlier",
-    "timeStr": "4th Qtr 20:30",
-    "player": "I Heeney",
-    "team": "Sydney Swans",
-    "stats": [
-      {
-        "stat": "G",
-        "z": 3.35,
-        "value": 4,
-        "mean": 0.6,
-        "stddev": 1
-      },
-      {
-        "stat": "SI",
-        "z": 2.04,
-        "value": 12,
-        "mean": 4.8,
-        "stddev": 3.6
-      }
-    ],
-    "combinedZ": 5.39,
-    "line": "Heeney has been absolutely clinical in the final quarter, kicking 4 goals to completely shut down any Eagles comeback hopes while racking up 12 scoring impacts—he's operating at elite efficiency levels that dwarf everyone else on the ground today. That explosive 10-point surge in the last 10 minutes (goal + massive metres gained) has essentially put the dagger through West Coast's chances, turning a dominant Swans performance into a complete blowout. From here, this is damage control for the Eagles; Heeney's shown he's not just padding stats in garbage time but actively dismantling their defense when it matters most."
   },
   {
     "ts": 1775300734436,
@@ -930,31 +584,6 @@
       }
     ],
     "combinedZ": 6.33,
-    "line": "Curnow has turned this match into a personal masterclass, with 4 goals and 3 contested marks placing him in elite company for this game—he's absolutely dominated the fourth quarter when it matters most. That 11+ point surge in the final 10 minutes, including 2 clutch goals, has essentially put this contest beyond reach and cemented Sydney's demolition of West Coast. From here, this is a statement performance that signals Curnow is operating at All-Australian caliber and the Swans' forward structure is suffocating an opposition that simply has no answers."
-  },
-  {
-    "ts": 1775301199476,
-    "type": "outlier",
-    "timeStr": "4th Qtr 28:35",
-    "player": "J Graham",
-    "team": "West Coast Eagles",
-    "stats": [
-      {
-        "stat": "CG",
-        "z": 3.57,
-        "value": 5,
-        "mean": 1,
-        "stddev": 1.1
-      },
-      {
-        "stat": "TO",
-        "z": 2.02,
-        "value": 6,
-        "mean": 2.4,
-        "stddev": 1.8
-      }
-    ],
-    "combinedZ": 5.59,
-    "line": "Graham's late-game involvement—5 contested grabs and 6 turnovers in 28 minutes—shows West Coast desperately trying to claw back into a contest already lost, forcing contests and creating disposal errors under the mounting pressure of a 128-point deficit. This frantic activity is symptomatic of a team completely outmatched, with Graham's outlier numbers reflecting desperation rather than dominance. Sydney's clinical control means this game is effectively over, and West Coast's fourth-quarter scramble won't change the trajectory of what's been a one-sided demolition."
+    "line": "The Swans are absolutely suffocating West Coast; Curnow's butcher's hands have turned this into a public execution."
   }
 ]

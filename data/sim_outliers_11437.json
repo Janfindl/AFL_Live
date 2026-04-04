@@ -1,0 +1,309 @@
+[
+  {
+    "ts": 1775293998492,
+    "type": "outlier",
+    "timeStr": "2nd Qtr 0:30",
+    "player": "J Amartey",
+    "team": "Sydney Swans",
+    "stats": [
+      {
+        "stat": "CM",
+        "z": 4.4,
+        "value": 2,
+        "mean": 0.2,
+        "stddev": 0.4
+      },
+      {
+        "stat": "SI",
+        "z": 2.82,
+        "value": 4,
+        "mean": 1.2,
+        "stddev": 1
+      }
+    ],
+    "combinedZ": 7.22,
+    "line": "The Swans' midfielder is wrestling control in the midfield—West Coast can't find the footy when it matters."
+  },
+  {
+    "ts": 1775294058528,
+    "type": "outlier",
+    "timeStr": "2nd Qtr 1:10",
+    "player": "I Heeney",
+    "team": "Sydney Swans",
+    "stats": [
+      {
+        "stat": "CP",
+        "z": 3.89,
+        "value": 6,
+        "mean": 1.4,
+        "stddev": 1.2
+      },
+      {
+        "stat": "SI",
+        "z": 2.82,
+        "value": 4,
+        "mean": 1.2,
+        "stddev": 1
+      }
+    ],
+    "combinedZ": 6.71,
+    "line": "Getting his hands on it when it matters—Heeney's turned this quarter into a personal showcase, West Coast's defence in absolute tatters."
+  },
+  {
+    "ts": 1775294718549,
+    "type": "outlier",
+    "timeStr": "2nd Qtr 12:30",
+    "player": "J Lindsay",
+    "team": "West Coast Eagles",
+    "stats": [
+      {
+        "stat": "CG",
+        "z": 2.86,
+        "value": 2,
+        "mean": 0.3,
+        "stddev": 0.6
+      },
+      {
+        "stat": "TO",
+        "z": 2.55,
+        "value": 4,
+        "mean": 1,
+        "stddev": 1.2
+      }
+    ],
+    "combinedZ": 5.41,
+    "line": "The Eagles' midfield is getting monstered—Lindsay's touches are arriving on broken plays, not clean possessions."
+  },
+  {
+    "ts": 1775294898602,
+    "type": "outlier",
+    "timeStr": "2nd Qtr 15:15",
+    "player": "J Amartey",
+    "team": "Sydney Swans",
+    "stats": [
+      {
+        "stat": "CM",
+        "z": 4.17,
+        "value": 2,
+        "mean": 0.2,
+        "stddev": 0.4
+      },
+      {
+        "stat": "G",
+        "z": 3.61,
+        "value": 2,
+        "mean": 0.2,
+        "stddev": 0.5
+      }
+    ],
+    "combinedZ": 7.78,
+    "line": "The Swans' midfielder has erupted into this contest—two goals, explosive last quarter involvement, dictating terms completely."
+  },
+  {
+    "ts": 1775294958650,
+    "type": "outlier",
+    "timeStr": "2nd Qtr 16:30",
+    "player": "I Heeney",
+    "team": "Sydney Swans",
+    "stats": [
+      {
+        "stat": "CP",
+        "z": 3.33,
+        "value": 7,
+        "mean": 2.1,
+        "stddev": 1.5
+      },
+      {
+        "stat": "SI",
+        "z": 2.77,
+        "value": 5,
+        "mean": 1.7,
+        "stddev": 1.2
+      }
+    ],
+    "combinedZ": 6.1,
+    "line": "Heeney's sprinting through gaps like West Coast's defense evaporated—absolute menace in the corridor right now."
+  },
+  {
+    "ts": 1775295378707,
+    "type": "outlier",
+    "timeStr": "2nd Qtr 23:45",
+    "player": "B Grundy",
+    "team": "Sydney Swans",
+    "stats": [
+      {
+        "stat": "CG",
+        "z": 2.8,
+        "value": 2,
+        "mean": 0.3,
+        "stddev": 0.6
+      },
+      {
+        "stat": "CP",
+        "z": 2.78,
+        "value": 7,
+        "mean": 2.3,
+        "stddev": 1.7
+      }
+    ],
+    "combinedZ": 5.58,
+    "line": "The big ruckman's suffocating presence is turning this contest into a one-sided wrestling match."
+  },
+  {
+    "ts": 1775295798748,
+    "type": "outlier",
+    "timeStr": "2nd Qtr 30:00",
+    "player": "J Amartey",
+    "team": "Sydney Swans",
+    "stats": [
+      {
+        "stat": "CM",
+        "z": 3.36,
+        "value": 2,
+        "mean": 0.2,
+        "stddev": 0.5
+      },
+      {
+        "stat": "G",
+        "z": 2.7,
+        "value": 2,
+        "mean": 0.3,
+        "stddev": 0.6
+      }
+    ],
+    "combinedZ": 6.06,
+    "line": "Two goals in thirty minutes—the Swans' forward is hunting with genuine intent while West Coast's defence crumbles entirely."
+  },
+  {
+    "ts": 1775297118955,
+    "type": "outlier",
+    "timeStr": "3rd Qtr 0:03",
+    "player": "I Heeney",
+    "team": "Sydney Swans",
+    "stats": [
+      {
+        "stat": "SI",
+        "z": 2.94,
+        "value": 7,
+        "mean": 2.4,
+        "stddev": 1.6
+      },
+      {
+        "stat": "CP",
+        "z": 2.93,
+        "value": 8,
+        "mean": 2.6,
+        "stddev": 1.8
+      },
+      {
+        "stat": "G",
+        "z": 2.5,
+        "value": 2,
+        "mean": 0.3,
+        "stddev": 0.7
+      }
+    ],
+    "combinedZ": 8.37,
+    "line": "Heeney's everywhere—two goals, eight handballs, absolutely suffocating West Coast's desperate comeback attempts."
+  },
+  {
+    "ts": 1775298019096,
+    "type": "outlier",
+    "timeStr": "3rd Qtr 14:41",
+    "player": "I Heeney",
+    "team": "Sydney Swans",
+    "stats": [
+      {
+        "stat": "G",
+        "z": 2.89,
+        "value": 3,
+        "mean": 0.4,
+        "stddev": 0.9
+      },
+      {
+        "stat": "CP",
+        "z": 2.65,
+        "value": 9,
+        "mean": 3,
+        "stddev": 2.3
+      }
+    ],
+    "combinedZ": 5.54,
+    "line": "That third-quarter burst has him prowling like a man possessed—Heeney's turned this into a coronation."
+  },
+  {
+    "ts": 1775298919160,
+    "type": "outlier",
+    "timeStr": "3rd Qtr 30:00",
+    "player": "I Heeney",
+    "team": "Sydney Swans",
+    "stats": [
+      {
+        "stat": "G",
+        "z": 3.79,
+        "value": 4,
+        "mean": 0.5,
+        "stddev": 0.9
+      },
+      {
+        "stat": "SI",
+        "z": 2.57,
+        "value": 10,
+        "mean": 3.6,
+        "stddev": 2.5
+      }
+    ],
+    "combinedZ": 6.36,
+    "line": "The Swans' livewire is absolutely alive in this quarter—booting bags while teammates feast on his craftwork."
+  },
+  {
+    "ts": 1775300179350,
+    "type": "outlier",
+    "timeStr": "4th Qtr 11:36",
+    "player": "B Grundy",
+    "team": "Sydney Swans",
+    "stats": [
+      {
+        "stat": "CP",
+        "z": 4.76,
+        "value": 18,
+        "mean": 4.2,
+        "stddev": 2.9
+      },
+      {
+        "stat": "SI",
+        "z": 2.73,
+        "value": 12,
+        "mean": 4.1,
+        "stddev": 2.9
+      }
+    ],
+    "combinedZ": 7.49,
+    "line": "Late-game possession feast for the Swans' ruckman—absolutely gorging while West Coast's midfield lies in ruins."
+  },
+  {
+    "ts": 1775301019436,
+    "type": "outlier",
+    "timeStr": "4th Qtr 25:40",
+    "player": "C Curnow",
+    "team": "Sydney Swans",
+    "stats": [
+      {
+        "stat": "G",
+        "z": 3.35,
+        "value": 4,
+        "mean": 0.6,
+        "stddev": 1
+      },
+      {
+        "stat": "CM",
+        "z": 2.98,
+        "value": 3,
+        "mean": 0.4,
+        "stddev": 0.9
+      }
+    ],
+    "combinedZ": 6.33,
+    "line": "The Swans are absolutely suffocating West Coast; Curnow's butcher's hands have turned this into a public execution."
+  }
+]
