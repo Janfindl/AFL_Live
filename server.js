@@ -312,24 +312,19 @@ function refreshFixture() {
 // ── HTTP server ───────────────────────────────────────────────────────────────
 const HTML_PATH = path.join(__dirname, "index.html");
 
-// Collector writes every 15s; 45s gives buffer for 3 missed polls before showing stale.
-const IN_PROGRESS_STALE_MS = 45 * 1000;
+// Collector writes every 15s; 90s gives buffer for 6 missed polls before showing stale.
+const IN_PROGRESS_STALE_MS = 90 * 1000;
 
-// Per-game response cache: pull fresh data from GitHub every 20s while live,
-// so the UI always sees data at most one collector tick behind.
+// Always re-fetch from GitHub every 20s — no separate long TTL for "finished" games.
+// A brief gap in collector pushes was previously flipping TTL to 5 min, freezing the UI.
 const gameCache = new Map(); // mid -> { data, fetchedAt }
-const CACHE_TTL_LIVE_MS    = 20 * 1000;  // refresh every 20s for live games
-const CACHE_TTL_FINISHED_MS = 5 * 60 * 1000; // 5 min for completed games
+const CACHE_TTL_MS = 20 * 1000;
 
 async function getGameData(mid) {
   const cached = gameCache.get(mid);
   const now    = Date.now();
 
-  // Determine staleness threshold based on whether game was live last we checked
-  const wasLive = cached?.data?.inProgress === true;
-  const ttl     = wasLive ? CACHE_TTL_LIVE_MS : CACHE_TTL_FINISHED_MS;
-
-  if (cached && (now - cached.fetchedAt) < ttl) return cached.data;
+  if (cached && (now - cached.fetchedAt) < CACHE_TTL_MS) return cached.data;
 
   // Fetch fresh from GitHub
   if (GH_TOKEN && GH_REPO) {
