@@ -105,29 +105,29 @@ async function ghPutFile(repoPath, buf) {
   if (r.body?.content?.sha) ghShaCache.set(repoPath, r.body.content.sha);
 }
 
-function fetchRawUrl(url) {
+function ghGetFileRaw(repoPath) {
   return new Promise((resolve, reject) => {
-    const parsed = new URL(url);
-    const opts = {
-      hostname: parsed.hostname,
-      path:     parsed.pathname + parsed.search,
+    const req = https.request({
+      hostname: "api.github.com",
+      path:     `/repos/${GH_REPO}/contents/${repoPath}?ref=${GH_BRANCH}`,
       method:   "GET",
       timeout:  12000,
-      headers:  { "User-Agent": "AFL-Live-Ratings/1.0" },
-    };
-    const req = https.request(opts, res => {
-      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-        return fetchRawUrl(res.headers.location).then(resolve).catch(reject);
-      }
+      headers: {
+        "Authorization":        `Bearer ${GH_TOKEN}`,
+        "User-Agent":           "AFL-Live-Ratings/1.0",
+        "Accept":               "application/vnd.github.raw+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
+    }, res => {
       if (res.statusCode !== 200) {
         res.resume();
-        return reject(new Error(`raw fetch HTTP ${res.statusCode}`));
+        return reject(new Error(`GitHub raw API HTTP ${res.statusCode}`));
       }
       const chunks = [];
       res.on("data", c => chunks.push(c));
       res.on("end", () => resolve(Buffer.concat(chunks)));
     });
-    req.on("timeout", () => { req.destroy(); reject(new Error("fetchRawUrl timeout")); });
+    req.on("timeout", () => { req.destroy(); reject(new Error("GitHub raw API timeout")); });
     req.on("error", reject);
     req.end();
   });
@@ -143,10 +143,10 @@ async function ghGetFile(repoPath) {
     ghShaCache.set(repoPath, r.body.sha);
     return Buffer.from(r.body.content.replace(/\n/g, ""), "base64");
   }
-  // GitHub omits inline content for large files — fall back to download_url
-  if (r.body?.download_url) {
-    console.log(`[github] ${repoPath} has no inline content, fetching download_url`);
-    const buf = await fetchRawUrl(r.body.download_url);
+  // GitHub omits inline content for large files — use raw API directly
+  if (r.body?.size > 0) {
+    console.log(`[github] ${repoPath} has no inline content, using raw API`);
+    const buf = await ghGetFileRaw(repoPath);
     if (r.body?.sha) ghShaCache.set(repoPath, r.body.sha);
     return buf;
   }
@@ -368,13 +368,12 @@ async function getGameData(mid) {
 
   if (cached && (now - cached.fetchedAt) < CACHE_TTL_MS) return cached.data;
 
-  // Fetch fresh from GitHub via raw URL (bypasses Contents API size limits)
+  // Fetch fresh from GitHub API using raw accept header (bypasses Contents API size limits)
   if (GH_TOKEN && GH_REPO) {
     try {
-      const rawUrl = `https://raw.githubusercontent.com/${GH_REPO}/${GH_BRANCH}/data/game_${mid}.json`;
-      console.log(`[cache] fetching raw mid=${mid}`);
-      const buf = await fetchRawUrl(rawUrl);
-      console.log(`[cache] raw ok mid=${mid} bytes=${buf?.length}`);
+      console.log(`[cache] fetching gh-raw mid=${mid}`);
+      const buf = await ghGetFileRaw(`data/game_${mid}.json`);
+      console.log(`[cache] gh-raw ok mid=${mid} bytes=${buf?.length}`);
       if (buf && buf.length > 0) {
         const data = JSON.parse(buf.toString("utf8"));
         data._source = "github";
