@@ -911,6 +911,7 @@ document.querySelectorAll(".stab").forEach(tab => {
       commUnread = 0;
       updateCommBadge();
       renderCommentary();
+      fetchCommentary();
     }
   });
 });
@@ -1432,12 +1433,13 @@ function updateCommBadge() {
 }
 
 async function fetchCommentary() {
-  if (!activeMid) return;
+  if (!activeMid) { console.log("[comm] no activeMid"); return; }
   try {
     const res = await fetch(`/api/commentary?mid=${encodeURIComponent(activeMid)}&_t=${Date.now()}`, { cache: "no-store" });
-    if (!res.ok) return;
+    if (!res.ok) { console.log("[comm] fetch failed", res.status); return; }
     const log = await res.json();
-    if (!Array.isArray(log)) return;
+    if (!Array.isArray(log)) { console.log("[comm] non-array response", log); return; }
+    console.log(`[comm] mid=${activeMid} entries=${log.length}`);
     const prevLen = commentaryLog.length;
     commentaryLog = log;
     const newCount = log.length - prevLen;
@@ -1447,7 +1449,7 @@ async function fetchCommentary() {
     } else if (newCount > 0) {
       commUnread += newCount; updateCommBadge();
     }
-  } catch { /* network hiccup */ }
+  } catch(e) { console.log("[comm] error", e.message); }
 }
 
 // ── Render ────────────────────────────────────────────────────────────────────
