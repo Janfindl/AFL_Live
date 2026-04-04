@@ -167,16 +167,8 @@ function loadGameData(mid) {
 function saveGameData(mid, data) {
   try { fs.writeFileSync(gameFile(mid), JSON.stringify(data)); }
   catch (e) { console.error("saveGameData:", e.message); }
-  const isFullTime    = (data.elapsedMins ?? 0) >= GAME_MINS;
-  const completedQs   = Object.keys(data.completedQuarters || {}).length;
-  const prevCompletedQs = _prevCompletedQuarters.get(mid) || 0;
-  const isQuarterEnd  = completedQs > prevCompletedQs;
-  _prevCompletedQuarters.set(mid, completedQs);
-  const fetchCount    = (data.fetches || []).length;
-  const isEarlyFetch  = fetchCount <= 4;
-  scheduleGhPush(mid, isFullTime || isQuarterEnd || isEarlyFetch);
+  scheduleGhPush(mid);
 }
-const _prevCompletedQuarters = new Map();
 
 // ── GitHub-backed cloud persistence ──────────────────────────────────────────
 const GH_TOKEN  = process.env.GITHUB_TOKEN || null;
@@ -276,26 +268,41 @@ async function ghPushGame(mid) {
   console.log(`[github] pushed  game_${mid}.json`);
 }
 
-function scheduleGhPush(mid, urgent = false) {
+const ghPushInFlight = new Set(); // mids currently being pushed
+
+function scheduleGhPush(mid) {
   if (!GH_TOKEN || !GH_REPO) return;
-  if (!urgent && ghPushQueue.has(mid)) return;
-  if (ghPushQueue.has(mid)) clearTimeout(ghPushQueue.get(mid));
-  const delay = urgent ? 5000 : 60 * 1000;
-  ghPushQueue.set(mid, setTimeout(() => {
-    ghPushQueue.delete(mid);
-    ghPushGame(mid).catch(e => console.error(`[github] push mid=${mid}:`, e.message));
-  }, delay));
+  // If a push is already in flight for this mid, queue one follow-up
+  if (ghPushInFlight.has(mid)) {
+    if (!ghPushQueue.has(mid)) {
+      ghPushQueue.set(mid, true); // mark: push again once current one lands
+    }
+    return;
+  }
+  ghPushInFlight.add(mid);
+  ghPushQueue.delete(mid);
+  ghPushGame(mid)
+    .catch(e => console.error(`[github] push mid=${mid}:`, e.message))
+    .finally(() => {
+      ghPushInFlight.delete(mid);
+      // If a follow-up was requested while we were in flight, do it now
+      if (ghPushQueue.has(mid)) {
+        ghPushQueue.delete(mid);
+        scheduleGhPush(mid);
+      }
+    });
 }
 
 async function flushAndExit() {
-  const pending = [...ghPushQueue.keys()];
-  if (pending.length > 0) {
-    console.log(`[github] SIGTERM — flushing ${pending.length} pending push(es) in parallel...`);
-    for (const mid of pending) { clearTimeout(ghPushQueue.get(mid)); ghPushQueue.delete(mid); }
+  // Push any queued follow-ups plus any games not yet pushed
+  const toPush = new Set([...ghPushQueue.keys(), ...ghPushInFlight]);
+  ghPushQueue.clear();
+  if (toPush.size > 0) {
+    console.log(`[github] SIGTERM — flushing ${toPush.size} game(s)...`);
     const timeout = new Promise(r => setTimeout(r, 20000));
     await Promise.race([
-      Promise.allSettled(pending.map(mid =>
-        ghPushGame(mid).catch(e => console.error(`[github] flush push mid=${mid}: ${e.message}`))
+      Promise.allSettled([...toPush].map(mid =>
+        ghPushGame(mid).catch(e => console.error(`[github] flush mid=${mid}: ${e.message}`))
       )),
       timeout,
     ]);
@@ -711,7 +718,6 @@ async function fetchRatings(mid) {
       state.quarterBaseline[p.name] = { v: p.value };
       STAT_KEYS.forEach(k => { state.quarterBaseline[p.name][k] = p[k] || 0; });
     });
-    scheduleGhPush(mid, true);
   }
 
   function cqv(entry) { return typeof entry === "object" && entry !== null ? entry.v : entry; }
