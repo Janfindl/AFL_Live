@@ -1,5 +1,16 @@
 "use strict";
 // v2026-04-04 — pure HTTP server (data collection handled by collector.js)
+
+// Load .env if present
+const fs0 = require("fs"), path0 = require("path");
+try {
+  fs0.readFileSync(path0.join(__dirname, ".env"), "utf8")
+    .split(/\r?\n/).forEach(line => {
+      const m = line.match(/^([A-Z_]+)=(.*)$/);
+      if (m && !process.env[m[1]]) process.env[m[1]] = m[2].trim();
+    });
+} catch {}
+
 const http        = require("http");
 const https       = require("https");
 const path        = require("path");
@@ -431,6 +442,17 @@ http.createServer(async (req, res) => {
   if (parsed.pathname === "/api/ping") {
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ ok: true, time: new Date().toISOString() }));
+    return;
+  }
+
+  if (parsed.pathname === "/api/sync" && req.method === "POST") {
+    const secret = parsed.searchParams.get("secret");
+    if (!process.env.PUSH_SECRET || secret !== process.env.PUSH_SECRET) {
+      res.writeHead(401); res.end("Unauthorized"); return;
+    }
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ ok: true, message: "sync started" }));
+    syncFromGitHub().catch(e => console.error("[github] manual sync failed:", e.message));
     return;
   }
 
