@@ -292,8 +292,10 @@ async function ghPushGame(mid) {
 
 function scheduleGhPush(mid, urgent = false) {
   if (!GH_TOKEN || !GH_REPO) return;
+  // Never downgrade a pending urgent push with a slower non-urgent one
+  if (!urgent && ghPushQueue.has(mid)) return;
   if (ghPushQueue.has(mid)) clearTimeout(ghPushQueue.get(mid));
-  const delay = urgent ? 5000 : 60 * 1000;  // 5 s for game-end, 1 min otherwise
+  const delay = urgent ? 5000 : 60 * 1000;
   ghPushQueue.set(mid, setTimeout(() => {
     ghPushQueue.delete(mid);
     ghPushGame(mid).catch(e => console.error(`[github] push mid=${mid}:`, e.message));
@@ -331,7 +333,10 @@ function saveGameData(mid, state) {
   const prevCompletedQs = _prevCompletedQuarters.get(mid) || 0;
   const isQuarterEnd  = completedQs > prevCompletedQs;
   _prevCompletedQuarters.set(mid, completedQs);
-  scheduleGhPush(mid, isFullTime || isQuarterEnd);
+  // Push urgently for the first 4 fetches so baseline is always in GitHub quickly
+  const fetchCount    = (state.fetches || state.fetchLog || []).length;
+  const isEarlyFetch  = fetchCount <= 4;
+  scheduleGhPush(mid, isFullTime || isQuarterEnd || isEarlyFetch);
 }
 const _prevCompletedQuarters = new Map(); // mid -> number of completed quarters last push
 function buildCachedResponse(cached) {
