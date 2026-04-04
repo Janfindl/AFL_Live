@@ -846,10 +846,23 @@ function minsToKickoff(g) {
 }
 
 function isPollCandidate(g) {
-  if (g.complete >= 100)  return false;   // finished
-  if (liveGames[g.fw_id]) return false;   // already confirmed
+  if (liveGames[g.fw_id] === false)       return false;   // probe-confirmed done
+  if (g.complete >= 100 && !liveGames[g.fw_id]) return false;  // Squiggle-confirmed done, never went live
   const m = minsToKickoff(g);
   return m <= 2 && m > -270;              // 2 min before → up to 4.5 h after
+}
+
+function markCardDone(fw_id) {
+  liveGames[fw_id] = false;  // sentinel: probe-confirmed done, stop probing
+  const card = document.querySelector(`.gs-game-card[data-fw="${fw_id}"]`);
+  if (!card) return;
+  card.classList.remove("live");
+  const badge = card.querySelector(".gs-status-badge");
+  if (badge) { badge.className = "gs-status-badge done"; badge.textContent = "Final"; }
+  const btn = card.querySelector(".gs-watch-btn");
+  if (btn) { btn.className = "gs-watch-btn"; btn.disabled = false; btn.textContent = "▶ Review"; btn.onclick = () => startGame(fw_id); }
+  const timeEl = card.querySelector(".gs-time");
+  if (timeEl) timeEl.textContent = "Final";
 }
 
 function markCardLive(fw_id) {
@@ -869,15 +882,37 @@ function markCardLive(fw_id) {
   }
 }
 
+function updateCardScore(fw_id, d) {
+  const card = document.querySelector(`.gs-game-card[data-fw="${fw_id}"]`);
+  if (!card) return;
+  if (d.hscore != null) {
+    const scoreEl = card.querySelector(".gs-score");
+    if (scoreEl) {
+      const spans = scoreEl.querySelectorAll("span:not(.gs-score-sep)");
+      if (spans[0]) spans[0].textContent = d.hscore;
+      if (spans[1]) spans[1].textContent = d.ascore;
+    }
+  }
+  if (d.timestr) {
+    const timeEl = card.querySelector(".gs-time");
+    if (timeEl) timeEl.innerHTML = d.inProgress
+      ? `<span style="color:#f85149">${d.timestr}</span>`
+      : "Final";
+  }
+}
+
 async function probeGame(g) {
   try {
     const r = await fetch(`/api/probe?mid=${g.fw_id}`);
     if (!r.ok) return;
     const d = await r.json();
-    if (d.found && !liveGames[g.fw_id]) {
+    if (!d.found) return;
+    if (!liveGames[g.fw_id]) {
       liveGames[g.fw_id] = true;
       markCardLive(g.fw_id);
     }
+    updateCardScore(g.fw_id, d);
+    if (!d.inProgress) markCardDone(g.fw_id);
   } catch(e) { /* network hiccup — ignore */ }
 }
 
@@ -1197,11 +1232,6 @@ async function fetchAndRender() {
     data.players.forEach(p => prevValues[p.name] = p.value);
     currentData = data;
     if (!data.inProgress) {
-      // Game is finished — stop polling, no need to keep hitting the server
-      clearInterval(tickInterval);
-      tickInterval = null;
-      cdEl.textContent = "—";
-      ringFill.style.strokeDashoffset = CIRC;
       showStatus("Final");
     } else {
       showStatus("Updated");

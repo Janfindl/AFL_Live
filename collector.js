@@ -958,17 +958,14 @@ async function autoRecordTick() {
       console.log(`[autoRecord] stopped  mid=${mid}`);
     }
   }
-  for (const mid of candidates) {
+  await Promise.allSettled([...candidates].map(mid => {
     if (!autoRecording.has(mid)) {
       autoRecording.add(mid);
       console.log(`[autoRecord] started  mid=${mid}`);
     }
-    try {
-      await fetchRatings(String(mid));
-    } catch(e) {
-      console.error(`[autoRecord] mid=${mid}: ${e.message}`);
-    }
-  }
+    return fetchRatings(String(mid))
+      .catch(e => console.error(`[autoRecord] mid=${mid}: ${e.message}`));
+  }));
 }
 
 // ── Startup ───────────────────────────────────────────────────────────────────

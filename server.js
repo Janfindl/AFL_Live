@@ -381,6 +381,29 @@ http.createServer(async (req, res) => {
     return;
   }
 
+  if (parsed.pathname === "/api/probe") {
+    const mid = parsed.searchParams.get("mid");
+    if (!mid) { res.writeHead(200, { "Content-Type": "application/json" }); res.end(JSON.stringify({ found: false })); return; }
+    // Use cache or disk only — no GitHub call so this stays fast under 5 s polling
+    const cacheEntry = gameCache.get(mid);
+    const data = cacheEntry?.data || loadGameData(mid);
+    if (!data) {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ found: false }));
+      return;
+    }
+    const savedAt = data.savedAt ? new Date(data.savedAt).getTime() : 0;
+    const isLive  = savedAt > 0 && (Date.now() - savedAt) < IN_PROGRESS_STALE_MS;
+    const inProg  = isLive ? !!(data.inProgress) : false;
+    const t1 = data.teams?.[0], t2 = data.teams?.[1];
+    const s1 = data.summary?.[t1]?.score ?? null;
+    const s2 = data.summary?.[t2]?.score ?? null;
+    const timestr = data.matchInfo ? data.matchInfo.replace(/\s+\d+–\d+$/, "").trim() : "";
+    res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-cache" });
+    res.end(JSON.stringify({ found: true, inProgress: inProg, hscore: s1, ascore: s2, timestr }));
+    return;
+  }
+
   if (parsed.pathname === "/api/has-data") {
     const mid = parsed.searchParams.get("mid");
     res.writeHead(200, { "Content-Type": "application/json" });
@@ -452,7 +475,7 @@ http.createServer(async (req, res) => {
       }
       const savedAt = cached.savedAt ? new Date(cached.savedAt).getTime() : 0;
       const isLive  = savedAt > 0 && (Date.now() - savedAt) < IN_PROGRESS_STALE_MS;
-      cached.inProgress = isLive ? (cached.inProgress ?? false) : false;
+      cached.inProgress = isLive ? !!(cached.inProgress) : false;
       console.log(`  → OK  players=${(cached.players||[]).length}  live=${isLive}  age=${Math.round((Date.now()-savedAt)/1000)}s`);
       res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-cache" });
       res.end(JSON.stringify(cached));
