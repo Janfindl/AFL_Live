@@ -304,9 +304,26 @@ async function onPush(mid, data, prev) {
 
 /**
  * Returns the commentary log for a game (most recent last).
+ * Falls back to a saved simulation file (sim_<mid>.json) if no live log exists.
  */
 function getLog(mid) {
-  return _logs.get(String(mid)) || [];
+  const live = _logs.get(String(mid)) || [];
+  if (live.length) return live;
+
+  // Fall back to simulation output for review/replay
+  const simPath = path.join(__dirname, "data", `sim_${mid}.json`);
+  try {
+    const sim = JSON.parse(fs.readFileSync(simPath, "utf8"));
+    return sim.map(e => ({
+      ts:        e.ts,
+      trigger:   e.type,
+      line:      e.line,
+      matchInfo: e.timeStr,
+      q:         null,
+    }));
+  } catch {
+    return [];
+  }
 }
 
 module.exports = { onPush, getLog };

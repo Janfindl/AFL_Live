@@ -1,0 +1,282 @@
+[
+  {
+    "ts": 1775291797906,
+    "type": "goal",
+    "label": "GOAL  Sydney Swans",
+    "timeStr": "1st Quarter 1:01  0–6",
+    "line": "Look, that's what you want to see from your key forward in the opening minutes—Amartey's made an immediate impact and Sydney's already asserting themselves, whereas West Coast's defensive structure just isn't set up to handle that intensity early."
+  },
+  {
+    "ts": 1775292022900,
+    "type": "goal",
+    "label": "GOAL  Sydney Swans",
+    "timeStr": "1st Quarter 5:02  0–14",
+    "line": "Look at Curnow, absolutely clinical in front of goal and that's the way you want to see it, they're hitting the scoreboard early and often and West Coast just can't get a foot in the door here in the first quarter."
+  },
+  {
+    "ts": 1775292513339,
+    "type": "goal",
+    "label": "GOAL  Sydney Swans",
+    "timeStr": "1st Quarter 13:02  2–20",
+    "line": "Lloyd's taken a real shine to this game early, and that's exactly the kind of contribution Sydney needs when they're getting on top like this."
+  },
+  {
+    "ts": 1775292768331,
+    "type": "goal",
+    "label": "GOAL  Sydney Swans",
+    "timeStr": "1st Quarter 17:17  2–26",
+    "line": "Look, Amartey's been absolutely clinical in front of goal today, two majors already and he's just got that composure you need in the forward line – West Coast's back six just can't get a handle on him and it's showing on the scoreboard."
+  },
+  {
+    "ts": 1775292768332,
+    "type": "burst",
+    "label": "BURST  J Amartey (Sydney Swans)  +10.04",
+    "timeStr": "1st Quarter 17:17  2–26",
+    "line": "Look at Amartey there, really asserting himself in that patch—got a goal, couple of effective disposals, creating separation and he's been absolutely crucial in that momentum shift for the Swans."
+  },
+  {
+    "ts": 1775292828340,
+    "type": "goal",
+    "label": "GOAL  Sydney Swans",
+    "timeStr": "1st Quarter 18:22  2–32",
+    "line": "Serong's got that composure in front of goal, just slots it through with a bit of space and West Coast's just not able to apply that defensive pressure they need, the Eagles are getting done in the contest and when you're losing it like that around the ball it's hard to keep those Swans forwards honest."
+  },
+  {
+    "ts": 1775293488452,
+    "type": "goal",
+    "label": "GOAL  Sydney Swans",
+    "timeStr": "1st Quarter 29:13  5–38",
+    "line": "Look, Heeney's absolutely locked in here, that's a crucial goal and he's doing the business with that clean possession count, West Coast just can't get a hand on him in this first quarter."
+  },
+  {
+    "ts": 1775293488452,
+    "type": "burst",
+    "label": "BURST  I Heeney (Sydney Swans)  +10.33",
+    "timeStr": "1st Quarter 29:13  5–38",
+    "line": "Look, Heeney's just shown what separation looks like when you've got that class and composure — 134 metres gained in ten minutes, that's elite ball movement and the Eagles just can't keep up with that intensity through the midfield."
+  },
+  {
+    "ts": 1775293968487,
+    "type": "quarter_end",
+    "label": "Q1 END",
+    "timeStr": "1st Quarter 30:00  5–38",
+    "line": "\"Isaac Heeney absolutely unplayable in that first quarter, six centre bounces, a goal, just electrifying stuff, West Coast can't get near him and Sydney's already got the game by the scruff of the neck at 38 points.\""
+  },
+  {
+    "ts": 1775294133540,
+    "type": "goal",
+    "label": "GOAL  Sydney Swans",
+    "timeStr": "2nd Quarter 2:43  5–44",
+    "line": "Papley's been absolutely clinical today, that's his first major and he's already looking dangerous with three contested possessions—West Coast's defense is getting picked apart out there."
+  },
+  {
+    "ts": 1775294478569,
+    "type": "goal",
+    "label": "GOAL  Sydney Swans",
+    "timeStr": "2nd Quarter 8:28  6–51",
+    "line": "McInerney's just taken that mark beautifully and what a crucial goal that is, I mean Sydney's completely dominating the air out here and West Coast just can't get a foot in it."
+  },
+  {
+    "ts": 1775294778602,
+    "type": "goal",
+    "label": "GOAL  Sydney Swans",
+    "timeStr": "2nd Quarter 13:29  6–57",
+    "line": "Look at Curnow there, absolutely clinical in front of goal, that's two majors for the day and the Swans are just running away with it, West Coast's completely out of this contest now!"
+  },
+  {
+    "ts": 1775295183643,
+    "type": "burst",
+    "label": "BURST  R Bice (Sydney Swans)  +10.54",
+    "timeStr": "2nd Quarter 20:29  8–58",
+    "line": "Look, Bice has just taken over this game in that last ten minutes, hasn't he — getting himself into the right spaces, winning the contested possessions, and those inside 50s are really starting to trouble West Coast's defense now."
+  },
+  {
+    "ts": 1775295273714,
+    "type": "goal",
+    "label": "GOAL  Sydney Swans",
+    "timeStr": "2nd Quarter 21:44  8–65",
+    "line": "And I think that's the killer blow right there, Curnow's just too damaging around goal, West Coast they're trying everything but Sydney's just running away with it now, they're in complete control of this contest."
+  },
+  {
+    "ts": 1775295273714,
+    "type": "burst",
+    "label": "BURST  C Curnow (Sydney Swans)  +11.59",
+    "timeStr": "2nd Quarter 21:44  8–65",
+    "line": "Curnow's been absolutely electric here in the second quarter, two goals two essentials and he's just worrying the living daylights out of that West Coast defense, the Swans are running away with it 65 to 8!"
+  },
+  {
+    "ts": 1775295423731,
+    "type": "goal",
+    "label": "GOAL  Sydney Swans",
+    "timeStr": "2nd Quarter 24:14  8–71",
+    "line": "Look, Cunningham gets it on his boot there and um, you know, Sydney's just been relentless today, absolutely dominant, and West Coast they're just copping it from all angles really, down by what, 63 points now, it's um, it's pretty tough viewing for the Eagles supporters out there."
+  },
+  {
+    "ts": 1775295468667,
+    "type": "goal",
+    "label": "GOAL  West Coast Eagles",
+    "timeStr": "2nd Quarter 25:08  14–71",
+    "line": "\"Waterman gets one on the board but West Coast in all sorts of trouble here down by nearly four goals at the main break the Swans just dominating this contest absolutely relentless.\""
+  },
+  {
+    "ts": 1775295603716,
+    "type": "goal",
+    "label": "GOAL  Sydney Swans",
+    "timeStr": "2nd Quarter 27:09  14–77",
+    "line": "Look, Grundy's just an absolute beast around the sticks, he's won it clean in the middle, kicked that one with precision and the Swans are just running away with it here, they're absolutely dominating the air and the contest."
+  },
+  {
+    "ts": 1775295603716,
+    "type": "burst",
+    "label": "BURST  B Grundy (Sydney Swans)  +11.09",
+    "timeStr": "2nd Quarter 27:09  14–77",
+    "line": "Well look, Grundy's had an absolute purple patch here in the second quarter, just pulling the footy out of the air and he's got that contested possession working overtime—that's where Sydney's really built this scoreboard lead, just dominating through the middle."
+  },
+  {
+    "ts": 1775295723742,
+    "type": "goal",
+    "label": "GOAL  West Coast Eagles",
+    "timeStr": "2nd Quarter 29:21  20–77",
+    "line": "\"Well there's a bit of a consolation there for Baker, gets himself on the board with a goal, but West Coast are just being absolutely outgunned out there – down by 57 points and Sydney's been far too damaging in front of goal.\""
+  },
+  {
+    "ts": 1775295918789,
+    "type": "goal",
+    "label": "GOAL  Sydney Swans",
+    "timeStr": "2nd Quarter 30:00  20–83",
+    "line": "Look at Heeney absolutely dominant out there, two majors already and eight touches, the class is just showing through isn't it and West Coast can't get near him in this second quarter!"
+  },
+  {
+    "ts": 1775297103961,
+    "type": "quarter_end",
+    "label": "Q2 END",
+    "timeStr": "2nd Quarter 30:00  20–83",
+    "line": "Sydney Swans are just dominating this contest, they've got a 63-point buffer at the main break, and Heeney's been absolutely immense with eight touches and two majors already."
+  },
+  {
+    "ts": 1775297223949,
+    "type": "goal",
+    "label": "GOAL  Sydney Swans",
+    "timeStr": "3rd Quarter 1:40  20–89",
+    "line": "Look at Heeney just taking this game by the scruff of the neck, that's a brilliant finish and the Swans are absolutely running away with it here in the third quarter, West Coast just can't get a hand on him!"
+  },
+  {
+    "ts": 1775297328958,
+    "type": "goal",
+    "label": "GOAL  Sydney Swans",
+    "timeStr": "3rd Quarter 3:40  21–95",
+    "line": "And look, Blakey's done it again - when you've got that kind of mongrel and composure in tight, that's what separates your good players from your great players, and Sydney's just running away with it here in the third quarter."
+  },
+  {
+    "ts": 1775297418991,
+    "type": "goal",
+    "label": "GOAL  Sydney Swans",
+    "timeStr": "3rd Quarter 4:50  21–101",
+    "line": "Well Curnow's been absolutely damaging in the third quarter here, that's four goals now and the Swans are just running away with it, they're up by eighty points and West Coast simply can't get a hand on him."
+  },
+  {
+    "ts": 1775297524016,
+    "type": "goal",
+    "label": "GOAL  Sydney Swans",
+    "timeStr": "3rd Quarter 6:55  21–107",
+    "line": "\"Look, Lloyd's been sort of instrumental there in that third quarter push, two majors now and really I think that's the message Sydney's sending - they're just too good around the contest and they're making West Coast pay every time they win that ball.\""
+  },
+  {
+    "ts": 1775297524016,
+    "type": "burst",
+    "label": "BURST  J Lloyd (Sydney Swans)  +10.8",
+    "timeStr": "3rd Quarter 6:55  21–107",
+    "line": "Lloyd's been absolutely immense this quarter, that burst of nearly 11 points is extraordinary when you look at the defensive pressure he's applying — 76 metres gained in that stretch, it's the kind of dominance that just suffocates the opposition."
+  },
+  {
+    "ts": 1775297884036,
+    "type": "burst",
+    "label": "BURST  A Sheldrick (Sydney Swans)  +10.42",
+    "timeStr": "3rd Quarter 12:42  22–110",
+    "line": "Look Sheldrick's been absolutely enormous in that burst there, getting his hands on it in the contest, winning the pill and just using it with such precision—that's the kind of intensity you need when you've got a 88-point buffer, can't let West Coast back in it."
+  },
+  {
+    "ts": 1775297959040,
+    "type": "goal",
+    "label": "GOAL  West Coast Eagles",
+    "timeStr": "3rd Quarter 13:56  28–110",
+    "line": "\"Well Waterman gets one back for the Eagles there, but at 82 points down in the third quarter you're just going through the motions really, Sydney's been absolutely dominant with their inside 50 entries tonight.\""
+  },
+  {
+    "ts": 1775298094103,
+    "type": "goal",
+    "label": "GOAL  Sydney Swans",
+    "timeStr": "3rd Quarter 16:06  23–116",
+    "line": "Look Wicks has done a real job on the forward line today, that's his first major and Sydney's just running away with it here, West Coast haven't been able to get a look in all afternoon."
+  },
+  {
+    "ts": 1775298349137,
+    "type": "goal",
+    "label": "GOAL  Sydney Swans",
+    "timeStr": "3rd Quarter 20:28  23–123",
+    "line": "That's back-to-back majors for Heeney now, and when you look at his work rate – nine clearances, four goals already – that's the type of output you need from your premium midfielders when you're looking to put away a side like this."
+  },
+  {
+    "ts": 1775298469133,
+    "type": "burst",
+    "label": "BURST  S Wicks (Sydney Swans)  +10.17",
+    "timeStr": "3rd Quarter 22:28  23–123",
+    "line": "Look, Wicks has just gone into another gear there, hasn't he — that burst of plus 10 points in 10 minutes, you're talking serious intent, serious class, and West Coast just can't find an answer to what he's doing out there."
+  },
+  {
+    "ts": 1775299009182,
+    "type": "goal",
+    "label": "GOAL  West Coast Eagles",
+    "timeStr": "3rd Quarter 30:00  29–130",
+    "line": "Duursma gets it done through the corridor, nice composure under a bit of pressure there, but West Coast still chasing shadows down by over a hundred points in this third quarter."
+  },
+  {
+    "ts": 1775299474253,
+    "type": "quarter_end",
+    "label": "Q3 END",
+    "timeStr": "3rd Quarter 30:00  29–130",
+    "line": "Sydney's absolutely dominant tonight - Heeney's had a masterclass and they're kicking goals at will, but you gotta wonder if West Coast can even get within 50 points by the final siren the way they're playing."
+  },
+  {
+    "ts": 1775299639324,
+    "type": "goal",
+    "label": "GOAL  West Coast Eagles",
+    "timeStr": "4th Quarter 2:33  35–130",
+    "line": "Look, Duursma's got a couple on the board but Sydney's just been absolutely dominant in the air today, they've controlled this contest comprehensively and that's why they're sitting 95 points clear, it's been a masterclass."
+  },
+  {
+    "ts": 1775299759293,
+    "type": "goal",
+    "label": "GOAL  Sydney Swans",
+    "timeStr": "4th Quarter 4:49  35–136",
+    "line": "Papley's been absolutely clinical in front of goal today, that's two majors and he's just shown you why Sydney's got this game completely in the bag with a hundred point buffer."
+  },
+  {
+    "ts": 1775299999328,
+    "type": "goal",
+    "label": "GOAL  Sydney Swans",
+    "timeStr": "4th Quarter 8:39  35–143",
+    "line": "Look, Jordan's done a bit of work through the midfield there and when you've got that momentum rolling like Sydney do right now, you're just feeding off it - that's the difference between the two sides today, the Swans are just humming along beautifully."
+  },
+  {
+    "ts": 1775300149377,
+    "type": "burst",
+    "label": "BURST  B Grundy (Sydney Swans)  +10.51",
+    "timeStr": "4th Quarter 11:20  35–145",
+    "line": "Grundy's really made his presence felt here in the back end of the quarter, absolutely dominant around the contest mate, winning the ball clean and feeding it out to his teammates, that's the consistency you need from your big men in these situations."
+  },
+  {
+    "ts": 1775300614388,
+    "type": "goal",
+    "label": "GOAL  Sydney Swans",
+    "timeStr": "4th Quarter 18:49  35–154",
+    "line": "Lloyd's got three for the night and that's crucial for the swans when you think about the scoreboard position here, eagles are struggling to find their way back into it mate, brilliant work by the midfielder."
+  },
+  {
+    "ts": 1775300734436,
+    "type": "burst",
+    "label": "BURST  A Sheldrick (Sydney Swans)  +10.34",
+    "timeStr": "4th Quarter 21:05  35–155",
+    "line": "Look, Sheldrick's really found another gear here in the last stanza, mate—he's won the ball, used it efficiently, and he's just put himself right in the conversation for best on ground with that little burst."
+  }
+]
