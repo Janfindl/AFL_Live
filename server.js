@@ -105,11 +105,40 @@ async function ghPutFile(repoPath, buf) {
   if (r.body?.content?.sha) ghShaCache.set(repoPath, r.body.content.sha);
 }
 
+function fetchRawUrl(url) {
+  return new Promise((resolve, reject) => {
+    const req = https.get(url, { timeout: 12000 }, res => {
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        return fetchRawUrl(res.headers.location).then(resolve).catch(reject);
+      }
+      const chunks = [];
+      res.on("data", c => chunks.push(c));
+      res.on("end", () => resolve(Buffer.concat(chunks)));
+    });
+    req.on("timeout", () => { req.destroy(); reject(new Error("fetchRawUrl timeout")); });
+    req.on("error", reject);
+  });
+}
+
 async function ghGetFile(repoPath) {
   const r = await ghRequest("GET", `/repos/${GH_REPO}/contents/${repoPath}?ref=${GH_BRANCH}`);
-  if (r.status !== 200 || !r.body?.content) return null;
-  ghShaCache.set(repoPath, r.body.sha);
-  return Buffer.from(r.body.content.replace(/\n/g, ""), "base64");
+  if (r.status !== 200) {
+    console.warn(`[github] GET ${repoPath} → HTTP ${r.status}`);
+    return null;
+  }
+  if (r.body?.content) {
+    ghShaCache.set(repoPath, r.body.sha);
+    return Buffer.from(r.body.content.replace(/\n/g, ""), "base64");
+  }
+  // GitHub omits inline content for large files — fall back to download_url
+  if (r.body?.download_url) {
+    console.log(`[github] ${repoPath} has no inline content, fetching download_url`);
+    const buf = await fetchRawUrl(r.body.download_url);
+    if (r.body?.sha) ghShaCache.set(repoPath, r.body.sha);
+    return buf;
+  }
+  console.warn(`[github] GET ${repoPath} → 200 but no content or download_url`);
+  return null;
 }
 
 async function ghListDataDir() {

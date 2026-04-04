@@ -851,7 +851,8 @@ document.querySelectorAll(".stab").forEach(tab => {
 
 // ── Game selection ────────────────────────────────────────────────────────────
 let activeMid = null;
-let tickInterval = null;
+let tickInterval   = null;
+let refreshInterval = null;
 let fixtureRounds = null;   // cached fixture data
 let savedGames    = new Set(); // fw_ids with server-side saved data
 
@@ -1064,7 +1065,9 @@ async function tryAutoLoad(mid) {
     data.players.forEach(p => prevValues[p.name] = p.value);
     currentData = data;
     clearInterval(tickInterval);
-    tickInterval = setInterval(tick, 1000);
+    clearInterval(refreshInterval);
+    tickInterval    = setInterval(tick, 1000);
+    refreshInterval = setInterval(fetchAndRender, 15000);
     return true;
   } catch { return false; }
 }
@@ -1120,6 +1123,7 @@ document.getElementById("gsRoundSelect").addEventListener("change", e => {
 
 function showGameSelect(errMsg) {
   clearInterval(tickInterval);
+  clearInterval(refreshInterval);
   document.getElementById("gsOverlay").style.display = "flex";
   document.getElementById("gsErr").textContent = errMsg || "";
   if (!fixtureRounds) {
@@ -1160,7 +1164,9 @@ async function startGame(mid) {
     data.players.forEach(p => prevValues[p.name] = p.value);
     currentData = data;
     clearInterval(tickInterval);
-    tickInterval = setInterval(tick, 1000);
+    clearInterval(refreshInterval);
+    tickInterval    = setInterval(tick, 1000);
+    refreshInterval = setInterval(fetchAndRender, 15000);
   } catch(e) {
     document.getElementById("gsOverlay").style.display = "flex";
     document.getElementById("gsErr").textContent = "⚠ " + e.message;
@@ -1242,6 +1248,7 @@ function showStatus(msg, isErr=false) {
 // ── Fetch ─────────────────────────────────────────────────────────────────────
 async function fetchAndRender() {
   if (!activeMid) return;
+  countdown = REFRESH; // sync visual ring with actual fetch cadence
   showStatus('<span class="spinner"></span> Refreshing…');
   try {
     const res  = await fetch(`/api/ratings?mid=${encodeURIComponent(activeMid)}&_t=${Date.now()}`, { cache: "no-store" });
@@ -1976,7 +1983,7 @@ document.getElementById("searchBox").addEventListener("input", () => {
 // ── Countdown ─────────────────────────────────────────────────────────────────
 function tick() {
   countdown--;
-  if(countdown<=0){ countdown=REFRESH; fetchAndRender(); }
+  if(countdown<=0) countdown=REFRESH;
   cdEl.textContent = countdown;
   ringFill.style.strokeDashoffset = CIRC*(1-countdown/REFRESH);
 }
