@@ -103,6 +103,8 @@ function fetchFootywire(advv, mid) {
 }
 
 // ── HTML table parsers ────────────────────────────────────────────────────────
+// Returns dict keyed by jersey number (col 0) — consistent across basic/adv tables
+// regardless of whether names are full ("Chad Warner") or abbreviated ("C Warner").
 function parseTable(html, colMap) {
   const players = {};
   const rowRe   = /<tr[^>]*class="(darkcolor|lightcolor)"[^>]*>([\s\S]*?)<\/tr>/g;
@@ -114,14 +116,10 @@ function parseTable(html, colMap) {
     while ((c = cellRe.exec(rowMatch[2])) !== null)
       cells.push(c[1].replace(/<[^>]+>/g, "").replace(/&nbsp;/g, "").trim());
     if (cells.length < 10) continue;
-    const name = cells[colMap._name];
-    if (!name) continue;
-    // Use jersey number as tiebreaker for same-name players (e.g. two C. Warner)
-    const jersey = cells[0] || "";
-    const key = players[name] && players[name]._jersey !== jersey
-      ? `${name}#${jersey}`
-      : name;
-    const p = players[key] || (players[key] = { name, _jersey: jersey });
+    const jersey = cells[0];
+    const name   = cells[colMap._name];
+    if (!jersey || !name) continue;
+    const p = players[jersey] || (players[jersey] = { name, jersey });
     for (const [stat, idx] of Object.entries(colMap)) {
       if (stat === "_name") continue;
       const num = parseFloat(cells[idx]);
@@ -135,23 +133,16 @@ const BASIC_MAP = { _name: 1, G: 6, B: 7, T: 8, HO: 9, GA: 10, CG: 13, FF: 15, F
 const ADV_MAP   = { _name: 1, CP: 2, ED: 4, CM: 6, "1%": 8, SI: 12, MG: 13, TO: 14, ITC: 15 };
 
 function mergeTeam(basicHtml, advHtml, teamName) {
-  const basic = parseTable(basicHtml, BASIC_MAP);
-  const adv   = parseTable(advHtml,   ADV_MAP);
-  const keys  = new Set([...Object.keys(basic), ...Object.keys(adv)]);
-  // Find display names that appear more than once (name collisions after jersey tiebreaker)
-  const nameCounts = {};
-  for (const k of keys) {
-    const displayName = (basic[k] || adv[k] || {}).name || k;
-    nameCounts[displayName] = (nameCounts[displayName] || 0) + 1;
-  }
-  return [...keys].map(key => {
-    const merged = { team: teamName, ...(basic[key] || {}), ...(adv[key] || {}) };
-    // If this name collided, append jersey number to disambiguate display name
-    if (nameCounts[merged.name] > 1 && merged._jersey) {
-      merged.name = `${merged.name} (${merged._jersey})`;
-    }
-    delete merged._jersey;
-    merged.name = merged.name || key;
+  const basic   = parseTable(basicHtml, BASIC_MAP);
+  const adv     = parseTable(advHtml,   ADV_MAP);
+  const jerseys = new Set([...Object.keys(basic), ...Object.keys(adv)]);
+  return [...jerseys].map(jersey => {
+    const b = basic[jersey] || {};
+    const a = adv[jersey]   || {};
+    // Prefer the full name from the basic table; fall back to adv abbreviated name
+    const name = b.name || a.name || jersey;
+    const merged = { team: teamName, ...a, ...b, name };
+    delete merged.jersey;
     return merged;
   });
 }
