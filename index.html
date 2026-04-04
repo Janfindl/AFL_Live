@@ -270,7 +270,7 @@ header{
         font-size:11px;outline:none}
 .search:focus{border-color:#58a6ff}
 .search::placeholder{color:#8b949e}
-.left-scroll{overflow-y:auto;flex:1}
+.left-scroll{overflow-y:auto;flex:1;min-height:0}
 
 /* Compact table */
 .ctable{width:100%;border-collapse:collapse;font-size:16px}
@@ -495,8 +495,8 @@ header{
   .hc-header::after{font-size:56px}
 
   /* ── Players table: horizontal scroll, hide low-priority columns ── */
-  #screen-players{overflow-y:auto;-webkit-overflow-scrolling:touch}
-  .left-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  #screen-players{overflow:visible}
+  .left-scroll{overflow:auto;-webkit-overflow-scrolling:touch;flex:none;height:calc(100svh - var(--header-h,44px))}
   .ctable{font-size:13px;min-width:600px}
   /* Hide: CM, 1%, GA, HO, Q1-Q4 on mobile */
   .ctable th:nth-child(8),  .ctable td:nth-child(8),
@@ -892,6 +892,9 @@ function teamAbbr(name) {
   };
   return map[name] || name.split(" ").map(w=>w[0]).join("").toUpperCase().slice(0,3);
 }
+
+// ── Header height CSS var (mobile sticky scroll fix) ─────────────────────────
+(function(){const h=document.querySelector('header');if(h)document.documentElement.style.setProperty('--header-h',h.offsetHeight+'px');})();
 
 // ── Screen switching ──────────────────────────────────────────────────────────
 document.querySelectorAll(".stab").forEach(tab => {
