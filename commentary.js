@@ -23,7 +23,7 @@ const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "data");
 const MODEL                  = "claude-haiku-4-5-20251001";
 const MAX_TOKENS             = 100;
 const MAX_TOKENS_OUTLIER     = 112;
-const MAX_TOKENS_QUARTER_END = 400;
+const MAX_TOKENS_QUARTER_END = 500;
 const MAX_LOG                = 60;
 const RATE_LIMIT_MS          = 2 * 60 * 1000;
 const OUTLIER_THRESHOLD      = 2.5;
@@ -114,8 +114,13 @@ function findTopOutlier(players, gameStats) {
  * Detect new game events by diffing current vs previous state.
  * Returns array of trigger objects ready for prompt building.
  */
-function detectTriggers(data, prev) {
+function detectTriggers(mid, data, prev) {
   const triggers = [];
+  const curQ  = data.quarter || 0;
+  const players = data.players || [];
+
+  // ── Snapshot the start of this quarter (first time we see it) ────────────
+  if (curQ > 0 && players.length) _snapshotQuarterStart(mid, curQ, players);
 
   // ── New score events (goals + behinds) ───────────────────────────────────
   const prevEventCount = prev?.scoreEvents?.length || 0;
@@ -141,9 +146,10 @@ function detectTriggers(data, prev) {
 
   // ── Quarter transition ────────────────────────────────────────────────────
   const prevQ = prev?.quarter || 0;
-  const curQ  = data.quarter  || 0;
   if (prev && curQ > prevQ && prevQ > 0) {
-    triggers.push({ type: "quarter_end", quarter: prevQ, data });
+    // Compute who dominated the just-finished quarter using stat deltas
+    const quarterPlayers = players.length ? _quarterDeltaPlayers(mid, prevQ, players) : [];
+    triggers.push({ type: "quarter_end", quarter: prevQ, quarterPlayers, data });
   }
 
   // ── Significant momentum swing ────────────────────────────────────────────
@@ -231,15 +237,18 @@ function buildPrompt(trigger) {
     exampleTags = ["stat_based", "analysis"];
     const qNames = ["", "first", "second", "third", "fourth"];
     const qLabel = qNames[trigger.quarter] || `Q${trigger.quarter}`;
-    // Sort by rating desc, pick top 5 across both teams
-    const sorted = [...(data.players || [])].sort((a, b) => (b.rating || 0) - (a.rating || 0));
-    const top7 = sorted.slice(0, 7);
-    const playerSummary = top7.map(p =>
-      `${p.name} (${p.team}): ${p.CP || 0} CP, ${p.G || 0}g ${p.B || 0}b, ${p.T || 0} tackles, ${p.SI || 0} SI, ${p.ED || 0} efficiency, ${p.HO ? `${p.HO} HO, ` : ""}${p.TO ? `${p.TO} turnovers, ` : ""}rating ${p.rating || "?"}/10`
-    ).join("; ");
+    const top5 = (trigger.quarterPlayers || []).slice(0, 5);
+    const playerSummary = top5.map(p => {
+      const d = p._qDeltas || {};
+      // Build stat list: PV stats first, then others, skip zeros
+      const pvParts  = [...PV_STATS].filter(k => d[k]).map(k => `${k} ${d[k] > 0 ? "+" : ""}${d[k]}`);
+      const restParts = Object.entries(d).filter(([k]) => !PV_STATS.has(k) && d[k]).map(([k, v]) => `${k} ${v > 0 ? "+" : ""}${v}`);
+      const statStr  = [...pvParts, ...restParts].join(", ");
+      return `${p.name} (${p.team}) this quarter: ${statStr || "limited stats"}`;
+    }).join("; ");
     eventLine = `End of the ${qLabel} quarter. ${t1} ${s1} – ${t2} ${s2}.`;
     dataLine  = playerSummary
-      ? `Most influential players this quarter: ${playerSummary}.`
+      ? `Top 5 players this quarter by impact: ${playerSummary}.`
       : "";
 
   } else if (trigger.type === "momentum") {
@@ -267,9 +276,11 @@ function buildPrompt(trigger) {
 
   const isQEnd = trigger.type === "quarter_end";
   const instruction = isQEnd
-    ? `Write a 4-5 sentence quarter summary focused entirely on the most influential players and how they changed the game. ` +
-      `Name each standout player specifically. Use their stats to show impact — not just volume but what it meant for the contest. ` +
-      `Vary your sentence openings. Be vivid and pundit-like, not mechanical. No preamble.`
+    ? `Write a rich 5-6 sentence quarter summary. Focus entirely on the top players from THIS quarter and how their contributions shaped the contest. ` +
+      `Name each player. Draw on their specific stats but frame them descriptively — what did they do to the game, not just numbers. ` +
+      `Prioritise players who won contested ball, scored, or created for their team. ` +
+      `Imply momentum and how the quarter changed the overall match picture. ` +
+      `Vary openings. Be vivid, pundit-like, specific. No preamble.`
     : `Generate one short comment (1-2 sentences max).\n\nRespond with only the commentary line. No preamble.`;
 
   return (
@@ -356,6 +367,43 @@ function callClaude(prompt, maxTokens = MAX_TOKENS) {
   });
 }
 
+// ── Quarter snapshots (for per-quarter stat deltas) ───────────────────────────
+
+// `${mid}:Q${q}` -> { playerName -> { statKey: value } }
+const _quarterSnapshots = new Map();
+
+function _snapshotQuarterStart(mid, q, players) {
+  const key = `${mid}:Q${q}`;
+  if (_quarterSnapshots.has(key)) return;
+  const snap = {};
+  for (const p of players) {
+    const stats = {};
+    for (const k of Object.keys(p)) {
+      if (!OUTLIER_SKIP.has(k) && typeof p[k] === "number") stats[k] = p[k];
+    }
+    snap[p.name] = stats;
+  }
+  _quarterSnapshots.set(key, snap);
+}
+
+// Returns players annotated with _qDeltas (stat changes this quarter) and _qScore (PV-weighted quarter impact)
+function _quarterDeltaPlayers(mid, q, players) {
+  const snap = _quarterSnapshots.get(`${mid}:Q${q}`) || {};
+  return players.map(p => {
+    const base    = snap[p.name] || {};
+    const deltas  = {};
+    for (const k of Object.keys(p)) {
+      if (!OUTLIER_SKIP.has(k) && typeof p[k] === "number") {
+        const d = (p[k] || 0) - (base[k] || 0);
+        if (d !== 0) deltas[k] = d;
+      }
+    }
+    // PV-weighted quarter impact score
+    const qScore = [...PV_STATS].reduce((s, k) => s + Math.abs(deltas[k] || 0), 0);
+    return { ...p, _qDeltas: deltas, _qScore: qScore };
+  }).sort((a, b) => b._qScore - a._qScore);
+}
+
 // ── Rate limiting ─────────────────────────────────────────────────────────────
 
 const _lastTriggerTs = new Map();   // `${mid}:${type}` -> ts
@@ -418,7 +466,7 @@ async function onPush(mid, data, prev) {
 
   let triggers;
   try {
-    triggers = detectTriggers(data, prev);
+    triggers = detectTriggers(mid, data, prev);
   } catch (e) {
     console.error("[commentary] detectTriggers:", e.message);
     return;
