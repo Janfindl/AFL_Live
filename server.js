@@ -364,7 +364,7 @@ async function getGameData(mid) {
   if (GH_TOKEN && GH_REPO) {
     try {
       const rawUrl = `https://raw.githubusercontent.com/${GH_REPO}/${GH_BRANCH}/data/game_${mid}.json`;
-      const buf = await fetchRawUrl(rawUrl, GH_TOKEN);
+      const buf = await fetchRawUrl(rawUrl); // public repo — no auth token to avoid 401 on stale token
       if (buf && buf.length > 0) {
         const data = JSON.parse(buf.toString("utf8"));
         data._source = "github";
