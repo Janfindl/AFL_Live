@@ -105,12 +105,19 @@ async function ghPutFile(repoPath, buf) {
   if (r.body?.content?.sha) ghShaCache.set(repoPath, r.body.content.sha);
 }
 
-function fetchRawUrl(url, token) {
+function fetchRawUrl(url) {
   return new Promise((resolve, reject) => {
-    const headers = token ? { "Authorization": `Bearer ${token}`, "User-Agent": "AFL-Live-Ratings/1.0" } : {};
-    const req = https.get(url, { timeout: 12000, headers }, res => {
+    const parsed = new URL(url);
+    const opts = {
+      hostname: parsed.hostname,
+      path:     parsed.pathname + parsed.search,
+      method:   "GET",
+      timeout:  12000,
+      headers:  { "User-Agent": "AFL-Live-Ratings/1.0" },
+    };
+    const req = https.request(opts, res => {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-        return fetchRawUrl(res.headers.location, token).then(resolve).catch(reject);
+        return fetchRawUrl(res.headers.location).then(resolve).catch(reject);
       }
       if (res.statusCode !== 200) {
         res.resume();
@@ -122,6 +129,7 @@ function fetchRawUrl(url, token) {
     });
     req.on("timeout", () => { req.destroy(); reject(new Error("fetchRawUrl timeout")); });
     req.on("error", reject);
+    req.end();
   });
 }
 
@@ -364,7 +372,9 @@ async function getGameData(mid) {
   if (GH_TOKEN && GH_REPO) {
     try {
       const rawUrl = `https://raw.githubusercontent.com/${GH_REPO}/${GH_BRANCH}/data/game_${mid}.json`;
-      const buf = await fetchRawUrl(rawUrl); // public repo — no auth token to avoid 401 on stale token
+      console.log(`[cache] fetching raw mid=${mid}`);
+      const buf = await fetchRawUrl(rawUrl);
+      console.log(`[cache] raw ok mid=${mid} bytes=${buf?.length}`);
       if (buf && buf.length > 0) {
         const data = JSON.parse(buf.toString("utf8"));
         data._source = "github";
