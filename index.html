@@ -984,16 +984,17 @@ function renderFixtureRound(roundIdx) {
     const hLogo = teamLogo(g.hteam);
     const aLogo = teamLogo(g.ateam);
     const inWindow   = g.dateTs && serverNow() >= g.dateTs - 10*60*1000 && serverNow() <= g.dateTs + 3*60*60*1000;
+    const hasData    = savedGames.has(g.fw_id);
     const isLive     = (g.complete > 0 && g.complete < 100) || !!liveGames[g.fw_id] || (g.complete === 0 && inWindow);
-    const isDone     = g.complete >= 100 && !liveGames[g.fw_id];
+    // Treat as done if Squiggle says complete OR we have collected data (Squiggle can lag)
+    const isDone     = (g.complete >= 100 || hasData) && !isLive;
     const isUpcoming = !isLive && !isDone;
-    const hasData    = savedGames.has(g.fw_id) || isLive;
     const cardCls    = isLive ? "live" : isUpcoming ? "upcoming" : "";
     const hCol = (TEAM_COLORS[g.hteam] || {}).txt || "#e6edf3";
     const aCol = (TEAM_COLORS[g.ateam] || {}).txt || "#e6edf3";
 
     let scoreHtml = "";
-    if (isDone || isLive) {
+    if (isDone || isLive || hasData) {
       scoreHtml = `
         <div class="gs-score-block">
           <div class="gs-score">
