@@ -12,9 +12,11 @@
  *   getLog(mid)              — returns commentary log for a game
  */
 
-const https = require("https");
-const fs    = require("fs");
-const path  = require("path");
+const https   = require("https");
+const fs      = require("fs");
+const path    = require("path");
+
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "data");
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -30,7 +32,7 @@ let _corpus = null;
 function loadCorpus() {
   if (_corpus) return _corpus;
   try {
-    const p = path.join(__dirname, "data", "commentary_corpus.json");
+    const p = path.join(DATA_DIR, "commentary_corpus.json");
     _corpus = JSON.parse(fs.readFileSync(p, "utf8"));
     console.log(`[commentary] corpus loaded: ${_corpus.length} examples`);
   } catch {
@@ -311,7 +313,7 @@ function getLog(mid) {
   if (live.length) return live;
 
   // Fall back to simulation output for review/replay
-  const simPath = path.join(__dirname, "data", `sim_${mid}.json`);
+  const simPath = path.join(DATA_DIR, `sim_${mid}.json`);
   try {
     const sim = JSON.parse(fs.readFileSync(simPath, "utf8"));
     return sim.map(e => ({

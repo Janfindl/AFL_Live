@@ -173,7 +173,7 @@ async function syncFromGitHub() {
   try { names = await ghListDataDir(); }
   catch (e) { console.error("[github] list failed:", e.message); return; }
   for (const name of names) {
-    if (!/^(game|momentum)_\d+\.json$/.test(name)) continue;
+    if (!/^(game|momentum|sim)_\d+\.json$/.test(name)) continue;
     const local = path.join(DATA_DIR, name);
     if (fs.existsSync(local)) continue;
     try {
