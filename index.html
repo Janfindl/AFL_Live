@@ -852,8 +852,8 @@ document.querySelectorAll(".stab").forEach(tab => {
 
 // ── Game selection ────────────────────────────────────────────────────────────
 let activeMid = null;
-let tickInterval   = null;
-let refreshInterval = null;
+let tickInterval    = null;
+let refreshTimeout  = null;
 let fixtureRounds = null;   // cached fixture data
 let savedGames    = new Set(); // fw_ids with server-side saved data
 
@@ -1066,9 +1066,9 @@ async function tryAutoLoad(mid) {
     data.players.forEach(p => prevValues[p.name] = p.value);
     currentData = data;
     clearInterval(tickInterval);
-    clearInterval(refreshInterval);
-    tickInterval    = setInterval(tick, 1000);
-    refreshInterval = setInterval(fetchAndRender, 15000);
+    clearTimeout(refreshTimeout);
+    tickInterval = setInterval(tick, 1000);
+    scheduleRefresh();
     return true;
   } catch { return false; }
 }
@@ -1124,7 +1124,7 @@ document.getElementById("gsRoundSelect").addEventListener("change", e => {
 
 function showGameSelect(errMsg) {
   clearInterval(tickInterval);
-  clearInterval(refreshInterval);
+  clearTimeout(refreshTimeout);
   document.getElementById("gsOverlay").style.display = "flex";
   document.getElementById("gsErr").textContent = errMsg || "";
   if (!fixtureRounds) {
@@ -1165,9 +1165,9 @@ async function startGame(mid) {
     data.players.forEach(p => prevValues[p.name] = p.value);
     currentData = data;
     clearInterval(tickInterval);
-    clearInterval(refreshInterval);
-    tickInterval    = setInterval(tick, 1000);
-    refreshInterval = setInterval(fetchAndRender, 15000);
+    clearTimeout(refreshTimeout);
+    tickInterval = setInterval(tick, 1000);
+    scheduleRefresh();
   } catch(e) {
     document.getElementById("gsOverlay").style.display = "flex";
     document.getElementById("gsErr").textContent = "⚠ " + e.message;
@@ -1249,9 +1249,17 @@ function showStatus(msg, isErr=false) {
 }
 
 // ── Fetch ─────────────────────────────────────────────────────────────────────
+function scheduleRefresh() {
+  clearTimeout(refreshTimeout);
+  refreshTimeout = setTimeout(fetchAndRender, 15000);
+}
+
 async function fetchAndRender() {
   if (!activeMid) return;
-  countdown = REFRESH; // sync visual ring with actual fetch cadence
+  // Increment counter immediately — visible even if fetch fails
+  fetchCount++;
+  if (fetchCountEl) fetchCountEl.textContent = `↺${fetchCount}`;
+  countdown = REFRESH;
   showStatus('<span class="spinner"></span> Refreshing…');
   try {
     const res  = await fetch(`/api/ratings?mid=${encodeURIComponent(activeMid)}&_t=${Date.now()}`, { cache: "no-store" });
@@ -1261,14 +1269,12 @@ async function fetchAndRender() {
     render(data);
     data.players.forEach(p => prevValues[p.name] = p.value);
     currentData = data;
-    fetchCount++;
-    if (fetchCountEl) fetchCountEl.textContent = `↺${fetchCount}`;
-    if (!data.inProgress) {
-      showStatus(`Final [${data._source||'?'}]`);
-    } else {
-      showStatus(`Updated [${data._source||'?'}]`);
-    }
-  } catch(e) { showStatus("⚠ "+e.message, true); }
+    showStatus(data.inProgress ? `Updated [${data._source||'?'}]` : `Final [${data._source||'?'}]`);
+  } catch(e) {
+    showStatus("⚠ " + e.message, true);
+  } finally {
+    scheduleRefresh(); // always schedule next fetch, even after error
+  }
 }
 
 // ── Render ────────────────────────────────────────────────────────────────────
