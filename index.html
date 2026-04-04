@@ -559,6 +559,7 @@ header{
           <circle class="ring-fill" cx="13" cy="13" r="11" id="ringFill"/>
         </svg>
       </div>
+      <span id="fetchCount" style="font-size:10px;color:#58a6ff;min-width:24px;text-align:left">↺0</span>
     </div>
   </div>
 </header>
@@ -1221,9 +1222,11 @@ const STAT_WEIGHTS = {
   TO:-0.869,ITC:0.456,G:4.452,B:-1.109,T:0.771,GA:1.000,HO:0.264,
 };
 
-let currentData = null;
-let prevValues  = {};
-let activeTeam  = "all";
+let currentData  = null;
+let prevValues   = {};
+let activeTeam   = "all";
+let fetchCount   = 0;
+const fetchCountEl = document.getElementById("fetchCount");
 let sortCol     = "rating";
 let sortDir     =  1;   // 1=descending, -1=ascending
 let countdown   = REFRESH;
@@ -1258,6 +1261,8 @@ async function fetchAndRender() {
     render(data);
     data.players.forEach(p => prevValues[p.name] = p.value);
     currentData = data;
+    fetchCount++;
+    if (fetchCountEl) fetchCountEl.textContent = `↺${fetchCount}`;
     if (!data.inProgress) {
       showStatus(`Final [${data._source||'?'}]`);
     } else {
