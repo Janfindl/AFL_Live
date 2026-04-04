@@ -565,6 +565,17 @@ http.createServer(async (req, res) => {
       const savedAt = cached.savedAt ? new Date(cached.savedAt).getTime() : 0;
       const isLive  = savedAt > 0 && (Date.now() - savedAt) < IN_PROGRESS_STALE_MS;
       cached.inProgress = isLive ? !!(cached.inProgress) : false;
+      // Always recompute rating using current formula (stored values may use old scale)
+      (cached.players || []).forEach(p => {
+        if (p.projectedValue != null) p.rating = calcRating(p.projectedValue);
+      });
+      // Recompute summary avgRating from fresh player ratings
+      if (cached.summary) {
+        for (const tm of Object.keys(cached.summary)) {
+          const tp = (cached.players || []).filter(p => p.team === tm);
+          if (tp.length) cached.summary[tm].avgRating = +(tp.reduce((s, p) => s + (p.rating || 0), 0) / tp.length).toFixed(1);
+        }
+      }
       cached._servedAt  = new Date().toISOString();
       cached._v         = GIT_SHA;
       console.log(`  → OK  players=${(cached.players||[]).length}  live=${isLive}  age=${Math.round((Date.now()-savedAt)/1000)}s  src=${cached._source||'?'}`);

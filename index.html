@@ -882,7 +882,6 @@ function minsToKickoff(g) {
 
 function isPollCandidate(g) {
   if (liveGames[g.fw_id] === false)       return false;   // probe-confirmed done
-  if (g.complete >= 100 && !liveGames[g.fw_id]) return false;  // Squiggle-confirmed done, never went live
   const m = minsToKickoff(g);
   return m <= 2 && m > -270;              // 2 min before → up to 4.5 h after
 }
@@ -960,8 +959,8 @@ function startFixturePolling(games) {
   if (pollTimer) clearInterval(pollTimer);
   pollTimer = setInterval(runPoll, 5000);
   runPoll();                              // immediate first pass
-  // Also mark any Squiggle-confirmed live games right away
-  games.forEach(g => { if (g.complete > 0 && g.complete < 100) liveGames[g.fw_id] = true; });
+  // Mark games currently in their time window as live candidates right away
+  games.forEach(g => { if (minsToKickoff(g) <= 2 && minsToKickoff(g) > -210) liveGames[g.fw_id] = undefined; });
 }
 
 function stopFixturePolling() {
@@ -983,11 +982,12 @@ function renderFixtureRound(roundIdx) {
   grid.innerHTML = round.games.map(g => {
     const hLogo = teamLogo(g.hteam);
     const aLogo = teamLogo(g.ateam);
-    const inWindow   = g.dateTs && serverNow() >= g.dateTs - 10*60*1000 && serverNow() <= g.dateTs + 3*60*60*1000;
+    const now        = serverNow();
     const hasData    = savedGames.has(g.fw_id);
-    const isLive     = (g.complete > 0 && g.complete < 100) || !!liveGames[g.fw_id] || (g.complete === 0 && inWindow);
-    // Treat as done if Squiggle says complete OR we have collected data (Squiggle can lag)
-    const isDone     = (g.complete >= 100 || hasData) && !isLive;
+    const isPast     = g.dateTs && now > g.dateTs + 3.5 * 60 * 60 * 1000;
+    const inWindow   = g.dateTs && now >= g.dateTs - 10 * 60 * 1000 && !isPast;
+    const isLive     = !!liveGames[g.fw_id] || inWindow;
+    const isDone     = !isLive && (hasData || isPast);
     const isUpcoming = !isLive && !isDone;
     const cardCls    = isLive ? "live" : isUpcoming ? "upcoming" : "";
     const hCol = (TEAM_COLORS[g.hteam] || {}).txt || "#e6edf3";
@@ -1116,9 +1116,10 @@ async function loadFixture() {
     let fallbackIdx = 0;
     for (let i = fixtureRounds.length - 1; i >= 0; i--) {
       const games = fixtureRounds[i].games;
-      if (games.some(g => g.complete > 0 && g.complete < 100)) { defaultIdx = i; break; }
-      if (fallbackIdx === 0 && games.some(g => g.complete >= 100 && savedGames.has(g.fw_id))) fallbackIdx = i;
-      if (fallbackIdx === 0 && games.some(g => g.complete > 0)) fallbackIdx = i;
+      const now2 = serverNow();
+      if (games.some(g => g.dateTs && now2 >= g.dateTs - 10*60*1000 && now2 <= g.dateTs + 3.5*60*60*1000)) { defaultIdx = i; break; }
+      if (fallbackIdx === 0 && games.some(g => savedGames.has(g.fw_id))) fallbackIdx = i;
+      if (fallbackIdx === 0 && games.some(g => g.dateTs && now2 > g.dateTs + 3.5*60*60*1000)) fallbackIdx = i;
     }
     if (defaultIdx === 0) defaultIdx = fallbackIdx;
     selEl.value = defaultIdx;
