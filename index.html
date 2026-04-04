@@ -560,6 +560,7 @@ header{
         </svg>
       </div>
       <span id="fetchCount" style="font-size:10px;color:#58a6ff;min-width:24px;text-align:left">↺0</span>
+      <span id="versionLabel" style="font-size:9px;color:#484f58;margin-left:4px"></span>
     </div>
   </div>
 </header>
@@ -1292,6 +1293,7 @@ function render(data) {
   document.getElementById("updatedAt").textContent   =
     (data._servedAt ? new Date(data._servedAt).toLocaleTimeString() : "—") +
     (data._source ? ` [${data._source}]` : "");
+  if (data._v) document.getElementById("versionLabel").textContent = data._v;
 
   // Elapsed
   const el = data.elapsedMins;

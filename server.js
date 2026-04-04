@@ -1,9 +1,15 @@
 "use strict";
 // v2026-04-04 — pure HTTP server (data collection handled by collector.js)
-const http  = require("http");
-const https = require("https");
-const path  = require("path");
-const fs    = require("fs");
+const http        = require("http");
+const https       = require("https");
+const path        = require("path");
+const fs          = require("fs");
+const { execSync } = require("child_process");
+
+const GIT_SHA = (() => {
+  try { return execSync("git rev-parse --short HEAD", { encoding: "utf8" }).trim(); }
+  catch { return "unknown"; }
+})();
 
 const PORT     = process.env.PORT || 3000;
 const GAME_MINS = 120;
@@ -539,6 +545,7 @@ http.createServer(async (req, res) => {
       const isLive  = savedAt > 0 && (Date.now() - savedAt) < IN_PROGRESS_STALE_MS;
       cached.inProgress = isLive ? !!(cached.inProgress) : false;
       cached._servedAt  = new Date().toISOString();
+      cached._v         = GIT_SHA;
       console.log(`  → OK  players=${(cached.players||[]).length}  live=${isLive}  age=${Math.round((Date.now()-savedAt)/1000)}s  src=${cached._source||'?'}`);
       res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-cache" });
       res.end(JSON.stringify(cached));
