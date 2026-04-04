@@ -1068,8 +1068,18 @@ async function tryAutoLoad(mid) {
     currentData = data;
     clearInterval(tickInterval);
     clearTimeout(refreshTimeout);
-    tickInterval = setInterval(tick, 1000);
-    scheduleRefresh();
+    if (data.inProgress) {
+      countdown = REFRESH;
+      tickInterval = setInterval(tick, 1000);
+      scheduleRefresh();
+    } else {
+      countdown = 0;
+      const cdEl = document.getElementById("countdown");
+      if (cdEl) cdEl.textContent = "—";
+      const ringFill = document.getElementById("ringFill");
+      if (ringFill) ringFill.style.strokeDashoffset = CIRC;
+      showStatus("Final");
+    }
     return true;
   } catch { return false; }
 }
@@ -1167,8 +1177,19 @@ async function startGame(mid) {
     currentData = data;
     clearInterval(tickInterval);
     clearTimeout(refreshTimeout);
-    tickInterval = setInterval(tick, 1000);
-    scheduleRefresh();
+    if (data.inProgress) {
+      countdown = REFRESH;
+      tickInterval = setInterval(tick, 1000);
+      scheduleRefresh();
+    } else {
+      // Finished game — no polling needed, just show the data
+      countdown = 0;
+      const cdEl = document.getElementById("countdown");
+      if (cdEl) cdEl.textContent = "—";
+      const ringFill = document.getElementById("ringFill");
+      if (ringFill) ringFill.style.strokeDashoffset = CIRC;
+      showStatus("Final");
+    }
   } catch(e) {
     document.getElementById("gsOverlay").style.display = "flex";
     document.getElementById("gsErr").textContent = "⚠ " + e.message;
@@ -1270,11 +1291,25 @@ async function fetchAndRender() {
     render(data);
     data.players.forEach(p => prevValues[p.name] = p.value);
     currentData = data;
-    showStatus(data.inProgress ? `Updated [${data._source||'?'}]` : `Final [${data._source||'?'}]`);
+    if (data.inProgress) {
+      showStatus(`Updated [${data._source||'?'}]`);
+      scheduleRefresh();
+    } else {
+      // Game finished — stop polling, show final state
+      clearInterval(tickInterval);
+      clearTimeout(refreshTimeout);
+      tickInterval = null;
+      refreshTimeout = null;
+      countdown = 0;
+      const cdEl = document.getElementById("countdown");
+      if (cdEl) cdEl.textContent = "—";
+      const ringFill = document.getElementById("ringFill");
+      if (ringFill) ringFill.style.strokeDashoffset = CIRC;
+      showStatus(`Final`);
+    }
   } catch(e) {
     showStatus("⚠ " + e.message, true);
-  } finally {
-    scheduleRefresh(); // always schedule next fetch, even after error
+    scheduleRefresh(); // retry on error only
   }
 }
 
