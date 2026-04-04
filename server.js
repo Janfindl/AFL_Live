@@ -315,6 +315,46 @@ const HTML_PATH = path.join(__dirname, "index.html");
 // Collector writes every 15s; 45s gives buffer for 3 missed polls before showing stale.
 const IN_PROGRESS_STALE_MS = 45 * 1000;
 
+// Per-game response cache: pull fresh data from GitHub every 20s while live,
+// so the UI always sees data at most one collector tick behind.
+const gameCache = new Map(); // mid -> { data, fetchedAt }
+const CACHE_TTL_LIVE_MS    = 20 * 1000;  // refresh every 20s for live games
+const CACHE_TTL_FINISHED_MS = 5 * 60 * 1000; // 5 min for completed games
+
+async function getGameData(mid) {
+  const cached = gameCache.get(mid);
+  const now    = Date.now();
+
+  // Determine staleness threshold based on whether game was live last we checked
+  const wasLive = cached?.data?.inProgress === true;
+  const ttl     = wasLive ? CACHE_TTL_LIVE_MS : CACHE_TTL_FINISHED_MS;
+
+  if (cached && (now - cached.fetchedAt) < ttl) return cached.data;
+
+  // Fetch fresh from GitHub
+  if (GH_TOKEN && GH_REPO) {
+    try {
+      const buf = await ghGetFile(`data/game_${mid}.json`);
+      if (buf) {
+        const data = JSON.parse(buf.toString("utf8"));
+        fs.writeFileSync(gameFile(mid), buf);   // keep disk in sync
+        gameCache.set(mid, { data, fetchedAt: now });
+        return data;
+      }
+    } catch (e) {
+      console.error(`[cache] GitHub pull mid=${mid}: ${e.message}`);
+    }
+  }
+
+  // Fall back to disk
+  const diskData = loadGameData(mid);
+  if (diskData) {
+    gameCache.set(mid, { data: diskData, fetchedAt: now });
+    return diskData;
+  }
+  return null;
+}
+
 http.createServer(async (req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   const parsed = new URL(req.url, `http://localhost:${PORT}`);
@@ -383,6 +423,7 @@ http.createServer(async (req, res) => {
           ghPutFile(`data/game_${mid}.json`, fs.readFileSync(gameFile(mid)))
             .catch(e => console.error(`[github] import push mid=${mid}:`, e.message));
         }
+        gameCache.delete(mid);  // force fresh fetch on next /api/ratings
         console.log(`[import] saved game_${mid}.json (${data.players.length} players)`);
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ ok: true, players: data.players.length, teams: data.teams }));
@@ -403,31 +444,16 @@ http.createServer(async (req, res) => {
       return;
     }
     try {
-      // Try disk first
-      let cached = loadGameData(mid);
-      // If not on disk, try pulling from GitHub
-      if (!cached && GH_TOKEN && GH_REPO) {
-        try {
-          const buf = await ghGetFile(`data/game_${mid}.json`);
-          if (buf) {
-            fs.writeFileSync(gameFile(mid), buf);
-            cached = JSON.parse(buf.toString("utf8"));
-            console.log(`  → pulled from GitHub`);
-          }
-        } catch (e) {
-          console.error(`  → GitHub pull failed: ${e.message}`);
-        }
-      }
+      const cached = await getGameData(mid);
       if (!cached) {
         res.writeHead(404, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ error: "No data for this game" }));
         return;
       }
-      // Determine inProgress: collector writes every 15s; if savedAt is within 45s, game is live
-      const savedAt  = cached.savedAt ? new Date(cached.savedAt).getTime() : 0;
-      const isLive   = savedAt > 0 && (Date.now() - savedAt) < IN_PROGRESS_STALE_MS;
+      const savedAt = cached.savedAt ? new Date(cached.savedAt).getTime() : 0;
+      const isLive  = savedAt > 0 && (Date.now() - savedAt) < IN_PROGRESS_STALE_MS;
       cached.inProgress = isLive ? (cached.inProgress ?? false) : false;
-      console.log(`  → OK  teams=${cached.teams}  players=${(cached.players||[]).length}  live=${isLive}`);
+      console.log(`  → OK  players=${(cached.players||[]).length}  live=${isLive}  age=${Math.round((Date.now()-savedAt)/1000)}s`);
       res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-cache" });
       res.end(JSON.stringify(cached));
     } catch (err) {
