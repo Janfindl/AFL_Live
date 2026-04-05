@@ -1638,9 +1638,9 @@ function flipAnimate(container, selector, oldPos) {
 }
 
 // ── Stat chips ────────────────────────────────────────────────────────────────
-function statChips(contribs, isHot, playerName) {
+function statChips(contribs, isHot, playerName, hideEmpty) {
   if (!contribs || contribs.length === 0)
-    return `<span style="font-size:9px;color:#8b949e;font-style:italic">no activity</span>`;
+    return hideEmpty ? "" : `<span style="font-size:9px;color:#8b949e;font-style:italic">no activity</span>`;
   return contribs.slice(0, 5).map(c => {
     const sign    = c.delta >= 0 ? "+" : "";
     const ptsSign = c.contribution >= 0 ? "+" : "";
@@ -2196,7 +2196,7 @@ function renderBest(players) {
           <span class="hc-team" style="background:${teamPillStyle(p.team).bg};color:${teamPillStyle(p.team).txt};${teamPillStyle(p.team).border?`border:${teamPillStyle(p.team).border}`:''}">${abbr}</span>
           ${ratingPill(p.rating)}
         </div>
-        <div class="hc-stats">${statChips(p.statContribs, true, p.name)}</div>
+        <div class="hc-stats">${statChips(p.statContribs, true, p.name, true)}</div>
         ${pvMatchStats(p)}
       </div>
       <div class="hc-right">
