@@ -3,6 +3,7 @@
   "deploy": {
     "watchPatterns": [
       "server.js",
+      "commentary.js",
       "index.html",
       "package.json",
       "package-lock.json"
