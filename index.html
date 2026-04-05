@@ -861,11 +861,12 @@ const TEAM_COLORS = {
   "Sydney Swans":          { txt:"#E8001C", bg:"rgba(232,0,28,.14)",    pill:{bg:"#E2001A",txt:"#FFFFFF"}, pillAlt:{bg:"#FFFFFF",txt:"#E2001A"}, pillHue:"red"    },
   "West Coast":            { txt:"#F2A900", bg:"rgba(0,48,135,.2)",     pill:{bg:"#003087",txt:"#F2A900"}, pillAlt:{bg:"#F2A900",txt:"#003087"}, pillHue:"blue"   },
   "West Coast Eagles":     { txt:"#F2A900", bg:"rgba(0,48,135,.2)",     pill:{bg:"#003087",txt:"#F2A900"}, pillAlt:{bg:"#F2A900",txt:"#003087"}, pillHue:"blue"   },
-  "Western Bulldogs":      { txt:"#FFFFFF", bg:"rgba(0,60,160,.18)",    pill:{bg:"#1756A8",txt:"#FFFFFF",border:"1px solid #CC1030"}, pillAlt:{bg:"#1756A8",txt:"#FFFFFF",border:"1px solid #CC1030"}, pillHue:"bulldogs" },
-  "Footscray":             { txt:"#FFFFFF", bg:"rgba(0,60,160,.18)",    pill:{bg:"#1756A8",txt:"#FFFFFF",border:"1px solid #CC1030"}, pillAlt:{bg:"#1756A8",txt:"#FFFFFF",border:"1px solid #CC1030"}, pillHue:"bulldogs" },
+  "Western Bulldogs":      { txt:"#FFFFFF", accent:"#1756A8", bg:"rgba(0,60,160,.18)",    pill:{bg:"#1756A8",txt:"#FFFFFF",border:"1px solid #CC1030"}, pillAlt:{bg:"#1756A8",txt:"#FFFFFF",border:"1px solid #CC1030"}, pillHue:"bulldogs" },
+  "Footscray":             { txt:"#FFFFFF", accent:"#1756A8", bg:"rgba(0,60,160,.18)",    pill:{bg:"#1756A8",txt:"#FFFFFF",border:"1px solid #CC1030"}, pillAlt:{bg:"#1756A8",txt:"#FFFFFF",border:"1px solid #CC1030"}, pillHue:"bulldogs" },
 };
 function teamColor(name) {
-  return TEAM_COLORS[name] || { txt:"#8b949e", bg:"rgba(139,148,158,.1)" };
+  const c = TEAM_COLORS[name] || { txt:"#8b949e", bg:"rgba(139,148,158,.1)" };
+  return { ...c, accent: c.accent || c.txt };
 }
 
 // Current game's teams — set by render() so teamPillStyle can detect clashes
@@ -1555,9 +1556,9 @@ function styleTeamCard(cardId, nameId, scoreId, ratId, goalsId, behindsId, name,
   const isCard2 = cardId === "card2";
   // Gradient from team colour on the logo side
   const gradDir = isCard2 ? "270deg" : "90deg";
-  card.style.background = `linear-gradient(${gradDir}, rgba(0,0,0,0) 40%, #0d1117 100%), linear-gradient(${gradDir}, ${col.txt}22 0%, #0d1117 55%)`;
-  card.style.borderLeft  = isCard2 ? "none" : `3px solid ${col.txt}`;
-  card.style.borderRight = isCard2 ? `3px solid ${col.txt}` : "none";
+  card.style.background = `linear-gradient(${gradDir}, rgba(0,0,0,0) 40%, #0d1117 100%), linear-gradient(${gradDir}, ${col.accent}22 0%, #0d1117 55%)`;
+  card.style.borderLeft  = isCard2 ? "none" : `3px solid ${col.accent}`;
+  card.style.borderRight = isCard2 ? `3px solid ${col.accent}` : "none";
 
   document.getElementById(nameId).style.color  = col.txt;
   document.getElementById(nameId).textContent  = name;
@@ -1659,7 +1660,7 @@ function renderHot(hot5, windowMins) {
     const sign  = delta >= 0 ? "+" : "";
     const cardBg = i % 2 === 0 ? '#13181f' : '#0f1318';
     return `<div class="hc-card" data-key="${esc(p.name)}" style="background:${cardBg}">
-      <div class="hc-glow" style="background:${col.txt}"></div>
+      <div class="hc-glow" style="background:${col.accent}"></div>
       <div class="hc-rank-wrap">
         <div class="hc-rank" style="background:${teamPillStyle(p.team).bg};color:${teamPillStyle(p.team).txt}">${i+1}</div>
       </div>
@@ -1699,7 +1700,7 @@ function renderQuiet(quiet5, windowMins) {
     const cardBg = i % 2 === 0 ? '#13181f' : '#0f1318';
     const coldContribs = [...(p.quietStatContribs || p.statContribs || [])].reverse();
     return `<div class="hc-card" data-key="${esc(p.name)}" style="background:${cardBg}">
-      <div class="hc-glow" style="background:${col.txt}"></div>
+      <div class="hc-glow" style="background:${col.accent}"></div>
       <div class="hc-rank-wrap">
         <div class="hc-rank" style="background:${teamPillStyle(p.team).bg};color:${teamPillStyle(p.team).txt}">${i+1}</div>
       </div>
@@ -1834,7 +1835,7 @@ function renderQTop(qTop5, quarter) {
     const contribs = qStatContribs(p.qStatDeltas);
     const cardBg = i % 2 === 0 ? '#13181f' : '#0f1318';
     return `<div class="hc-card" data-key="${esc(p.name)}" style="background:${cardBg}">
-      <div class="hc-glow" style="background:${col.txt}"></div>
+      <div class="hc-glow" style="background:${col.accent}"></div>
       <div class="hc-rank-wrap">
         <div class="hc-rank" style="background:${teamPillStyle(p.team).bg};color:${teamPillStyle(p.team).txt}">${i+1}</div>
       </div>
@@ -1904,7 +1905,7 @@ function renderQuarterLog(quarterLog, players) {
 function renderMomentum(momentum, teams, quarterStartTs, scoreEvents) {
   const el = document.getElementById("momentumChart");
   const [t1, t2] = teams;
-  const c1 = teamColor(t1).txt, c2 = teamColor(t2).txt;
+  const c1 = teamColor(t1).accent, c2 = teamColor(t2).accent;
 
   if (!momentum || momentum.length < 3) {
     el.innerHTML = `<div style="height:100%;display:flex;align-items:center;justify-content:center;color:#484f58;font-size:11px">Building history…</div>`;
@@ -2034,7 +2035,7 @@ function renderMomentum(momentum, teams, quarterStartTs, scoreEvents) {
     .filter(e => e.ts >= firstTs && e.ts <= lastTs + 30000)
     .map(e => {
       const x   = tsToX(e.ts).toFixed(1);
-      const col = teamColor(e.team).txt;
+      const col = teamColor(e.team).accent;
       const y0  = H - SCORE_H + 1;
       return e.type === 'G'
         ? `<polygon points="${x},${y0+1} ${+x-5},${y0+SCORE_H-2} ${+x+5},${y0+SCORE_H-2}" fill="${col}" opacity="0.9"/>`
@@ -2125,7 +2126,7 @@ function renderBest(players) {
     const rc   = ratingColor(p.rating);
     const cardBg = i % 2 === 0 ? '#13181f' : '#0f1318';
     return `<div class="hc-card" data-key="${esc(p.name)}" style="background:${cardBg}">
-      <div class="hc-glow" style="background:${col.txt}"></div>
+      <div class="hc-glow" style="background:${col.accent}"></div>
       <div class="hc-rank-wrap">
         <div class="hc-rank" style="background:${teamPillStyle(p.team).bg};color:${teamPillStyle(p.team).txt}">${i + 1}</div>
       </div>
