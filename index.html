@@ -1662,7 +1662,7 @@ function pvMatchStats(p) {
     .filter(([k]) => (p[k] || 0) !== 0)
     .map(([k, w]) => ({ stat:k, value:p[k]||0, contrib:Math.abs(w*(p[k]||0)) }))
     .sort((a, b) => b.contrib - a.contrib)
-    .slice(0, 5);
+    .slice(0, 8);
   if (!stats.length) return "";
   return `<div class="pv-match-stats">${
     stats.map(s =>
