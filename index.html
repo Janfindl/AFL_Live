@@ -236,6 +236,12 @@ header{
   padding:2px 6px;border-radius:4px;font-size:9px;font-weight:700;white-space:nowrap;
 }
 .stat-chip-pts{font-size:8px;font-weight:400;opacity:.75}
+@keyframes flash-up  {0%{background:rgba(34,197,94,.55)}80%{background:rgba(34,197,94,.12)}100%{background:transparent}}
+@keyframes flash-down{0%{background:rgba(248,81,73,.55)}80%{background:rgba(248,81,73,.12)}100%{background:transparent}}
+.stat-flash-up  {animation:flash-up   5s ease-out forwards!important;border-radius:4px}
+.stat-flash-down{animation:flash-down 5s ease-out forwards!important;border-radius:4px}
+.pv-match-stats{display:flex;flex-wrap:wrap;gap:3px;margin-top:5px}
+.pv-stat-chip{display:inline-flex;align-items:baseline;gap:2px;padding:2px 5px;border-radius:3px;font-size:9px;font-weight:700;background:rgba(255,255,255,.06);color:#e6edf3;white-space:nowrap}
 .hc-right{
   display:flex;flex-direction:column;align-items:flex-end;
   justify-content:center;padding:10px 14px 10px 6px;
@@ -1142,12 +1148,13 @@ async function tryAutoLoad(mid) {
     setRoundVenue(mid);
     stopFixturePolling();
     document.getElementById("gsOverlay").style.display = "none";
-    prevValues = {};
+    prevValues = {}; prevStatMap = {};
     currentData = null;
     countdown = REFRESH;
     commentaryLog = []; commUnread = 0; updateCommBadge(); renderCommentary();
     render(data);
     data.players.forEach(p => prevValues[p.name] = p.value);
+    updatePrevStatMap(data.players);
     currentData = data;
     clearInterval(tickInterval);
     clearTimeout(refreshTimeout);
@@ -1254,12 +1261,13 @@ async function startGame(mid) {
     setRoundVenue(mid);
     stopFixturePolling();
     document.getElementById("gsOverlay").style.display = "none";
-    prevValues = {};
+    prevValues = {}; prevStatMap = {};
     currentData = null;
     countdown = REFRESH;
     commentaryLog = []; commUnread = 0; updateCommBadge(); renderCommentary();
     render(data);
     data.players.forEach(p => prevValues[p.name] = p.value);
+    updatePrevStatMap(data.players);
     currentData = data;
     clearInterval(tickInterval);
     clearTimeout(refreshTimeout);
@@ -1333,6 +1341,7 @@ const STAT_WEIGHTS = {
 
 let currentData  = null;
 let prevValues   = {};
+let prevStatMap  = {}; // playerName -> { stat -> lastDisplayedValue }
 let activeTeam   = "all";
 let fetchCount   = 0;
 const fetchCountEl = document.getElementById("fetchCount");
@@ -1377,6 +1386,7 @@ async function fetchAndRender() {
     if (data.error) throw new Error(data.error);
     render(data);
     data.players.forEach(p => prevValues[p.name] = p.value);
+    updatePrevStatMap(data.players);
     currentData = data;
     fetchCommentary();
     if (data.inProgress) {
@@ -1628,7 +1638,7 @@ function flipAnimate(container, selector, oldPos) {
 }
 
 // ── Stat chips ────────────────────────────────────────────────────────────────
-function statChips(contribs, isHot) {
+function statChips(contribs, isHot, playerName) {
   if (!contribs || contribs.length === 0)
     return `<span style="font-size:9px;color:#8b949e;font-style:italic">no activity</span>`;
   return contribs.slice(0, 5).map(c => {
@@ -1636,11 +1646,58 @@ function statChips(contribs, isHot) {
     const ptsSign = c.contribution >= 0 ? "+" : "";
     const bg  = c.contribution > 0 ? "rgba(255,255,255,.1)" : "rgba(248,81,73,.18)";
     const col = c.contribution > 0 ? "#e6edf3"             : "#f85149";
-    return `<span class="stat-chip" style="background:${bg};color:${col}">
+    const dataAttrs = playerName
+      ? ` data-player="${esc(playerName)}" data-stat="${c.stat}" data-value="${c.delta}"`
+      : "";
+    return `<span class="stat-chip" style="background:${bg};color:${col}"${dataAttrs}>
       ${sign}${c.delta}<span style="opacity:.8">${c.stat}</span>
       <span class="stat-chip-pts">${ptsSign}${c.contribution.toFixed(1)}</span>
     </span>`;
   }).join("");
+}
+
+// Top-5 cumulative PV-contributing stats for the Best panel
+function pvMatchStats(p) {
+  const stats = Object.entries(STAT_WEIGHTS)
+    .filter(([k]) => (p[k] || 0) !== 0)
+    .map(([k, w]) => ({ stat:k, value:p[k]||0, contrib:Math.abs(w*(p[k]||0)) }))
+    .sort((a, b) => b.contrib - a.contrib)
+    .slice(0, 5);
+  if (!stats.length) return "";
+  return `<div class="pv-match-stats">${
+    stats.map(s =>
+      `<span class="pv-stat-chip" data-player="${esc(p.name)}" data-stat="${s.stat}" data-value="${s.value}">` +
+      `<span style="opacity:.65">${s.stat}</span>&nbsp;${s.value}</span>`
+    ).join("")
+  }</div>`;
+}
+
+// Flash stat chips whose value has changed since last render
+function applyFlash(el) {
+  el.querySelectorAll('[data-stat][data-player][data-value]').forEach(chip => {
+    const player = chip.dataset.player;
+    const stat   = chip.dataset.stat;
+    const value  = parseFloat(chip.dataset.value);
+    const prev   = prevStatMap[player]?.[stat];
+    if (prev == null || value === prev) return;
+    chip.classList.remove('stat-flash-up', 'stat-flash-down');
+    void chip.offsetWidth; // force reflow to restart animation
+    chip.classList.add(value > prev ? 'stat-flash-up' : 'stat-flash-down');
+    setTimeout(() => chip.classList.remove('stat-flash-up', 'stat-flash-down'), 5100);
+  });
+}
+
+function updatePrevStatMap(players) {
+  for (const p of players) {
+    if (!prevStatMap[p.name]) prevStatMap[p.name] = {};
+    for (const k of Object.keys(STAT_WEIGHTS)) {
+      if (p[k] != null) prevStatMap[p.name][k] = p[k];
+    }
+    // Also capture window deltas from statContribs
+    for (const c of (p.statContribs || [])) {
+      prevStatMap[p.name][`_w_${c.stat}`] = c.delta;
+    }
+  }
 }
 
 // ── Hot list ─────────────────────────────────────────────────────────────────
@@ -1669,7 +1726,7 @@ function renderHot(hot5, windowMins) {
         <div class="hc-meta">
           <span class="hc-team" style="background:${teamPillStyle(p.team).bg};color:${teamPillStyle(p.team).txt};${teamPillStyle(p.team).border?`border:${teamPillStyle(p.team).border}`:''}">${abbr}</span>
         </div>
-        <div class="hc-stats">${statChips(p.statContribs, true)}</div>
+        <div class="hc-stats">${statChips(p.statContribs, true, p.name)}</div>
       </div>
       <div class="hc-right">
         <div class="hc-delta" style="color:${hotDeltaColor(delta)}">${sign}${delta.toFixed(1)}</div>
@@ -1679,6 +1736,7 @@ function renderHot(hot5, windowMins) {
     </div>`;
   }).join("");
   flipAnimate(el, '.hc-card[data-key]', oldPosHot);
+  applyFlash(el);
 }
 
 // ── Cold list ─────────────────────────────────────────────────────────────────
@@ -1710,7 +1768,7 @@ function renderQuiet(quiet5, windowMins) {
           <span class="hc-team" style="background:${teamPillStyle(p.team).bg};color:${teamPillStyle(p.team).txt};${teamPillStyle(p.team).border?`border:${teamPillStyle(p.team).border}`:''}">${abbr}</span>
           <span style="font-size:9px;color:#8b949e">exp&nbsp;+${exp.toFixed(1)}</span>
         </div>
-        <div class="hc-stats">${statChips(coldContribs, false)}</div>
+        <div class="hc-stats">${statChips(coldContribs, false, p.name)}</div>
       </div>
       <div class="hc-right">
         <div class="hc-delta" style="color:${coldDeltaColor(qd)}">${sign}${qd.toFixed(1)}</div>
@@ -1720,6 +1778,7 @@ function renderQuiet(quiet5, windowMins) {
     </div>`;
   }).join("");
   flipAnimate(el, '.hc-card[data-key]', oldPosQuiet);
+  applyFlash(el);
 }
 
 // ── Burst list ────────────────────────────────────────────────────────────────
@@ -1845,7 +1904,7 @@ function renderQTop(qTop5, quarter) {
           <span class="hc-team" style="background:${teamPillStyle(p.team).bg};color:${teamPillStyle(p.team).txt};${teamPillStyle(p.team).border?`border:${teamPillStyle(p.team).border}`:''}">${abbr}</span>
           ${ratingPill(p.rating)}
         </div>
-        <div class="hc-stats">${statChips(contribs, true)}</div>
+        <div class="hc-stats">${statChips(contribs, true, p.name)}</div>
       </div>
       <div class="hc-right">
         <div class="hc-delta" style="color:${rc}">${sign}${delta.toFixed(1)}</div>
@@ -1854,6 +1913,7 @@ function renderQTop(qTop5, quarter) {
     </div>`;
   }).join("");
   flipAnimate(el, '.hc-card[data-key]', oldPosQTop);
+  applyFlash(el);
 }
 
 // ── Quarterly value log ───────────────────────────────────────────────────────
@@ -2136,7 +2196,8 @@ function renderBest(players) {
           <span class="hc-team" style="background:${teamPillStyle(p.team).bg};color:${teamPillStyle(p.team).txt};${teamPillStyle(p.team).border?`border:${teamPillStyle(p.team).border}`:''}">${abbr}</span>
           ${ratingPill(p.rating)}
         </div>
-        <div class="hc-stats">${statChips(p.statContribs, true)}</div>
+        <div class="hc-stats">${statChips(p.statContribs, true, p.name)}</div>
+        ${pvMatchStats(p)}
       </div>
       <div class="hc-right">
         <div class="hc-delta" style="color:${rc}">${p.value.toFixed(1)}</div>
@@ -2146,6 +2207,7 @@ function renderBest(players) {
     </div>`;
   }).join("");
   flipAnimate(el, '.hc-card[data-key]', oldPosBest);
+  applyFlash(el);
 }
 
 function qValColor(v) {
