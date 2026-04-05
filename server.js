@@ -441,7 +441,7 @@ http.createServer(async (req, res) => {
 
   if (parsed.pathname === "/api/ping") {
     res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ ok: true, time: new Date().toISOString() }));
+    res.end(JSON.stringify({ ok: true, time: new Date().toISOString(), sha: GIT_SHA }));
     return;
   }
 
