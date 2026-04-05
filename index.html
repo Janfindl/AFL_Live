@@ -835,7 +835,7 @@ const TEAM_COLORS = {
   "Brisbane":              { txt:"#F5A800", bg:"rgba(111,28,66,.22)",   pill:{bg:"#7B1D46",txt:"#F5A800"}, pillAlt:{bg:"#F5A800",txt:"#7B1D46"}, pillHue:"maroon" },
   "Carlton":               { txt:"#1C5DB8", bg:"rgba(0,20,80,.26)",     pill:{bg:"#002B5C",txt:"#FFFFFF"}, pillAlt:{bg:"#FFFFFF",txt:"#002B5C"}, pillHue:"blue"   },
   "Collingwood":           { txt:"#C8C8C8", bg:"rgba(200,200,200,.09)", pill:{bg:"#000000",txt:"#FFFFFF"}, pillAlt:{bg:"#FFFFFF",txt:"#000000"}, pillHue:"black"  },
-  "Essendon":              { txt:"#E03244", bg:"rgba(204,32,49,.14)",   pill:{bg:"#CC2028",txt:"#000000"}, pillAlt:{bg:"#000000",txt:"#CC2028"}, pillHue:"red"    },
+  "Essendon":              { txt:"#E03244", bg:"rgba(204,32,49,.14)",   pill:{bg:"#000000",txt:"#CC2028",border:"1px solid #CC2028"}, pillAlt:{bg:"#CC2028",txt:"#000000"}, pillHue:"essendon" },
   "Fremantle":             { txt:"#9060CC", bg:"rgba(100,60,160,.18)",  pill:{bg:"#2C1F6B",txt:"#FFFFFF"}, pillAlt:{bg:"#CC2028",txt:"#FFFFFF"}, pillHue:"purple" },
   "Geelong":               { txt:"#1F7EC8", bg:"rgba(31,126,200,.18)",  pill:{bg:"#1B3E6F",txt:"#FFFFFF"}, pillAlt:{bg:"#FFFFFF",txt:"#1B3E6F"}, pillHue:"blue"   },
   "Geelong Cats":          { txt:"#1F7EC8", bg:"rgba(31,126,200,.18)",  pill:{bg:"#1B3E6F",txt:"#FFFFFF"}, pillAlt:{bg:"#FFFFFF",txt:"#1B3E6F"}, pillHue:"blue"   },
@@ -861,8 +861,8 @@ const TEAM_COLORS = {
   "Sydney Swans":          { txt:"#E8001C", bg:"rgba(232,0,28,.14)",    pill:{bg:"#E2001A",txt:"#FFFFFF"}, pillAlt:{bg:"#FFFFFF",txt:"#E2001A"}, pillHue:"red"    },
   "West Coast":            { txt:"#F2A900", bg:"rgba(0,48,135,.2)",     pill:{bg:"#003087",txt:"#F2A900"}, pillAlt:{bg:"#F2A900",txt:"#003087"}, pillHue:"blue"   },
   "West Coast Eagles":     { txt:"#F2A900", bg:"rgba(0,48,135,.2)",     pill:{bg:"#003087",txt:"#F2A900"}, pillAlt:{bg:"#F2A900",txt:"#003087"}, pillHue:"blue"   },
-  "Western Bulldogs":      { txt:"#CC1030", bg:"rgba(0,60,160,.18)",    pill:{bg:"#CC1030",txt:"#FFFFFF"}, pillAlt:{bg:"#003087",txt:"#FFFFFF"}, pillHue:"red"    },
-  "Footscray":             { txt:"#CC1030", bg:"rgba(0,60,160,.18)",    pill:{bg:"#CC1030",txt:"#FFFFFF"}, pillAlt:{bg:"#003087",txt:"#FFFFFF"}, pillHue:"red"    },
+  "Western Bulldogs":      { txt:"#CC1030", bg:"rgba(0,60,160,.18)",    pill:{bg:"#1756A8",txt:"#FFFFFF",border:"1px solid #CC1030"}, pillAlt:{bg:"#1756A8",txt:"#FFFFFF",border:"1px solid #CC1030"}, pillHue:"bulldogs" },
+  "Footscray":             { txt:"#CC1030", bg:"rgba(0,60,160,.18)",    pill:{bg:"#1756A8",txt:"#FFFFFF",border:"1px solid #CC1030"}, pillAlt:{bg:"#1756A8",txt:"#FFFFFF",border:"1px solid #CC1030"}, pillHue:"bulldogs" },
 };
 function teamColor(name) {
   return TEAM_COLORS[name] || { txt:"#8b949e", bg:"rgba(139,148,158,.1)" };
@@ -1411,7 +1411,9 @@ function commTeamBadge(teamName) {
   if (!teamName) return "";
   const col = TEAM_COLORS[teamName];
   if (!col) return "";
-  return `<span class="comm-team-badge" style="background:${col.pill.bg};color:${col.pill.txt}">${teamName}</span>`;
+  const p = col.pill;
+  const borderStyle = p.border ? `;border:${p.border}` : "";
+  return `<span class="comm-team-badge" style="background:${p.bg};color:${p.txt}${borderStyle}">${teamName}</span>`;
 }
 
 function renderCommentary() {
@@ -1664,7 +1666,7 @@ function renderHot(hot5, windowMins) {
       <div class="hc-info">
         <div class="hc-name" style="color:${col.txt}">${esc(p.name)}</div>
         <div class="hc-meta">
-          <span class="hc-team" style="background:${teamPillStyle(p.team).bg};color:${teamPillStyle(p.team).txt}">${abbr}</span>
+          <span class="hc-team" style="background:${teamPillStyle(p.team).bg};color:${teamPillStyle(p.team).txt};${teamPillStyle(p.team).border?`border:${teamPillStyle(p.team).border}`:''}">${abbr}</span>
         </div>
         <div class="hc-stats">${statChips(p.statContribs, true)}</div>
       </div>
@@ -1704,7 +1706,7 @@ function renderQuiet(quiet5, windowMins) {
       <div class="hc-info">
         <div class="hc-name" style="color:${col.txt}">${esc(p.name)}</div>
         <div class="hc-meta">
-          <span class="hc-team" style="background:${teamPillStyle(p.team).bg};color:${teamPillStyle(p.team).txt}">${abbr}</span>
+          <span class="hc-team" style="background:${teamPillStyle(p.team).bg};color:${teamPillStyle(p.team).txt};${teamPillStyle(p.team).border?`border:${teamPillStyle(p.team).border}`:''}">${abbr}</span>
           <span style="font-size:9px;color:#8b949e">exp&nbsp;+${exp.toFixed(1)}</span>
         </div>
         <div class="hc-stats">${statChips(coldContribs, false)}</div>
@@ -1760,7 +1762,7 @@ function renderBurst(bursts, quarterStartTs) {
         <div class="hc-name" style="color:${col.txt}">${esc(b.name)}</div>
         <div class="hc-meta" style="display:flex;align-items:center;gap:6px">
           ${qBadge}
-          <span class="hc-team" style="background:${teamPillStyle(b.team).bg};color:${teamPillStyle(b.team).txt}">${abbr}</span>
+          <span class="hc-team" style="background:${teamPillStyle(b.team).bg};color:${teamPillStyle(b.team).txt};${teamPillStyle(b.team).border?`border:${teamPillStyle(b.team).border}`:''}">${abbr}</span>
         </div>
         <div class="hc-stats" style="margin-top:6px">
           <span class="burst-time">${t1} – ${t2}</span>
@@ -1839,7 +1841,7 @@ function renderQTop(qTop5, quarter) {
       <div class="hc-info">
         <div class="hc-name" style="color:${col.txt}">${esc(p.name)}</div>
         <div class="hc-meta">
-          <span class="hc-team" style="background:${teamPillStyle(p.team).bg};color:${teamPillStyle(p.team).txt}">${abbr}</span>
+          <span class="hc-team" style="background:${teamPillStyle(p.team).bg};color:${teamPillStyle(p.team).txt};${teamPillStyle(p.team).border?`border:${teamPillStyle(p.team).border}`:''}">${abbr}</span>
           ${ratingPill(p.rating)}
         </div>
         <div class="hc-stats">${statChips(contribs, true)}</div>
@@ -1890,7 +1892,7 @@ function renderQuarterLog(quarterLog, players) {
       <td class="left rnk">${i+1}</td>
       <td class="left">
         <span class="pname">${esc(p.name)}</span>
-        <span class="ttag" style="background:${teamPillStyle(p.team).bg};color:${teamPillStyle(p.team).txt}">${abbr}</span>
+        <span class="ttag" style="background:${teamPillStyle(p.team).bg};color:${teamPillStyle(p.team).txt};${teamPillStyle(p.team).border?`border:${teamPillStyle(p.team).border}`:''}">${abbr}</span>
       </td>
       ${qCells}
       <td class="qlog-total" style="color:${totalColor}">${totalSign}${total.toFixed(1)}</td>
@@ -2130,7 +2132,7 @@ function renderBest(players) {
       <div class="hc-info">
         <div class="hc-name" style="color:${col.txt}">${esc(p.name)}</div>
         <div class="hc-meta">
-          <span class="hc-team" style="background:${teamPillStyle(p.team).bg};color:${teamPillStyle(p.team).txt}">${abbr}</span>
+          <span class="hc-team" style="background:${teamPillStyle(p.team).bg};color:${teamPillStyle(p.team).txt};${teamPillStyle(p.team).border?`border:${teamPillStyle(p.team).border}`:''}">${abbr}</span>
           ${ratingPill(p.rating)}
         </div>
         <div class="hc-stats">${statChips(p.statContribs, true)}</div>
@@ -2178,7 +2180,7 @@ function renderTable(players, quarterLog) {
       <td class="rtg-cell">${ratingPill(p.rating)}</td>
       <td class="left">
         <span class="pname">${esc(p.name)}</span>
-        <span class="ttag" style="background:${teamPillStyle(p.team).bg};color:${teamPillStyle(p.team).txt}">${abbr}</span>
+        <span class="ttag" style="background:${teamPillStyle(p.team).bg};color:${teamPillStyle(p.team).txt};${teamPillStyle(p.team).border?`border:${teamPillStyle(p.team).border}`:''}">${abbr}</span>
       </td>
       <td>${chgBadge(p)}</td>
       ${nc(p.ED)}${nc(p.CP)}${nc(p.CM)}${nc(p.MG)}${nc(p["1%"])}${nc(p.T)}${nc(p.HO)}
