@@ -1649,7 +1649,7 @@ function statChips(contribs, isHot, playerName, hideEmpty) {
     const bg  = c.contribution > 0 ? "rgba(255,255,255,.1)" : "rgba(248,81,73,.18)";
     const col = c.contribution > 0 ? "#e6edf3"             : "#f85149";
     const dataAttrs = playerName
-      ? ` data-player="${esc(playerName)}" data-stat="${c.stat}" data-value="${c.delta}"`
+      ? ` data-player="${esc(playerName)}" data-stat="_w_${c.stat}" data-value="${c.delta}"`
       : "";
     return `<span class="stat-chip" style="background:${bg};color:${col}"${dataAttrs}>
       ${sign}${c.delta}<span style="opacity:.8">${c.stat}</span>
