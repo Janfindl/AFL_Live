@@ -1684,7 +1684,7 @@ function applyFlash(el) {
     if (prev == null || value === prev) return;
     chip.classList.remove('stat-flash-up', 'stat-flash-down');
     void chip.offsetWidth; // force reflow to restart animation
-    chip.classList.add(value > prev ? 'stat-flash-up' : 'stat-flash-down');
+    chip.classList.add(value > 0 ? 'stat-flash-up' : 'stat-flash-down');
     setTimeout(() => chip.classList.remove('stat-flash-up', 'stat-flash-down'), 5100);
   });
 }
