@@ -1032,6 +1032,8 @@ async function probeGame(g) {
       liveGames[g.fw_id] = true;
       markCardLive(g.fw_id);
     }
+    if (d.hscore != null) { g.hscore = d.hscore; g.ascore = d.ascore; }
+    if (d.timestr)        { g.timestr = d.timestr; }
     updateCardScore(g.fw_id, d);
     if (!d.inProgress) markCardDone(g.fw_id);
   } catch(e) { /* network hiccup — ignore */ }
@@ -1233,8 +1235,8 @@ function showGameSelect(errMsg) {
   if (!fixtureRounds) {
     loadFixture();
   } else {
-    // Restart polling for the currently displayed round
     const idx = parseInt(document.getElementById("gsRoundSelect").value || "0");
+    renderFixtureRound(idx);
     if (fixtureRounds[idx]) startFixturePolling(fixtureRounds[idx].games);
   }
 }
