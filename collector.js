@@ -437,7 +437,7 @@ function applyModProjectedValue(players, completedQuarters) {
     if (qVals.length === 0) return;
     const avgQ     = p.projectedValue / 4;
     const maxQ     = Math.max(...qVals);
-    const qmxDelta = Math.max(0, maxQ - avgQ);
+    const qmxDelta = Math.max(0, maxQ - avgQ) / 2;
     if (qmxDelta <= 0) return;
     p.projectedValue = Math.round((p.projectedValue + qmxDelta) * 100) / 100;
     p.rating         = calcRating(p.projectedValue);
