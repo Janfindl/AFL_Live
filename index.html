@@ -1990,10 +1990,11 @@ function renderBurst(bursts, quarterStartTs) {
         <div class="hc-rank" style="background:${accent}22;color:${accent}">${i + 1}</div>
       </div>
       <div class="hc-info">
-        <div class="hc-name" style="color:${col.txt}">${esc(b.name)}${b.gain >= 25 ? ' 🔥🔥🔥' : b.gain >= 20 ? ' 🔥🔥' : b.gain >= 15 ? ' 🔥' : ''}</div>
-        <div class="hc-meta" style="display:flex;align-items:center;gap:6px">
+        <div class="hc-name" style="color:${col.txt}">${esc(b.name)}${b.gain >= 30 ? ' 🔥🔥🔥👑' : b.gain >= 25 ? ' 🔥🔥🔥' : b.gain >= 20 ? ' 🔥🔥' : b.gain >= 15 ? ' 🔥' : ''}</div>
+        <div class="hc-meta" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
           <span class="hc-team" style="background:${teamPillStyle(b.team).bg};color:${teamPillStyle(b.team).txt};${teamPillStyle(b.team).border?`border:${teamPillStyle(b.team).border}`:''}">${abbr}</span>
-          ${b.gain >= 25 ? '<span style="font-size:9px;font-weight:700;color:#ff4400;background:rgba(255,68,0,.15);padding:1px 6px;border-radius:3px;text-transform:uppercase;letter-spacing:.5px">Match Winner</span>'
+          ${b.gain >= 30 ? '<span style="font-size:9px;font-weight:700;color:#ffd700;background:rgba(255,215,0,.2);padding:1px 6px;border-radius:3px;text-transform:uppercase;letter-spacing:.5px;border:1px solid rgba(255,215,0,.4)">Hall of Fame</span>'
+          : b.gain >= 25 ? '<span style="font-size:9px;font-weight:700;color:#ff4400;background:rgba(255,68,0,.15);padding:1px 6px;border-radius:3px;text-transform:uppercase;letter-spacing:.5px">Match Winner</span>'
           : b.gain >= 20 ? '<span style="font-size:9px;font-weight:700;color:#ff6600;background:rgba(255,102,0,.15);padding:1px 6px;border-radius:3px;text-transform:uppercase;letter-spacing:.5px">Game Breaker</span>'
           : b.gain >= 15 ? '<span style="font-size:9px;font-weight:700;color:#f59e0b;background:rgba(245,158,11,.15);padding:1px 6px;border-radius:3px;text-transform:uppercase;letter-spacing:.5px">Lit</span>' : ''}
           ${isFlow ? '<span style="font-size:9px;font-weight:700;color:#a78bfa;background:rgba(167,139,250,.15);padding:1px 6px;border-radius:3px;text-transform:uppercase;letter-spacing:.5px">✦ Flow State</span>' : ''}
