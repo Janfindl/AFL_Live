@@ -296,7 +296,7 @@ function buildCachedResponse(cached) {
     const sc  = tm === cached.teams[0] ? cached.score1 : cached.score2;
     summary[tm] = {
       score:        sc ?? null,
-      avgRating:    +(tp.reduce((s, p) => s + (p.rating      || 0), 0) / (tp.length || 1)).toFixed(1),
+      avgRating:    +(tp.sort((a,b) => (b.rating||0) - (a.rating||0)).slice(0,5).reduce((s, p) => s + (p.rating || 0), 0) / Math.min(tp.length, 5) || 0).toFixed(1),
       avgProjected: +(tp.reduce((s, p) => s + (p.projectedValue || 0), 0) / (tp.length || 1)).toFixed(1),
       topPlayer:    tp[0]?.name || "—",
     };
@@ -619,7 +619,7 @@ http.createServer(async (req, res) => {
       if (cached.summary) {
         for (const tm of Object.keys(cached.summary)) {
           const tp = (cached.players || []).filter(p => p.team === tm);
-          if (tp.length) cached.summary[tm].avgRating = +(tp.reduce((s, p) => s + (p.rating || 0), 0) / tp.length).toFixed(1);
+          if (tp.length) cached.summary[tm].avgRating = +(tp.sort((a,b) => (b.rating||0) - (a.rating||0)).slice(0,5).reduce((s, p) => s + (p.rating || 0), 0) / Math.min(tp.length, 5)).toFixed(1);
         }
       }
       cached._servedAt  = new Date().toISOString();

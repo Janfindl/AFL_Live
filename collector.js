@@ -878,7 +878,7 @@ async function fetchRatings(mid) {
     const tp = all.filter(p => p.team === tm);
     summary[tm] = {
       score:        tm === team1Name ? score1 : score2,
-      avgRating:    +(tp.reduce((s, p) => s + p.rating,         0) / (tp.length || 1)).toFixed(1),
+      avgRating:    +(tp.sort((a,b) => b.rating - a.rating).slice(0,5).reduce((s, p) => s + p.rating, 0) / Math.min(tp.length, 5) || 0).toFixed(1),
       avgProjected: +(tp.reduce((s, p) => s + p.projectedValue, 0) / (tp.length || 1)).toFixed(1),
       topPlayer:    tp[0] ? tp[0].name : "—",
     };
