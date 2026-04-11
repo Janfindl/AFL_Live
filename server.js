@@ -97,7 +97,7 @@ function loadFetches(mid) {
 // ── GitHub-backed cloud persistence ──────────────────────────────────────────
 const GH_TOKEN  = process.env.GITHUB_TOKEN || null;
 const GH_REPO   = process.env.GITHUB_REPO  || null;
-const GH_BRANCH = process.env.GITHUB_DATA_BRANCH || "master";
+const GH_BRANCH = (process.env.GITHUB_DATA_BRANCH || "master").toLowerCase();
 
 const ghShaCache = new Map();
 
