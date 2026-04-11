@@ -1200,22 +1200,6 @@ function renderFixtureRound(roundIdx) {
     const aPillBg = aTC.pill?.bg || aTC.txt || "#161b22";
 
     let scoreHtml = "";
-    if (isDone || isLive || hasData) {
-      scoreHtml = `
-        <div class="gs-score-block">
-          <div class="gs-score">
-            <span style="color:#fff">${g.hscore ?? "—"}</span>
-            <span class="gs-score-sep" style="color:#fff8">–</span>
-            <span style="color:#fff">${g.ascore ?? "—"}</span>
-          </div>
-        </div>`;
-    } else {
-      scoreHtml = `
-        <div class="gs-score-block">
-          <div class="gs-time" style="font-size:13px;color:#fff">${g.timestr || "—"}</div>
-        </div>`;
-    }
-
     let badgeHtml = "";
     if (isLive) badgeHtml = `<span class="gs-status-badge live"><span class="live-dot"></span> Live</span>`;
     else if (isDone) badgeHtml = `<span class="gs-status-badge done">Final</span>`;
@@ -1232,6 +1216,27 @@ function renderFixtureRound(roundIdx) {
       btnHtml = `<button class="gs-watch-btn gs-upcoming-btn" disabled title="Game hasn't started yet">▶ Watch</button>`;
     }
 
+    if (isDone || isLive || hasData) {
+      scoreHtml = `
+        <div class="gs-score-block">
+          <div class="gs-score">
+            <span style="color:#fff">${g.hscore ?? "—"}</span>
+            <span class="gs-score-sep" style="color:#fff8">–</span>
+            <span style="color:#fff">${g.ascore ?? "—"}</span>
+          </div>
+          ${badgeHtml}
+          <div class="gs-venue">${g.venue || ""}</div>
+          ${btnHtml}
+        </div>`;
+    } else {
+      scoreHtml = `
+        <div class="gs-score-block">
+          ${badgeHtml}
+          <div class="gs-venue">${g.venue || ""}</div>
+          ${btnHtml}
+        </div>`;
+    }
+
     return `<div class="gs-game-card ${cardCls}" data-fw="${g.fw_id}" style="background:linear-gradient(90deg, ${hPillBg} 0%, ${hPillBg} 35%, ${aPillBg} 65%, ${aPillBg} 100%)">
       <img class="gs-card-bg home" src="${hLogo}" alt="" onerror="this.style.display='none'">
       <img class="gs-card-bg away" src="${aLogo}" alt="" onerror="this.style.display='none'">
@@ -1245,11 +1250,6 @@ function renderFixtureRound(roundIdx) {
           <img class="gs-team-logo" src="${aLogo}" alt="${g.ateam}" onerror="this.style.visibility='hidden'">
           <div class="gs-team-name" style="color:${aCol}">${g.ateam}</div>
         </div>
-      </div>
-      <div class="gs-bottom-row" style="position:relative;z-index:1">
-        ${badgeHtml}
-        <div class="gs-venue">${g.venue || ""}</div>
-        ${btnHtml}
       </div>
     </div>`;
   }).join("");
