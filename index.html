@@ -911,6 +911,80 @@ function teamColor(name) {
   return { ...c, accent: c.accent || c.txt };
 }
 
+// ── Colour clash resolution ──────────────────────────────────────────────────
+function hexToHsl(hex) {
+  let r = parseInt(hex.slice(1,3),16)/255, g = parseInt(hex.slice(3,5),16)/255, b = parseInt(hex.slice(5,7),16)/255;
+  const max = Math.max(r,g,b), min = Math.min(r,g,b), d = max - min;
+  let h = 0, s = 0, l = (max + min) / 2;
+  if (d > 0) {
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) * 60;
+    else if (max === g) h = ((b - r) / d + 2) * 60;
+    else h = ((r - g) / d + 4) * 60;
+  }
+  return { h, s, l };
+}
+function hslToHex(h, s, l) {
+  h = ((h % 360) + 360) % 360;
+  const c = (1 - Math.abs(2 * l - 1)) * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = l - c / 2;
+  let r, g, b;
+  if (h < 60)       { r=c; g=x; b=0; }
+  else if (h < 120) { r=x; g=c; b=0; }
+  else if (h < 180) { r=0; g=c; b=x; }
+  else if (h < 240) { r=0; g=x; b=c; }
+  else if (h < 300) { r=x; g=0; b=c; }
+  else              { r=c; g=0; b=x; }
+  const toHex = v => Math.round((v + m) * 255).toString(16).padStart(2, "0");
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+function colorDistance(hex1, hex2) {
+  const a = hexToHsl(hex1), b = hexToHsl(hex2);
+  const hueDiff = Math.min(Math.abs(a.h - b.h), 360 - Math.abs(a.h - b.h));
+  const lumDiff = Math.abs(a.l - b.l);
+  return { hueDiff, lumDiff };
+}
+function ensureLegible(hex, minLum = 0.25) {
+  const hsl = hexToHsl(hex);
+  if (hsl.l < minLum) return hslToHex(hsl.h, hsl.s, minLum);
+  return hex;
+}
+
+// Resolved colour map — populated per game by resolveTeamColors()
+let resolvedColorMap = {};
+function resolvedColor(name) {
+  return resolvedColorMap[name] || teamColor(name);
+}
+
+function resolveTeamColors(t1, t2) {
+  const c1 = teamColor(t1), c2raw = teamColor(t2);
+  const c2 = { ...c2raw };
+  const dist = colorDistance(c1.accent, c2.accent);
+  // Clash: hue within 40° AND luminance within 0.2
+  if (dist.hueDiff < 40 && dist.lumDiff < 0.2) {
+    // Try pillAlt colours as alternative
+    const alt = c2raw.pillAlt;
+    if (alt) {
+      const altColor = alt.txt || alt.bg;
+      if (altColor) {
+        const altDist = colorDistance(c1.accent, altColor);
+        if (altDist.hueDiff >= 40 || altDist.lumDiff >= 0.2) {
+          c2.txt = ensureLegible(altColor);
+          c2.accent = ensureLegible(altColor);
+          resolvedColorMap = { [t1]: c1, [t2]: c2 };
+          return { c1, c2 };
+        }
+      }
+    }
+    // Fallback: rotate hue by 120°
+    const hsl = hexToHsl(c2.accent);
+    const shifted = ensureLegible(hslToHex(hsl.h + 120, Math.max(hsl.s, 0.5), Math.max(hsl.l, 0.35)));
+    c2.txt = shifted;
+    c2.accent = shifted;
+  }
+  resolvedColorMap = { [t1]: c1, [t2]: c2 };
+  return { c1, c2 };
+}
+
 // Current game's teams — set by render() so teamPillStyle can detect clashes
 let currentTeams = [];
 function teamPillStyle(name) {
@@ -1556,7 +1630,7 @@ async function fetchCommentary() {
 function render(data) {
   const [t1, t2] = data.teams;
   currentTeams = data.teams || [];
-  const c1 = teamColor(t1), c2 = teamColor(t2);
+  const { c1, c2 } = resolveTeamColors(t1, t2);
 
   // Header
   const qStr  = data.matchInfo ? data.matchInfo.replace(/\s+\d+–\d+$/, "").trim() : "Live";
@@ -1765,7 +1839,7 @@ function renderHot(hot5, windowMins) {
   }
   const oldPosHot = capturePositions(el, '.hc-card[data-key]');
   el.innerHTML = hot5.map((p, i) => {
-    const col   = teamColor(p.team);
+    const col   = resolvedColor(p.team);
     const abbr  = teamAbbr(p.team);
     const delta = p.delta5min ?? 0;
     const sign  = delta >= 0 ? "+" : "";
@@ -1804,7 +1878,7 @@ function renderQuiet(quiet5, windowMins) {
   }
   const oldPosQuiet = capturePositions(el, '.hc-card[data-key]');
   el.innerHTML = quiet5.map((p, i) => {
-    const col   = teamColor(p.team);
+    const col   = resolvedColor(p.team);
     const abbr  = teamAbbr(p.team);
     const qd    = p.quietDelta ?? 0;
     const exp   = p.expectedDelta ?? 0;
@@ -1858,7 +1932,7 @@ function renderBurst(bursts, quarterStartTs) {
   }
   const oldPosBurst = capturePositions(el, '.hc-card[data-key]');
   el.innerHTML = bursts.map((b, i) => {
-    const col    = teamColor(b.team);
+    const col    = resolvedColor(b.team);
     const abbr   = teamAbbr(b.team);
     const cardBg = i % 2 === 0 ? "#13181f" : "#0f1318";
     const t1     = tsToGameTime(b.startTs, quarterStartTs);
@@ -1940,7 +2014,7 @@ function renderQTop(qTop5, quarter) {
   }
   const oldPosQTop = capturePositions(el, '.hc-card[data-key]');
   el.innerHTML = qTop5.map((p, i) => {
-    const col      = teamColor(p.team);
+    const col      = resolvedColor(p.team);
     const abbr     = teamAbbr(p.team);
     const delta    = p.quarterDelta ?? 0;
     const sign     = delta >= 0 ? "+" : "";
@@ -1993,7 +2067,7 @@ function renderQuarterLog(quarterLog, players) {
   }
 
   el.innerHTML = rows.map(({ p, vals, total }, i) => {
-    const col  = teamColor(p.team);
+    const col  = resolvedColor(p.team);
     const abbr = teamAbbr(p.team);
     const qCells = vals.map(v => {
       if (v === null) return `<td class="qlog-val zero">—</td>`;
@@ -2019,7 +2093,7 @@ function renderQuarterLog(quarterLog, players) {
 function renderMomentum(momentum, teams, quarterStartTs, scoreEvents) {
   const el = document.getElementById("momentumChart");
   const [t1, t2] = teams;
-  const c1 = teamColor(t1).accent, c2 = teamColor(t2).accent;
+  const c1 = resolvedColor(t1).accent, c2 = resolvedColor(t2).accent;
 
   if (!momentum || momentum.length < 3) {
     el.innerHTML = `<div style="height:100%;display:flex;align-items:center;justify-content:center;color:#484f58;font-size:11px">Building history…</div>`;
@@ -2149,7 +2223,7 @@ function renderMomentum(momentum, teams, quarterStartTs, scoreEvents) {
     .filter(e => e.ts >= firstTs && e.ts <= lastTs + 30000)
     .map(e => {
       const x   = tsToX(e.ts).toFixed(1);
-      const col = teamColor(e.team).accent;
+      const col = resolvedColor(e.team).accent;
       const y0  = H - SCORE_H + 1;
       return e.type === 'G'
         ? `<polygon points="${x},${y0+1} ${+x-5},${y0+SCORE_H-2} ${+x+5},${y0+SCORE_H-2}" fill="${col}" opacity="0.9"/>`
@@ -2233,7 +2307,7 @@ function renderBest(players) {
   const top10 = [...players].sort((a, b) => b.value - a.value).slice(0, 10);
   const oldPosBest = capturePositions(el, '.hc-card[data-key]');
   el.innerHTML = top10.map((p, i) => {
-    const col  = teamColor(p.team);
+    const col  = resolvedColor(p.team);
     const abbr = teamAbbr(p.team);
     const rc   = ratingColor(p.rating);
     const cardBg = i % 2 === 0 ? '#13181f' : '#0f1318';
@@ -2278,7 +2352,7 @@ function renderTable(players, quarterLog) {
   const oldPos = capturePositions(tbody, 'tr[data-key]');
   const QUARTERS = ["Q1","Q2","Q3","Q4"];
   tbody.innerHTML = rows.map(p => {
-    const col  = teamColor(p.team);
+    const col  = resolvedColor(p.team);
     const abbr = teamAbbr(p.team);
     const rc   = ratingColor(p.rating);
     const barW = (p.rating / 10 * 100).toFixed(0);
@@ -2317,7 +2391,7 @@ function renderBasicTable(players) {
   }
   const oldPos = capturePositions(basicBody, 'tr[data-key]');
   basicBody.innerHTML = rows.map(p => {
-    const col  = teamColor(p.team);
+    const col  = resolvedColor(p.team);
     const abbr = teamAbbr(p.team);
     const rc   = ratingColor(p.rating);
     return `<tr data-key="${esc(puid(p))}">
