@@ -618,6 +618,38 @@ function getState(mid) {
       if (baseline !== null) state.quarterBaseline = baseline;
     }
   }
+  // ── Migrate name-only keys → name#jersey in completedQuarters & quarterBaseline
+  // Build jersey lookup from fetch log actions that have jersey ('j') field
+  const jerseyLookup = {}; // name → Set of jerseys
+  for (const entry of state.fetchLog) {
+    for (const action of (entry.actions || [])) {
+      if (action.n && action.j) {
+        if (!jerseyLookup[action.n]) jerseyLookup[action.n] = new Set();
+        jerseyLookup[action.n].add(action.j);
+      }
+    }
+  }
+  function migrateKeys(obj) {
+    if (!obj) return obj;
+    const migrated = {};
+    for (const [key, val] of Object.entries(obj)) {
+      if (key.includes('#')) { migrated[key] = val; continue; } // already migrated
+      const jerseys = jerseyLookup[key];
+      if (jerseys && jerseys.size >= 1) {
+        for (const j of jerseys) migrated[`${key}#${j}`] = val;
+      } else {
+        migrated[key] = val; // no jersey info, keep as-is
+      }
+    }
+    return migrated;
+  }
+  for (const q of Object.keys(state.completedQuarters)) {
+    state.completedQuarters[q] = migrateKeys(state.completedQuarters[q]);
+  }
+  if (state.quarterBaseline) {
+    state.quarterBaseline = migrateKeys(state.quarterBaseline);
+  }
+
   for (const [q, qData] of Object.entries(state.completedQuarters)) {
     for (const [key, val] of Object.entries(qData)) {
       if (val === null) {
