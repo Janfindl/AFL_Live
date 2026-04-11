@@ -1935,40 +1935,39 @@ function tsToGameTime(ts, quarterStartTs) {
 
 function renderBurst(bursts, quarterStartTs) {
   const el = document.getElementById("burstList");
-  if (!bursts || bursts.length === 0) {
+  const filtered = (bursts || []).filter(b => b.gain >= 10);
+  if (filtered.length === 0) {
     el.innerHTML = `<div style="padding:20px;text-align:center;color:#8b949e;font-size:11px">No data yet</div>`;
     return;
   }
   const oldPosBurst = capturePositions(el, '.hc-card[data-key]');
-  el.innerHTML = bursts.map((b, i) => {
+  el.innerHTML = filtered.map((b, i) => {
     const col    = resolvedColor(b.team);
     const abbr   = teamAbbr(b.team);
+    const accent = col.accent || col.txt;
     const cardBg = i % 2 === 0 ? "#13181f" : "#0f1318";
     const t1     = tsToGameTime(b.startTs, quarterStartTs);
     const t2     = tsToGameTime(b.endTs,   quarterStartTs);
     const qNum   = b.quarter || "";
     const qClass = qNum ? `q${qNum}` : "";
-    const qBadge = qNum ? `<span class="burst-quarter ${qClass}">Q${qNum}</span>` : "";
+    const qBadge = qNum ? `<span class="burst-quarter ${qClass}" style="font-size:13px;font-weight:800;padding:2px 8px">Q${qNum}</span>` : "";
     const bKey   = esc(b.name) + "_" + b.startTs;
     return `<div class="hc-card" data-key="${bKey}" style="background:${cardBg}">
-      <div class="hc-glow" style="background:#c084fc"></div>
+      <div class="hc-glow" style="background:${accent}"></div>
       <div class="hc-rank-wrap">
-        <div class="hc-rank" style="background:rgba(192,132,252,.15);color:#c084fc">${i + 1}</div>
+        <div class="hc-rank" style="background:${accent}22;color:${accent}">${i + 1}</div>
       </div>
       <div class="hc-info">
         <div class="hc-name" style="color:${col.txt}">${esc(b.name)}</div>
         <div class="hc-meta" style="display:flex;align-items:center;gap:6px">
-          ${qBadge}
           <span class="hc-team" style="background:${teamPillStyle(b.team).bg};color:${teamPillStyle(b.team).txt};${teamPillStyle(b.team).border?`border:${teamPillStyle(b.team).border}`:''}">${abbr}</span>
-        </div>
-        <div class="hc-stats" style="margin-top:6px">
-          <span class="burst-time">${t1} – ${t2}</span>
         </div>
         <div class="hc-stats" style="margin-top:5px">${statChips(b.statContribs, true)}</div>
       </div>
-      <div class="hc-right">
-        <div class="hc-delta" style="color:#c084fc">+${b.gain.toFixed(1)}</div>
-        <div class="hc-delta-sub">value burst</div>
+      <div class="hc-right" style="align-items:flex-end;text-align:right">
+        <div class="hc-delta" style="color:${accent}">+${b.gain.toFixed(1)}</div>
+        ${qBadge}
+        <div class="burst-time" style="font-size:11px;font-weight:600;color:#8b949e;margin-top:2px">${t1} – ${t2}</div>
       </div>
     </div>`;
   }).join("");
