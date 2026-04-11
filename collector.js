@@ -419,7 +419,16 @@ function computeBursts(fetchLog) {
       if (!runningStats.has(key)) runningStats.set(key, {});
       const cur = runningStats.get(key);
       STAT_KEYS.forEach(k => { if (typeof action[k] === "number") cur[k] = action[k]; });
-      ps.series.push({ ts: entry.ts, value: action.v, q: entry.q, gm: gameMins, stats: { ...cur } });
+      // Only record if game time advanced (skip frozen clock during breaks/time-on)
+      const lastEntry = ps.series.length > 0 ? ps.series[ps.series.length - 1] : null;
+      if (!lastEntry || gameMins == null || lastEntry.gm == null || gameMins > lastEntry.gm) {
+        ps.series.push({ ts: entry.ts, value: action.v, q: entry.q, gm: gameMins, stats: { ...cur } });
+      } else {
+        // Clock frozen — update value/stats in place (latest stats at this game time)
+        lastEntry.value = action.v;
+        lastEntry.stats = { ...cur };
+        lastEntry.ts = entry.ts;
+      }
     }
   }
   // Find all non-overlapping best windows per player, then take global top 10
@@ -435,6 +444,7 @@ function computeBursts(fetchLog) {
       for (let j = i + 1; j < series.length; j++) {
         if (series[j].gm == null) continue;
         if (series[j].gm > winEndGm) break;
+        if (series[j].q !== series[i].q) break; // don't span quarter breaks
         const gain = series[j].value - series[i].value;
         if (gain > bestGain) { bestGain = gain; bestEndIdx = j; }
       }
