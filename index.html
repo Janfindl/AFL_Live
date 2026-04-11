@@ -1972,11 +1972,16 @@ function renderBurst(bursts, quarterStartTs) {
     const t2 = b.endGm   != null ? gmToQTime(b.endGm)   : tsToGameTime(b.endTs,   quarterStartTs);
     const startQ = b.startGm != null ? Math.min(4, Math.floor(b.startGm / 30) + 1) : b.quarter;
     const endQ   = b.endGm   != null ? Math.min(4, Math.floor(b.endGm   / 30) + 1) : b.quarter;
-    const flowQStyle = isFlow ? 'background:rgba(167,139,250,.25);color:#a78bfa;border:1px solid rgba(167,139,250,.5)' : '';
+    const flowQ = isFlow ? (b.quarter || startQ) : null; // the linked quarter
+    const fqs = 'background:rgba(167,139,250,.25);color:#a78bfa;border:1px solid rgba(167,139,250,.5)';
+    function qSpan(q) {
+      const isLinked = flowQ && q === flowQ;
+      return `<span class="burst-quarter ${isLinked ? '' : 'q'+q}" style="font-size:13px;font-weight:800;padding:2px 8px;${isLinked ? fqs : ''}">${isLinked ? '✦ ' : ''}Q${q}</span>`;
+    }
     const qBadge = startQ
       ? `<div style="display:flex;gap:4px;justify-content:flex-end">${startQ !== endQ
-        ? `<span class="burst-quarter ${isFlow ? '' : 'q'+startQ}" style="font-size:13px;font-weight:800;padding:2px 8px;${flowQStyle}">Q${startQ}</span><span class="burst-quarter ${isFlow ? '' : 'q'+endQ}" style="font-size:13px;font-weight:800;padding:2px 8px;${flowQStyle}">Q${endQ}</span>`
-        : `<span class="burst-quarter ${isFlow ? '' : 'q'+startQ}" style="font-size:13px;font-weight:800;padding:2px 8px;${flowQStyle}">Q${startQ}</span>`}</div>`
+        ? qSpan(startQ) + qSpan(endQ)
+        : qSpan(startQ)}</div>`
       : "";
     const bKey   = esc(b.name) + "_" + b.startTs;
     return `<div class="hc-card" data-key="${bKey}" style="background:${cardBg}">
