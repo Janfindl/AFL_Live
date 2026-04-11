@@ -189,6 +189,16 @@ function saveMomentum(mid, arr) {
   catch (e) { console.error("saveMomentum:", e.message); }
 }
 
+function fetchFile(mid) { return path.join(DATA_DIR, `fetches_${mid}.json`); }
+function loadFetches(mid) {
+  try { return JSON.parse(fs.readFileSync(fetchFile(mid), "utf8")); }
+  catch { return []; }
+}
+function saveFetches(mid, arr) {
+  try { fs.writeFileSync(fetchFile(mid), JSON.stringify(arr)); }
+  catch (e) { console.error("saveFetches:", e.message); }
+}
+
 function gameFile(mid) { return path.join(DATA_DIR, `game_${mid}.json`); }
 function loadGameData(mid) {
   try { return JSON.parse(fs.readFileSync(gameFile(mid), "utf8")); }
@@ -303,7 +313,7 @@ async function syncFromGitHub() {
   try { names = await ghListDataDir(); }
   catch (e) { console.error("[github] list failed:", e.message); return; }
   for (const name of names) {
-    if (!/^(game|momentum)_\d+\.json$/.test(name)) continue;
+    if (!/^(game|momentum|fetches)_\d+\.json$/.test(name)) continue;
     const local = path.join(DATA_DIR, name);
     if (fs.existsSync(local)) continue;
     try {
@@ -317,9 +327,11 @@ async function syncFromGitHub() {
 async function ghPushGame(mid) {
   const gf = gameFile(mid);
   const mf = momentumFile(mid);
+  const ff = fetchFile(mid);
   if (fs.existsSync(gf)) await ghPutFile(`data/game_${mid}.json`,     fs.readFileSync(gf));
   if (fs.existsSync(mf)) await ghPutFile(`data/momentum_${mid}.json`, fs.readFileSync(mf));
-  console.log(`[github] pushed  game_${mid}.json`);
+  if (fs.existsSync(ff)) await ghPutFile(`data/fetches_${mid}.json`,  fs.readFileSync(ff));
+  console.log(`[github] pushed  game_${mid}.json + fetches`);
 }
 
 const ghPushInFlight = new Set(); // mids currently being pushed
@@ -580,7 +592,7 @@ function getState(mid) {
     lastScores:        {},
     scoreEvents:       saved?.scoreEvents       || [],
     momentumFull:      saved?.momentum          || loadMomentum(mid),
-    fetchLog:          saved?.fetches           || [],
+    fetchLog:          loadFetches(mid),
     lastFetchState:    {},
     snapshotHistory:   [],
     fullTimeTs:        saved?.fullTimeTs        ?? null,
@@ -1006,9 +1018,10 @@ async function fetchRatings(mid) {
     completedQuarters: state.completedQuarters,
     quarterBaseline:   state.quarterBaseline,
     fullTimeTs:        state.fullTimeTs,
-    fetches:           state.fetchLog,
     savedAt:           new Date().toISOString(),
   });
+  // Save fetch log separately (93-98% of file size)
+  saveFetches(mid, state.fetchLog);
 }
 
 // ── Footywire live detection ──────────────────────────────────────────────────

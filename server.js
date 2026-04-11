@@ -88,6 +88,11 @@ function loadGameData(mid) {
   try { return JSON.parse(fs.readFileSync(gameFile(mid), "utf8")); }
   catch { return null; }
 }
+function fetchFile(mid) { return path.join(DATA_DIR, `fetches_${mid}.json`); }
+function loadFetches(mid) {
+  try { return JSON.parse(fs.readFileSync(fetchFile(mid), "utf8")); }
+  catch { return []; }
+}
 
 // ── GitHub-backed cloud persistence ──────────────────────────────────────────
 const GH_TOKEN  = process.env.GITHUB_TOKEN || null;
@@ -312,7 +317,7 @@ function applyModProjectedValue(players, completedQuarters) {
 }
 
 // ── buildCachedResponse: used after /api/import for imported data ─────────────
-function buildCachedResponse(cached) {
+function buildCachedResponse(cached, mid) {
   const allPlayers = cached.players || [];
   const teams = cached.teams || [];
   const teamRatings = weightedTeamRatings(allPlayers, teams);
@@ -344,7 +349,7 @@ function buildCachedResponse(cached) {
     momentum:        cached.momentum     || [],
     scoreEvents:     cached.scoreEvents  || [],
     quarterStartTs:  cached.quarterStartTs || {},
-    bursts:          computeBursts(cached.fetches || []),
+    bursts:          computeBursts(mid ? loadFetches(mid) : (cached.fetches || [])),
     summary,
     fetchedAt:       new Date().toISOString(),
   };

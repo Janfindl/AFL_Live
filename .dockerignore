@@ -1,5 +1,6 @@
 data/game_*.json
 data/momentum_*.json
+data/fetches_*.json
 data/sim_*.json
 .git
 .claude
