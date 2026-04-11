@@ -50,7 +50,7 @@ const WEIGHTS = {
 // ── Player key: disambiguate players sharing a surname (e.g. C Warner / C Warner)
 function pkeyAction(a) { return a.j ? `${a.n}#${a.j}` : a.n; }
 
-// Quartile-weighted team rating per team (v2):
+// Quartile-weighted team rating per team:
 // (avg_Q1 × 4 + avg_Q2 × 3 + avg_Q3 × 2 + avg_Q4 × 1) / 10
 // Each quartile = ~6 players (for a 23-player team), sorted by rating.
 function weightedTeamRatings(allPlayers, teams) {
