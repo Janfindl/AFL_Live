@@ -43,6 +43,20 @@ function calcRating(value) {
   return Math.round(raw * 2) / 2;
 }
 
+// Weighted team rating: best player 3× influence, worst 1×, linear between
+function weightedAvgRating(players) {
+  if (!players.length) return "0.0";
+  const sorted = [...players].sort((a, b) => (b.rating || 0) - (a.rating || 0));
+  const n = sorted.length;
+  let wSum = 0, rSum = 0;
+  for (let i = 0; i < n; i++) {
+    const w = n === 1 ? 3 : 3 - 2 * (i / (n - 1)); // 3 → 1
+    wSum += w;
+    rSum += (sorted[i].rating || 0) * w;
+  }
+  return (rSum / wSum).toFixed(1);
+}
+
 function calculateValue(p, elapsedFrac = 1) {
   let v = CONSTANT * elapsedFrac;
   for (const [col, w] of Object.entries(WEIGHTS)) {
@@ -888,7 +902,7 @@ async function fetchRatings(mid) {
     const tp = all.filter(p => p.team === tm);
     summary[tm] = {
       score:        tm === team1Name ? score1 : score2,
-      avgRating:    +(tp.sort((a,b) => b.rating - a.rating).slice(0,5).reduce((s, p) => s + p.rating, 0) / Math.min(tp.length, 5) || 0).toFixed(1),
+      avgRating:    +weightedAvgRating(tp),
       avgProjected: +(tp.reduce((s, p) => s + p.projectedValue, 0) / (tp.length || 1)).toFixed(1),
       topPlayer:    tp[0] ? tp[0].name : "—",
     };

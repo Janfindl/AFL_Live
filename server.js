@@ -50,6 +50,20 @@ const WEIGHTS = {
 // ── Player key: disambiguate players sharing a surname (e.g. C Warner / C Warner)
 function pkeyAction(a) { return a.j ? `${a.n}#${a.j}` : a.n; }
 
+// Weighted team rating: best player 3× influence, worst 1×, linear between
+function weightedAvgRating(players) {
+  if (!players.length) return "0.0";
+  const sorted = [...players].sort((a, b) => (b.rating || 0) - (a.rating || 0));
+  const n = sorted.length;
+  let wSum = 0, rSum = 0;
+  for (let i = 0; i < n; i++) {
+    const w = n === 1 ? 3 : 3 - 2 * (i / (n - 1));
+    wSum += w;
+    rSum += (sorted[i].rating || 0) * w;
+  }
+  return (rSum / wSum).toFixed(1);
+}
+
 function calcRating(value) {
   // Linear: PV 10 → 1, PV 70 → 10, clamped
   const raw = 1 + (Math.min(Math.max(value, 10), 70) - 10) * (9 / 60);
@@ -296,7 +310,7 @@ function buildCachedResponse(cached) {
     const sc  = tm === cached.teams[0] ? cached.score1 : cached.score2;
     summary[tm] = {
       score:        sc ?? null,
-      avgRating:    +(tp.sort((a,b) => (b.rating||0) - (a.rating||0)).slice(0,5).reduce((s, p) => s + (p.rating || 0), 0) / Math.min(tp.length, 5) || 0).toFixed(1),
+      avgRating:    +weightedAvgRating(tp),
       avgProjected: +(tp.reduce((s, p) => s + (p.projectedValue || 0), 0) / (tp.length || 1)).toFixed(1),
       topPlayer:    tp[0]?.name || "—",
     };
@@ -632,7 +646,7 @@ http.createServer(async (req, res) => {
       if (cached.summary) {
         for (const tm of Object.keys(cached.summary)) {
           const tp = (cached.players || []).filter(p => p.team === tm);
-          if (tp.length) cached.summary[tm].avgRating = +(tp.sort((a,b) => (b.rating||0) - (a.rating||0)).slice(0,5).reduce((s, p) => s + (p.rating || 0), 0) / Math.min(tp.length, 5)).toFixed(1);
+          if (tp.length) cached.summary[tm].avgRating = +weightedAvgRating(tp);
         }
       }
       cached._servedAt  = new Date().toISOString();
