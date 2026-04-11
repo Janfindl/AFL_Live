@@ -271,11 +271,6 @@ header{
 .ftab{padding:4px 12px;font-size:11px;cursor:pointer;border:none;
       background:transparent;color:#8b949e;transition:all .15s}
 .ftab.active{background:#58a6ff;color:#fff;font-weight:600}
-.search{flex:1;max-width:160px;padding:4px 10px;background:#21262d;
-        border:1px solid #30363d;border-radius:6px;color:#e6edf3;
-        font-size:11px;outline:none}
-.search:focus{border-color:#58a6ff}
-.search::placeholder{color:#8b949e}
 .view-toggle{display:flex;background:#21262d;border:1px solid #30363d;border-radius:6px;overflow:hidden;margin-left:auto}
 .vtab{padding:4px 10px;font-size:11px;cursor:pointer;border:none;
       background:transparent;color:#8b949e;transition:all .15s}
@@ -2169,11 +2164,9 @@ function renderMomentum(momentum, teams, quarterStartTs, scoreEvents) {
 function getFiltered(players) {
   if (!currentData) return players;
   const [t1,t2] = currentData.teams;
-  const q = document.getElementById("searchBox").value.toLowerCase();
   return players.filter(p => {
     if (activeTeam==="t1" && p.team!==t1) return false;
     if (activeTeam==="t2" && p.team!==t2) return false;
-    if (q && !p.name.toLowerCase().includes(q)) return false;
     return true;
   });
 }
@@ -2372,9 +2365,6 @@ document.getElementById("filterTabs").addEventListener("click", e => {
   document.querySelectorAll(".ftab").forEach(x=>x.classList.remove("active"));
   b.classList.add("active");
   activeTeam = b.dataset.team;
-  renderActiveTable();
-});
-document.getElementById("searchBox").addEventListener("input", () => {
   renderActiveTable();
 });
 document.getElementById("viewToggle").addEventListener("click", e => {
