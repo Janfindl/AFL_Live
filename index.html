@@ -722,7 +722,7 @@ header{
       <div class="panel-col">
         <div class="hc-header hc-header-burst">
           <div class="hc-title">⚡ Burst</div>
-          <div class="hc-badge" style="background:rgba(180,100,255,.18);color:#c084fc">10+ pts · 10 min window</div>
+          <div class="hc-badge" style="background:rgba(180,100,255,.18);color:#c084fc">15+ pts · 15 min window</div>
         </div>
         <div class="hc-list" id="burstList">
           <div style="padding:20px;text-align:center;color:#8b949e;font-size:11px">
@@ -1847,7 +1847,7 @@ function tsToGameTime(ts, quarterStartTs) {
 function renderBurst(bursts, quarterStartTs) {
   const el = document.getElementById("burstList");
   if (!bursts || bursts.length === 0) {
-    el.innerHTML = `<div style="padding:20px;text-align:center;color:#8b949e;font-size:11px">No bursts yet — needs 10+ pts in 10 min</div>`;
+    el.innerHTML = `<div style="padding:20px;text-align:center;color:#8b949e;font-size:11px">No bursts yet — needs 15+ pts in 15 min</div>`;
     return;
   }
   const oldPosBurst = capturePositions(el, '.hc-card[data-key]');

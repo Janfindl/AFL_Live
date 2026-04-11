@@ -201,8 +201,8 @@ async function syncFromGitHub() {
 }
 
 // ── Burst detection (needed by buildCachedResponse) ───────────────────────────
-const BURST_WINDOW_MS = 10 * 60 * 1000;
-const BURST_THRESHOLD = 10;
+const BURST_WINDOW_MS = 15 * 60 * 1000;
+const BURST_THRESHOLD = 15;
 const STAT_KEYS = Object.keys(WEIGHTS);
 
 function computeBursts(fetchLog) {
