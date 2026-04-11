@@ -285,6 +285,8 @@ function computeBursts(fetchLog) {
         name, team,
         startTs: series[c.si].ts,
         endTs:   series[c.ei].ts,
+        startGm: series[c.si].gm,
+        endGm:   series[c.ei].gm,
         gain:    Math.round(c.gain * 100) / 100,
         quarter: series[c.si].q,
         statContribs,

@@ -1946,8 +1946,17 @@ function renderBurst(bursts, quarterStartTs) {
     const abbr   = teamAbbr(b.team);
     const accent = col.accent || col.txt;
     const cardBg = i % 2 === 0 ? "#13181f" : "#0f1318";
-    const t1     = tsToGameTime(b.startTs, quarterStartTs);
-    const t2     = tsToGameTime(b.endTs,   quarterStartTs);
+    // Use game time if available, fall back to wall-clock conversion
+    function gmToQTime(gm) {
+      if (gm == null) return "—";
+      const q = Math.min(4, Math.floor(gm / 30) + 1);
+      const qMins = gm - (q - 1) * 30;
+      const m = Math.floor(qMins);
+      const s = Math.round((qMins - m) * 60);
+      return `Q${q} ${m}:${String(s).padStart(2, "0")}`;
+    }
+    const t1 = b.startGm != null ? gmToQTime(b.startGm) : tsToGameTime(b.startTs, quarterStartTs);
+    const t2 = b.endGm   != null ? gmToQTime(b.endGm)   : tsToGameTime(b.endTs,   quarterStartTs);
     const qNum   = b.quarter || "";
     const qClass = qNum ? `q${qNum}` : "";
     const qBadge = qNum ? `<span class="burst-quarter ${qClass}" style="font-size:13px;font-weight:800;padding:2px 8px">Q${qNum}</span>` : "";
