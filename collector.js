@@ -927,7 +927,7 @@ async function fetchRatings(mid) {
 
   // ── Persist full pre-computed response + internal state to disk ───────────────
   const savedPlayers = all.map(p => {
-    const s = { name: p.name, team: p.team, rank: p.rank, value: p.value,
+    const s = { name: p.name, team: p.team, jersey: p.jersey, rank: p.rank, value: p.value,
       projectedValue: p.projectedValue, rating: p.rating, quarterDelta: p.quarterDelta };
     STAT_KEYS.forEach(k => { s[k] = p[k] || 0; });
     return s;
