@@ -43,18 +43,29 @@ function calcRating(value) {
   return Math.round(raw * 2) / 2;
 }
 
-// Weighted team rating: best player 3× influence, worst 1×, linear between
-function weightedAvgRating(players) {
-  if (!players.length) return "0.0";
-  const sorted = [...players].sort((a, b) => (b.rating || 0) - (a.rating || 0));
+// Weighted team ratings: rank ALL players on a single combined scale (best=3×, worst=1×),
+// then split by team and compute each team's weighted average.
+function weightedTeamRatings(allPlayers, teams) {
+  const sorted = [...allPlayers].sort((a, b) => (b.rating || 0) - (a.rating || 0));
   const n = sorted.length;
-  let wSum = 0, rSum = 0;
+  // Assign weight based on combined rank
+  const playerWeights = new Map();
   for (let i = 0; i < n; i++) {
-    const w = n === 1 ? 3 : 3 - 2 * (i / (n - 1)); // 3 → 1
-    wSum += w;
-    rSum += (sorted[i].rating || 0) * w;
+    const w = n === 1 ? 3 : 3 - 2 * (i / (n - 1));
+    playerWeights.set(sorted[i], w);
   }
-  return (rSum / wSum).toFixed(1);
+  const result = {};
+  for (const tm of teams) {
+    const tp = allPlayers.filter(p => p.team === tm);
+    let wSum = 0, rSum = 0;
+    for (const p of tp) {
+      const w = playerWeights.get(p) || 1;
+      wSum += w;
+      rSum += (p.rating || 0) * w;
+    }
+    result[tm] = wSum > 0 ? +(rSum / wSum).toFixed(1) : 0;
+  }
+  return result;
 }
 
 function calculateValue(p, elapsedFrac = 1) {
@@ -897,12 +908,13 @@ async function fetchRatings(mid) {
     if (state.scoreEvents.length > 400) state.scoreEvents.splice(0, state.scoreEvents.length - 400);
   }
 
+  const teamRatings = weightedTeamRatings(all, [team1Name, team2Name]);
   const summary = {};
   for (const tm of [team1Name, team2Name]) {
     const tp = all.filter(p => p.team === tm);
     summary[tm] = {
       score:        tm === team1Name ? score1 : score2,
-      avgRating:    +weightedAvgRating(tp),
+      avgRating:    teamRatings[tm],
       avgProjected: +(tp.reduce((s, p) => s + p.projectedValue, 0) / (tp.length || 1)).toFixed(1),
       topPlayer:    tp[0] ? tp[0].name : "—",
     };

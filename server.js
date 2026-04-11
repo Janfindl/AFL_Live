@@ -50,18 +50,28 @@ const WEIGHTS = {
 // ── Player key: disambiguate players sharing a surname (e.g. C Warner / C Warner)
 function pkeyAction(a) { return a.j ? `${a.n}#${a.j}` : a.n; }
 
-// Weighted team rating: best player 3× influence, worst 1×, linear between
-function weightedAvgRating(players) {
-  if (!players.length) return "0.0";
-  const sorted = [...players].sort((a, b) => (b.rating || 0) - (a.rating || 0));
+// Weighted team ratings: rank ALL players on a single combined scale (best=3×, worst=1×),
+// then split by team and compute each team's weighted average.
+function weightedTeamRatings(allPlayers, teams) {
+  const sorted = [...allPlayers].sort((a, b) => (b.rating || 0) - (a.rating || 0));
   const n = sorted.length;
-  let wSum = 0, rSum = 0;
+  const playerWeights = new Map();
   for (let i = 0; i < n; i++) {
     const w = n === 1 ? 3 : 3 - 2 * (i / (n - 1));
-    wSum += w;
-    rSum += (sorted[i].rating || 0) * w;
+    playerWeights.set(sorted[i], w);
   }
-  return (rSum / wSum).toFixed(1);
+  const result = {};
+  for (const tm of teams) {
+    const tp = allPlayers.filter(p => p.team === tm);
+    let wSum = 0, rSum = 0;
+    for (const p of tp) {
+      const w = playerWeights.get(p) || 1;
+      wSum += w;
+      rSum += (p.rating || 0) * w;
+    }
+    result[tm] = wSum > 0 ? +(rSum / wSum).toFixed(1) : 0;
+  }
+  return result;
 }
 
 function calcRating(value) {
@@ -304,13 +314,16 @@ function applyModProjectedValue(players, completedQuarters) {
 
 // ── buildCachedResponse: used after /api/import for imported data ─────────────
 function buildCachedResponse(cached) {
+  const allPlayers = cached.players || [];
+  const teams = cached.teams || [];
+  const teamRatings = weightedTeamRatings(allPlayers, teams);
   const summary = {};
-  for (const tm of cached.teams || []) {
-    const tp  = (cached.players || []).filter(p => p.team === tm);
-    const sc  = tm === cached.teams[0] ? cached.score1 : cached.score2;
+  for (const tm of teams) {
+    const tp  = allPlayers.filter(p => p.team === tm);
+    const sc  = tm === teams[0] ? cached.score1 : cached.score2;
     summary[tm] = {
       score:        sc ?? null,
-      avgRating:    +weightedAvgRating(tp),
+      avgRating:    teamRatings[tm] || 0,
       avgProjected: +(tp.reduce((s, p) => s + (p.projectedValue || 0), 0) / (tp.length || 1)).toFixed(1),
       topPlayer:    tp[0]?.name || "—",
     };
@@ -642,11 +655,11 @@ http.createServer(async (req, res) => {
       (cached.players || []).forEach(p => {
         if (p.projectedValue != null) p.rating = calcRating(p.projectedValue);
       });
-      // Recompute summary avgRating from fresh player ratings
-      if (cached.summary) {
-        for (const tm of Object.keys(cached.summary)) {
-          const tp = (cached.players || []).filter(p => p.team === tm);
-          if (tp.length) cached.summary[tm].avgRating = +weightedAvgRating(tp);
+      // Recompute summary avgRating from fresh player ratings (combined scale)
+      if (cached.summary && cached.teams) {
+        const tr = weightedTeamRatings(cached.players || [], cached.teams);
+        for (const tm of Object.keys(tr)) {
+          if (cached.summary[tm]) cached.summary[tm].avgRating = tr[tm];
         }
       }
       cached._servedAt  = new Date().toISOString();
