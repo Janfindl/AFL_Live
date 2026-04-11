@@ -527,9 +527,17 @@ http.createServer(async (req, res) => {
   if (parsed.pathname === "/api/fixture") {
     try {
       refreshFixture();
-      const savedGames = fs.readdirSync(DATA_DIR)
+      let savedGames = fs.readdirSync(DATA_DIR)
         .filter(f => /^game_\d+\.json$/.test(f))
         .map(f => parseInt(f.slice(5, -5), 10));
+      // If no local game files, try syncing from GitHub first
+      if (savedGames.length === 0 && GH_TOKEN && GH_REPO) {
+        console.log("[fixture] no local games — triggering sync");
+        try { await syncFromGitHub(); } catch (e) { console.error("[fixture] sync failed:", e.message); }
+        savedGames = fs.readdirSync(DATA_DIR)
+          .filter(f => /^game_\d+\.json$/.test(f))
+          .map(f => parseInt(f.slice(5, -5), 10));
+      }
       // Extract final scores from saved game data
       const gameScores = {};
       for (const mid of savedGames) {
