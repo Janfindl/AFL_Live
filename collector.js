@@ -559,7 +559,7 @@ function getState(mid) {
     lastFetchState:    {},
     snapshotHistory:   [],
     fullTimeTs:        saved?.fullTimeTs        ?? null,
-    burstCache:        { ts: 0, bursts: [] },
+    burstCache:        { ts: 0, bursts: saved?.bursts || [] },
   };
   for (const entry of state.fetchLog) {
     for (const action of (entry.actions || [])) {

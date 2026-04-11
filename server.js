@@ -378,7 +378,8 @@ function refreshFixture() {
 const HTML_PATH = path.join(__dirname, "index.html");
 
 // Collector writes every 15s; 90s gives buffer for 6 missed polls before showing stale.
-const IN_PROGRESS_STALE_MS = 90 * 1000;
+// 5 min buffer — survives collector restarts during Railway deployments
+const IN_PROGRESS_STALE_MS = 5 * 60 * 1000;
 
 // Always re-fetch from GitHub every 20s — no separate long TTL for "finished" games.
 // A brief gap in collector pushes was previously flipping TTL to 5 min, freezing the UI.
