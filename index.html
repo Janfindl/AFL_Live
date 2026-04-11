@@ -370,10 +370,13 @@ header{
 .gs-game-card{
   background:#161b22;border:1px solid #30363d;border-radius:10px;
   padding:14px 16px;display:flex;flex-direction:column;gap:10px;
-  transition:border-color .15s;
+  transition:border-color .15s;position:relative;overflow:hidden;
 }
-.gs-game-card.live{border-color:rgba(248,81,73,.5);background:rgba(248,81,73,.04)}
+.gs-game-card.live{border-color:rgba(248,81,73,.5)}
 .gs-game-card.upcoming{border-color:#30363d;opacity:.85}
+.gs-card-bg{position:absolute;width:90px;height:90px;object-fit:contain;opacity:.1;pointer-events:none;top:50%;transform:translateY(-50%)}
+.gs-card-bg.home{left:-8px}
+.gs-card-bg.away{right:-8px}
 .gs-teams-row{display:flex;align-items:center;gap:8px}
 .gs-team{display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;min-width:0}
 .gs-team-logo{width:44px;height:44px;object-fit:contain;filter:drop-shadow(0 1px 4px rgba(0,0,0,.4))}
@@ -1189,8 +1192,12 @@ function renderFixtureRound(roundIdx) {
     const isDone     = !isLive && (hasData || isPast);
     const isUpcoming = !isLive && !isDone;
     const cardCls    = isLive ? "live" : isUpcoming ? "upcoming" : "";
-    const hCol = (TEAM_COLORS[g.hteam] || {}).txt || "#e6edf3";
-    const aCol = (TEAM_COLORS[g.ateam] || {}).txt || "#e6edf3";
+    const hTC  = TEAM_COLORS[g.hteam] || {};
+    const aTC  = TEAM_COLORS[g.ateam] || {};
+    const hCol = hTC.txt || "#e6edf3";
+    const aCol = aTC.txt || "#e6edf3";
+    const hPillBg = hTC.pill?.bg || hCol;
+    const aPillBg = aTC.pill?.bg || aCol;
 
     let scoreHtml = "";
     if (isDone || isLive || hasData) {
@@ -1226,8 +1233,10 @@ function renderFixtureRound(roundIdx) {
       btnHtml = `<button class="gs-watch-btn gs-upcoming-btn" disabled title="Game hasn't started yet">▶ Watch</button>`;
     }
 
-    return `<div class="gs-game-card ${cardCls}" data-fw="${g.fw_id}">
-      <div class="gs-teams-row">
+    return `<div class="gs-game-card ${cardCls}" data-fw="${g.fw_id}" style="background:linear-gradient(90deg, ${hPillBg}44 0%, #161b22 45%, #161b22 55%, ${aPillBg}44 100%)">
+      <img class="gs-card-bg home" src="${hLogo}" alt="" onerror="this.style.display='none'">
+      <img class="gs-card-bg away" src="${aLogo}" alt="" onerror="this.style.display='none'">
+      <div class="gs-teams-row" style="position:relative;z-index:1">
         <div class="gs-team">
           <img class="gs-team-logo" src="${hLogo}" alt="${g.hteam}" onerror="this.style.visibility='hidden'">
           <div class="gs-team-name" style="color:${hCol}">${g.hteam}</div>
@@ -1238,7 +1247,7 @@ function renderFixtureRound(roundIdx) {
           <div class="gs-team-name" style="color:${aCol}">${g.ateam}</div>
         </div>
       </div>
-      <div class="gs-bottom-row">
+      <div class="gs-bottom-row" style="position:relative;z-index:1">
         ${badgeHtml}
         <div class="gs-venue">${g.venue || ""}</div>
         ${btnHtml}
