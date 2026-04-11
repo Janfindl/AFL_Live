@@ -342,7 +342,8 @@ process.on("SIGTERM", flushAndExit);
 process.on("SIGINT",  flushAndExit);
 
 // ── Rolling snapshot history ──────────────────────────────────────────────────
-const STAT_KEYS = Object.keys(WEIGHTS);
+const STAT_KEYS  = Object.keys(WEIGHTS);
+const BASIC_KEYS = ["K","HB","D","M","I50","R50","FF","FA"];
 
 function recordSnapshot(players, snapshotHistory) {
   const snap = { ts: Date.now(), map: {} };
@@ -930,6 +931,7 @@ async function fetchRatings(mid) {
     const s = { name: p.name, team: p.team, jersey: p.jersey, rank: p.rank, value: p.value,
       projectedValue: p.projectedValue, rating: p.rating, quarterDelta: p.quarterDelta };
     STAT_KEYS.forEach(k => { s[k] = p[k] || 0; });
+    BASIC_KEYS.forEach(k => { if (p[k]) s[k] = p[k]; });
     return s;
   });
 

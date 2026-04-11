@@ -276,6 +276,10 @@ header{
         font-size:11px;outline:none}
 .search:focus{border-color:#58a6ff}
 .search::placeholder{color:#8b949e}
+.view-toggle{display:flex;background:#21262d;border:1px solid #30363d;border-radius:6px;overflow:hidden;margin-left:auto}
+.vtab{padding:4px 10px;font-size:11px;cursor:pointer;border:none;
+      background:transparent;color:#8b949e;transition:all .15s}
+.vtab.active{background:#58a6ff;color:#fff;font-weight:600}
 .left-scroll{overflow-y:auto;flex:1;min-height:0}
 
 /* Compact table */
@@ -749,9 +753,44 @@ header{
         <button class="ftab" data-team="t2" id="tabT2">Away</button>
       </div>
       <input class="search" id="searchBox" type="text" placeholder="Search…">
+      <div class="view-toggle" id="viewToggle">
+        <button class="vtab active" data-view="adv">Advanced</button>
+        <button class="vtab" data-view="basic">Basic</button>
+      </div>
     </div>
 
     <div class="left-scroll">
+      <table class="ctable" id="basicTable" style="display:none">
+        <thead>
+          <tr>
+            <th class="left" data-col="rank">Rnk</th>
+            <th data-col="rating">Rtg</th>
+            <th class="left" data-col="name">Player</th>
+            <th data-col="change">Chg</th>
+            <th data-col="K"   title="Kicks">K</th>
+            <th data-col="HB"  title="Handballs">HB</th>
+            <th data-col="D"   title="Disposals">D</th>
+            <th data-col="M"   title="Marks">M</th>
+            <th data-col="G"   title="Goals">G</th>
+            <th data-col="B"   title="Behinds">B</th>
+            <th data-col="T"   title="Tackles">T</th>
+            <th data-col="HO"  title="Hit Outs">HO</th>
+            <th data-col="GA"  title="Goal Assists">GA</th>
+            <th data-col="I50" title="Inside 50">I50</th>
+            <th data-col="R50" title="Rebound 50">R50</th>
+            <th data-col="CG"  title="Clangers">CG</th>
+            <th data-col="FF"  title="Frees For">FF</th>
+            <th data-col="FA"  title="Frees Against">FA</th>
+            <th data-col="value">Val</th>
+            <th data-col="projectedValue">Proj</th>
+          </tr>
+        </thead>
+        <tbody id="basicBody">
+          <tr><td colspan="20" style="text-align:center;padding:32px;color:#8b949e">
+            <span class="spinner"></span> Fetching…
+          </td></tr>
+        </tbody>
+      </table>
       <table class="ctable" id="mainTable">
         <thead>
           <tr>
@@ -926,8 +965,8 @@ document.querySelectorAll(".stab").forEach(tab => {
     if (target === "players") {
       sortCol = "rating"; sortDir = 1;
       document.querySelectorAll(".ctable thead th").forEach(h => h.classList.remove("sort-asc","sort-desc"));
-      document.querySelector('.ctable thead th[data-col="rating"]').classList.add("sort-desc");
-      if (currentData) renderTable(currentData.players, currentData.quarterLog);
+      document.querySelectorAll('.ctable thead th[data-col="rating"]').forEach(h => h.classList.add("sort-desc"));
+      if (currentData) { renderTable(currentData.players, currentData.quarterLog); renderBasicTable(currentData.players); }
     }
     if (target === "commentary") {
       commUnread = 0;
@@ -1347,6 +1386,7 @@ let prevStatMap  = {}; // playerKey -> { stat -> lastDisplayedValue }
 // Unique player key: disambiguate players sharing a name (e.g. C Warner #1 vs #37)
 function puid(p) { return p.jersey ? `${p.name}#${p.jersey}` : p.name; }
 let activeTeam   = "all";
+let activeView   = "adv";
 let fetchCount   = 0;
 const fetchCountEl = document.getElementById("fetchCount");
 let sortCol     = "rating";
@@ -1562,6 +1602,7 @@ function render(data) {
 
   // Player table (with quarter columns merged in)
   renderTable(data.players, data.quarterLog);
+  renderBasicTable(data.players);
 }
 
 function styleTeamCard(cardId, nameId, scoreId, ratId, goalsId, behindsId, name, sum, col, goals, behinds) {
@@ -2261,6 +2302,35 @@ function renderTable(players, quarterLog) {
   flipAnimate(tbody, 'tr[data-key]', oldPos);
 }
 
+const basicBody = document.getElementById("basicBody");
+function renderBasicTable(players) {
+  const rows = getSorted(getFiltered(players));
+  if (!rows.length) {
+    basicBody.innerHTML=`<tr><td colspan="20" style="text-align:center;padding:24px;color:#8b949e">No players match</td></tr>`;
+    return;
+  }
+  const oldPos = capturePositions(basicBody, 'tr[data-key]');
+  basicBody.innerHTML = rows.map(p => {
+    const col  = teamColor(p.team);
+    const abbr = teamAbbr(p.team);
+    const rc   = ratingColor(p.rating);
+    return `<tr data-key="${esc(puid(p))}">
+      <td class="left rnk">${p.rank}</td>
+      <td class="rtg-cell">${ratingPill(p.rating)}</td>
+      <td class="left">
+        <span class="pname">${esc(p.name)}</span>
+        <span class="ttag" style="background:${teamPillStyle(p.team).bg};color:${teamPillStyle(p.team).txt};${teamPillStyle(p.team).border?`border:${teamPillStyle(p.team).border}`:''}">${abbr}</span>
+      </td>
+      <td>${chgBadge(p)}</td>
+      ${nc(p.K)}${nc(p.HB)}${nc(p.D)}${nc(p.M)}${nc(p.G)}${nc(p.B)}${nc(p.T)}${nc(p.HO)}
+      ${nc(p.GA)}${nc(p.I50)}${nc(p.R50)}${nc(p.CG,true)}${nc(p.FF)}${nc(p.FA,true)}
+      <td>${p.value.toFixed(1)}</td>
+      <td style="color:${rc};font-weight:700">${p.projectedValue.toFixed(1)}</td>
+    </tr>`;
+  }).join("");
+  flipAnimate(basicBody, 'tr[data-key]', oldPos);
+}
+
 function esc(s){ return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 
 // ── Sort headers ──────────────────────────────────────────────────────────────
@@ -2270,8 +2340,9 @@ document.querySelectorAll(".ctable thead th[data-col]").forEach(th => {
     sortDir = sortCol===col ? sortDir*-1 : (col==="rank"||col==="name"?-1:1);
     sortCol = col;
     document.querySelectorAll(".ctable thead th").forEach(h=>h.classList.remove("sort-asc","sort-desc"));
-    th.classList.add(sortDir===1?"sort-desc":"sort-asc");
-    if(currentData) renderTable(currentData.players, currentData.quarterLog);
+    // Highlight matching column in both tables
+    document.querySelectorAll(`.ctable thead th[data-col="${col}"]`).forEach(h=>h.classList.add(sortDir===1?"sort-desc":"sort-asc"));
+    renderActiveTable();
   });
 });
 document.querySelector('.ctable thead th[data-col="value"]').classList.add("sort-desc");
@@ -2292,15 +2363,29 @@ document.querySelector('.ctable thead th[data-col="value"]').classList.add("sort
 })();
 
 // ── Filters ───────────────────────────────────────────────────────────────────
+function renderActiveTable() {
+  if (!currentData) return;
+  renderTable(currentData.players, currentData.quarterLog);
+  renderBasicTable(currentData.players);
+}
 document.getElementById("filterTabs").addEventListener("click", e => {
   const b = e.target.closest(".ftab"); if(!b) return;
   document.querySelectorAll(".ftab").forEach(x=>x.classList.remove("active"));
   b.classList.add("active");
   activeTeam = b.dataset.team;
-  if(currentData) renderTable(currentData.players, currentData.quarterLog);
+  renderActiveTable();
 });
 document.getElementById("searchBox").addEventListener("input", () => {
-  if(currentData) renderTable(currentData.players, currentData.quarterLog);
+  renderActiveTable();
+});
+document.getElementById("viewToggle").addEventListener("click", e => {
+  const b = e.target.closest(".vtab"); if(!b) return;
+  document.querySelectorAll(".vtab").forEach(x=>x.classList.remove("active"));
+  b.classList.add("active");
+  activeView = b.dataset.view;
+  document.getElementById("mainTable").style.display  = activeView === "adv"   ? "" : "none";
+  document.getElementById("basicTable").style.display = activeView === "basic" ? "" : "none";
+  renderActiveTable();
 });
 
 // ── Countdown ─────────────────────────────────────────────────────────────────
