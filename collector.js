@@ -652,12 +652,12 @@ function getState(mid) {
     state.quarterBaseline = migrateKeys(state.quarterBaseline);
   }
 
+  // Always rebuild completedQuarters from the fetch log — saved values may have been
+  // computed with a wrong baseline after a mid-quarter restart
   for (const [q, qData] of Object.entries(state.completedQuarters)) {
-    for (const [key, val] of Object.entries(qData)) {
-      if (val === null) {
-        const inferred = inferQDeltaFromLog(key, parseInt(q), state.fetchLog);
-        if (inferred) qData[key] = inferred;
-      }
+    for (const key of Object.keys(qData)) {
+      const inferred = inferQDeltaFromLog(key, parseInt(q), state.fetchLog);
+      if (inferred) qData[key] = inferred;
     }
   }
   gameStates.set(mid, state);
@@ -759,15 +759,16 @@ async function fetchRatings(mid) {
       const qData = {};
       all.forEach(p => {
         const pk = pkey(p);
-        const base = state.quarterBaseline[pk];
-        if (base !== undefined) {
-          const entry = { v: Math.round((p.value - base.v) * 100) / 100 };
-          STAT_KEYS.forEach(k => { entry[k] = (p[k] || 0) - (base[k] || 0); });
-          qData[pk] = entry;
+        // Always prefer inferring from the full fetch log — baseline may be wrong after restart
+        const inferred = inferQDeltaFromLog(pk, state.trackedQuarter, state.fetchLog);
+        if (inferred) {
+          qData[pk] = inferred;
         } else {
-          const inferred = inferQDeltaFromLog(pk, state.trackedQuarter, state.fetchLog);
-          if (inferred) {
-            qData[pk] = inferred;
+          const base = state.quarterBaseline[pk];
+          if (base !== undefined) {
+            const entry = { v: Math.round((p.value - base.v) * 100) / 100 };
+            STAT_KEYS.forEach(k => { entry[k] = (p[k] || 0) - (base[k] || 0); });
+            qData[pk] = entry;
           } else {
             const entry = { v: Math.round(p.value * 100) / 100 };
             STAT_KEYS.forEach(k => { entry[k] = p[k] || 0; });
@@ -795,12 +796,20 @@ async function fetchRatings(mid) {
       state.quarterBaseline[pk] = { v: p.value };
       STAT_KEYS.forEach(k => { state.quarterBaseline[pk][k] = p[k] || 0; });
     }
-    const base = state.quarterBaseline?.[pk];
-    p.quarterDelta = base !== undefined
-      ? Math.round((p.value - base.v) * 100) / 100
-      : null;
-    p.qStatDeltas = {};
-    if (base) STAT_KEYS.forEach(k => { p.qStatDeltas[k] = (p[k] || 0) - (base[k] || 0); });
+    // Prefer fetch-log inference for accurate delta (baseline may be wrong after restart)
+    const inferred = currentQ ? inferQDeltaFromLog(pk, currentQ, state.fetchLog) : null;
+    if (inferred) {
+      p.quarterDelta = inferred.v;
+      p.qStatDeltas = {};
+      STAT_KEYS.forEach(k => { p.qStatDeltas[k] = inferred[k] || 0; });
+    } else {
+      const base = state.quarterBaseline?.[pk];
+      p.quarterDelta = base !== undefined
+        ? Math.round((p.value - base.v) * 100) / 100
+        : null;
+      p.qStatDeltas = {};
+      if (base) STAT_KEYS.forEach(k => { p.qStatDeltas[k] = (p[k] || 0) - (base[k] || 0); });
+    }
   });
 
   const qTop5 = [...all]
