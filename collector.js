@@ -33,6 +33,10 @@ const WEIGHTS = {
 };
 const CONSTANT = 9.257290;
 
+// ── Player key: disambiguate players sharing a surname (e.g. C Warner / C Warner)
+function pkey(p) { return p.jersey ? `${p.name}#${p.jersey}` : p.name; }
+function pkeyAction(a) { return a.j ? `${a.n}#${a.j}` : a.n; }
+
 function calcRating(value) {
   // Linear: PV 10 → 1, PV 70 → 10, clamped
   const raw = 1 + (Math.min(Math.max(value, 10), 70) - 10) * (9 / 60);
@@ -141,8 +145,7 @@ function mergeTeam(basicHtml, advHtml, teamName) {
     const a = adv[jersey]   || {};
     // Prefer the full name from the basic table; fall back to adv abbreviated name
     const name = b.name || a.name || jersey;
-    const merged = { team: teamName, ...a, ...b, name };
-    delete merged.jersey;
+    const merged = { team: teamName, ...a, ...b, name, jersey };
     return merged;
   });
 }
@@ -346,7 +349,7 @@ function recordSnapshot(players, snapshotHistory) {
   players.forEach(p => {
     const entry = { value: p.value };
     STAT_KEYS.forEach(k => { entry[k] = typeof p[k] === "number" ? p[k] : 0; });
-    snap.map[p.name] = entry;
+    snap.map[pkey(p)] = entry;
   });
   snapshotHistory.push(snap);
   if (snapshotHistory.length > HISTORY_MAX) snapshotHistory.shift();
@@ -368,18 +371,18 @@ function computeBursts(fetchLog) {
   for (const entry of (fetchLog || [])) {
     for (const action of (entry.actions || [])) {
       if (action.v === undefined) continue;
-      const name = action.n;
-      if (!playerMap.has(name)) playerMap.set(name, { team: null, series: [] });
-      const ps = playerMap.get(name);
+      const key = pkeyAction(action);
+      if (!playerMap.has(key)) playerMap.set(key, { name: action.n, team: null, series: [] });
+      const ps = playerMap.get(key);
       if (action.tm) ps.team = action.tm;
-      if (!runningStats.has(name)) runningStats.set(name, {});
-      const cur = runningStats.get(name);
+      if (!runningStats.has(key)) runningStats.set(key, {});
+      const cur = runningStats.get(key);
       STAT_KEYS.forEach(k => { if (typeof action[k] === "number") cur[k] = action[k]; });
       ps.series.push({ ts: entry.ts, value: action.v, q: entry.q, stats: { ...cur } });
     }
   }
   const allBursts = [];
-  for (const [name, { team, series }] of playerMap) {
+  for (const [key, { name, team, series }] of playerMap) {
     if (series.length < 2) continue;
     let nextAllowedIdx = 0;
     for (let i = 0; i < series.length; i++) {
@@ -424,9 +427,10 @@ function computeBursts(fetchLog) {
 // ── Modified projected value ──────────────────────────────────────────────────
 function applyModProjectedValue(players, completedQuarters) {
   players.forEach(p => {
+    const pk = pkey(p);
     const qVals = Object.values(completedQuarters || {})
       .map(qData => {
-        const entry = qData[p.name];
+        const entry = qData[pk] ?? qData[p.name]; // fallback for pre-jersey data
         if (entry == null) return null;
         return typeof entry === "object" ? (entry.v ?? null) : entry;
       })
@@ -459,7 +463,7 @@ function statContributions(player, refEntry) {
 }
 
 // ── Reconstruct a player's per-quarter delta from the fetch log ──────────────
-function inferQDeltaFromLog(name, q, fetchLog) {
+function inferQDeltaFromLog(key, q, fetchLog) {
   if (!fetchLog.length) return null;
   let cum          = {};
   let statsBeforeQ = null;
@@ -473,7 +477,7 @@ function inferQDeltaFromLog(name, q, fetchLog) {
       inQ = false;
     }
     for (const action of (entry.actions || [])) {
-      if (action.n !== name) continue;
+      if (pkeyAction(action) !== key) continue;
       if (action.v !== undefined) cum._v = action.v;
       STAT_KEYS.forEach(k => { if (action[k] !== undefined) cum[k] = action[k]; });
     }
@@ -558,10 +562,11 @@ function getState(mid) {
   };
   for (const entry of state.fetchLog) {
     for (const action of (entry.actions || [])) {
-      const { n, tm, ...fields } = action;
-      if (!state.lastFetchState[n]) state.lastFetchState[n] = {};
-      if (tm) state.lastFetchState[n].tm = tm;
-      Object.assign(state.lastFetchState[n], fields);
+      const key = pkeyAction(action);
+      const { n, j, tm, ...fields } = action;
+      if (!state.lastFetchState[key]) state.lastFetchState[key] = {};
+      if (tm) state.lastFetchState[key].tm = tm;
+      Object.assign(state.lastFetchState[key], fields);
     }
   }
   if (state.fetchLog.length > 0) {
@@ -569,20 +574,20 @@ function getState(mid) {
     const rawSnaps = [];
     for (const logEntry of state.fetchLog) {
       for (const action of (logEntry.actions || [])) {
-        const name = action.n;
-        if (!running.has(name)) running.set(name, {});
-        const cur = running.get(name);
+        const key = pkeyAction(action);
+        if (!running.has(key)) running.set(key, {});
+        const cur = running.get(key);
         if (action.tm) cur.tm = action.tm;
         if (typeof action.v === "number") cur.value = action.v;
         STAT_KEYS.forEach(k => { if (typeof action[k] === "number") cur[k] = action[k]; });
       }
       if (running.size > 0) {
         const snap = { ts: logEntry.ts, map: {} };
-        for (const [name, p] of running) {
+        for (const [key, p] of running) {
           if (typeof p.value === "number") {
             const s = { value: p.value };
             STAT_KEYS.forEach(k => { s[k] = typeof p[k] === "number" ? p[k] : 0; });
-            snap.map[name] = s;
+            snap.map[key] = s;
           }
         }
         rawSnaps.push(snap);
@@ -597,15 +602,15 @@ function getState(mid) {
       for (const logEntry of state.fetchLog) {
         if (logEntry.q === q && baseline === null) {
           baseline = {};
-          for (const [name, cur] of runningQ) {
-            baseline[name] = { v: cur._v || 0 };
-            STAT_KEYS.forEach(k => { baseline[name][k] = cur[k] || 0; });
+          for (const [key, cur] of runningQ) {
+            baseline[key] = { v: cur._v || 0 };
+            STAT_KEYS.forEach(k => { baseline[key][k] = cur[k] || 0; });
           }
         }
         for (const action of (logEntry.actions || [])) {
-          const name = action.n;
-          if (!runningQ.has(name)) runningQ.set(name, {});
-          const cur = runningQ.get(name);
+          const key = pkeyAction(action);
+          if (!runningQ.has(key)) runningQ.set(key, {});
+          const cur = runningQ.get(key);
           if (typeof action.v === "number") cur._v = action.v;
           STAT_KEYS.forEach(k => { if (typeof action[k] === "number") cur[k] = action[k]; });
         }
@@ -614,10 +619,10 @@ function getState(mid) {
     }
   }
   for (const [q, qData] of Object.entries(state.completedQuarters)) {
-    for (const [name, val] of Object.entries(qData)) {
+    for (const [key, val] of Object.entries(qData)) {
       if (val === null) {
-        const inferred = inferQDeltaFromLog(name, parseInt(q), state.fetchLog);
-        if (inferred) qData[name] = inferred;
+        const inferred = inferQDeltaFromLog(key, parseInt(q), state.fetchLog);
+        if (inferred) qData[key] = inferred;
       }
     }
   }
@@ -681,7 +686,7 @@ async function fetchRatings(mid) {
   const hotWindowMins = Math.round(hotWindowMs / 6000) / 10;
 
   all.forEach(p => {
-    const refEntry = hotRef ? (hotRef.map[p.name] ?? null) : null;
+    const refEntry = hotRef ? (hotRef.map[pkey(p)] ?? null) : null;
     p.delta5min    = refEntry !== null ? Math.round((p.value - refEntry.value) * 100) / 100 : null;
     p.statContribs = statContributions(p, refEntry);
   });
@@ -699,7 +704,7 @@ async function fetchRatings(mid) {
     && Date.now() - state.fullTimeTs > 5000;
 
   all.forEach(p => {
-    const refEntry = quietRef ? (quietRef.map[p.name] ?? null) : null;
+    const refEntry = quietRef ? (quietRef.map[pkey(p)] ?? null) : null;
     if (isStatCorrection || refEntry === null || quietWindowMins === 0) {
       p.delta10min    = null;
       p.expectedDelta = null;
@@ -719,19 +724,20 @@ async function fetchRatings(mid) {
     if (state.trackedQuarter !== null && state.quarterBaseline !== null) {
       const qData = {};
       all.forEach(p => {
-        const base = state.quarterBaseline[p.name];
+        const pk = pkey(p);
+        const base = state.quarterBaseline[pk];
         if (base !== undefined) {
           const entry = { v: Math.round((p.value - base.v) * 100) / 100 };
           STAT_KEYS.forEach(k => { entry[k] = (p[k] || 0) - (base[k] || 0); });
-          qData[p.name] = entry;
+          qData[pk] = entry;
         } else {
-          const inferred = inferQDeltaFromLog(p.name, state.trackedQuarter, state.fetchLog);
+          const inferred = inferQDeltaFromLog(pk, state.trackedQuarter, state.fetchLog);
           if (inferred) {
-            qData[p.name] = inferred;
+            qData[pk] = inferred;
           } else {
             const entry = { v: Math.round(p.value * 100) / 100 };
             STAT_KEYS.forEach(k => { entry[k] = p[k] || 0; });
-            qData[p.name] = entry;
+            qData[pk] = entry;
           }
         }
       });
@@ -741,19 +747,21 @@ async function fetchRatings(mid) {
     state.quarterStartTs[currentQ]    = Date.now();
     state.quarterBaseline             = {};
     all.forEach(p => {
-      state.quarterBaseline[p.name] = { v: p.value };
-      STAT_KEYS.forEach(k => { state.quarterBaseline[p.name][k] = p[k] || 0; });
+      const pk = pkey(p);
+      state.quarterBaseline[pk] = { v: p.value };
+      STAT_KEYS.forEach(k => { state.quarterBaseline[pk][k] = p[k] || 0; });
     });
   }
 
   function cqv(entry) { return typeof entry === "object" && entry !== null ? entry.v : entry; }
 
   all.forEach(p => {
-    if (state.quarterBaseline && p.name && !(p.name in state.quarterBaseline)) {
-      state.quarterBaseline[p.name] = { v: p.value };
-      STAT_KEYS.forEach(k => { state.quarterBaseline[p.name][k] = p[k] || 0; });
+    const pk = pkey(p);
+    if (state.quarterBaseline && pk && !(pk in state.quarterBaseline)) {
+      state.quarterBaseline[pk] = { v: p.value };
+      STAT_KEYS.forEach(k => { state.quarterBaseline[pk][k] = p[k] || 0; });
     }
-    const base = state.quarterBaseline?.[p.name];
+    const base = state.quarterBaseline?.[pk];
     p.quarterDelta = base !== undefined
       ? Math.round((p.value - base.v) * 100) / 100
       : null;
@@ -770,8 +778,9 @@ async function fetchRatings(mid) {
   const quarterLog = {};
   const quarterStatLog = {};
   all.forEach(p => {
+    const pk = pkey(p);
     function cqEntry(q) {
-      const e = state.completedQuarters[q]?.[p.name];
+      const e = state.completedQuarters[q]?.[pk];
       return e !== undefined ? e : null;
     }
     function liveEntry() { return { v: p.quarterDelta, ...p.qStatDeltas }; }
@@ -846,11 +855,12 @@ async function fetchRatings(mid) {
   const isBaseline = state.fetchLog.length === 0 || Object.keys(state.lastFetchState).length === 0;
   const actions    = [];
   all.forEach(p => {
-    const prev  = state.lastFetchState[p.name];
+    const pk    = pkey(p);
+    const prev  = state.lastFetchState[pk];
     const newV  = +p.value.toFixed(2);
     const newR  = p.rating;
     if (!prev || isBaseline) {
-      const entry = { n: p.name, tm: p.team, v: newV, r: newR };
+      const entry = { n: p.name, j: p.jersey, tm: p.team, v: newV, r: newR };
       STAT_KEYS.forEach(k => { if (p[k]) entry[k] = p[k]; });
       actions.push(entry);
     } else {
@@ -859,10 +869,10 @@ async function fetchRatings(mid) {
         const cur = p[k] || 0;
         if (cur !== (prev[k] || 0)) changed[k] = cur;
       });
-      actions.push({ n: p.name, ...changed, v: newV, r: newR });
+      actions.push({ n: p.name, j: p.jersey, ...changed, v: newV, r: newR });
     }
-    state.lastFetchState[p.name] = { v: newV, r: newR, tm: p.team };
-    STAT_KEYS.forEach(k => { state.lastFetchState[p.name][k] = p[k] || 0; });
+    state.lastFetchState[pk] = { v: newV, r: newR, tm: p.team };
+    STAT_KEYS.forEach(k => { state.lastFetchState[pk][k] = p[k] || 0; });
   });
 
   state.fetchLog.push({

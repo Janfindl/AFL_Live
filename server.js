@@ -47,6 +47,9 @@ const WEIGHTS = {
   CG:  -1.124769,
 };
 
+// ── Player key: disambiguate players sharing a surname (e.g. C Warner / C Warner)
+function pkeyAction(a) { return a.j ? `${a.n}#${a.j}` : a.n; }
+
 function calcRating(value) {
   // Linear: PV 10 → 1, PV 70 → 10, clamped
   const raw = 1 + (Math.min(Math.max(value, 10), 70) - 10) * (9 / 60);
@@ -208,18 +211,18 @@ function computeBursts(fetchLog) {
   for (const entry of (fetchLog || [])) {
     for (const action of (entry.actions || [])) {
       if (action.v === undefined) continue;
-      const name = action.n;
-      if (!playerMap.has(name)) playerMap.set(name, { team: null, series: [] });
-      const ps = playerMap.get(name);
+      const key = pkeyAction(action);
+      if (!playerMap.has(key)) playerMap.set(key, { name: action.n, team: null, series: [] });
+      const ps = playerMap.get(key);
       if (action.tm) ps.team = action.tm;
-      if (!runningStats.has(name)) runningStats.set(name, {});
-      const cur = runningStats.get(name);
+      if (!runningStats.has(key)) runningStats.set(key, {});
+      const cur = runningStats.get(key);
       STAT_KEYS.forEach(k => { if (typeof action[k] === "number") cur[k] = action[k]; });
       ps.series.push({ ts: entry.ts, value: action.v, q: entry.q, stats: { ...cur } });
     }
   }
   const allBursts = [];
-  for (const [name, { team, series }] of playerMap) {
+  for (const [key, { name, team, series }] of playerMap) {
     if (series.length < 2) continue;
     let nextAllowedIdx = 0;
     for (let i = 0; i < series.length; i++) {
@@ -264,9 +267,10 @@ function computeBursts(fetchLog) {
 // ── Modified projected value (needed by buildCachedResponse) ─────────────────
 function applyModProjectedValue(players, completedQuarters) {
   players.forEach(p => {
+    const pk = p.jersey ? `${p.name}#${p.jersey}` : p.name;
     const qVals = Object.values(completedQuarters || {})
       .map(qData => {
-        const entry = qData[p.name];
+        const entry = qData[pk] ?? qData[p.name]; // fallback for pre-jersey data
         if (entry == null) return null;
         return typeof entry === "object" ? (entry.v ?? null) : entry;
       })
