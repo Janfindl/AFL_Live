@@ -498,8 +498,20 @@ http.createServer(async (req, res) => {
       const savedGames = fs.readdirSync(DATA_DIR)
         .filter(f => /^game_\d+\.json$/.test(f))
         .map(f => parseInt(f.slice(5, -5), 10));
+      // Extract final scores from saved game data
+      const gameScores = {};
+      for (const mid of savedGames) {
+        try {
+          const gd = loadGameData(mid);
+          if (gd && gd.summary && gd.teams) {
+            const s1 = gd.summary[gd.teams[0]]?.score;
+            const s2 = gd.summary[gd.teams[1]]?.score;
+            if (s1 != null && s2 != null) gameScores[mid] = { h: s1, a: s2 };
+          }
+        } catch {}
+      }
       res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-cache" });
-      res.end(JSON.stringify({ serverNow: Date.now(), rounds: fixtureCache.rounds, savedGames, liveGames: [] }));
+      res.end(JSON.stringify({ serverNow: Date.now(), rounds: fixtureCache.rounds, savedGames, gameScores, liveGames: [] }));
     } catch (e) {
       console.error("[fixture]", e.message);
       res.writeHead(500, { "Content-Type": "application/json" });

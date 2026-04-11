@@ -1226,6 +1226,13 @@ async function loadFixture() {
     fixtureRounds = payload.rounds;
     savedGames = new Set(payload.savedGames || []);
     (payload.liveGames || []).forEach(id => { liveGames[id] = true; });
+    // Overlay real scores from game data onto fixture entries
+    const gs = payload.gameScores || {};
+    for (const round of fixtureRounds) {
+      for (const g of round.games) {
+        if (gs[g.fw_id]) { g.hscore = gs[g.fw_id].h; g.ascore = gs[g.fw_id].a; }
+      }
+    }
     if (!Array.isArray(fixtureRounds) || !fixtureRounds.length) throw new Error("No fixture data");
 
     // Build round dropdown
