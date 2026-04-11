@@ -1957,9 +1957,13 @@ function renderBurst(bursts, quarterStartTs) {
     }
     const t1 = b.startGm != null ? gmToQTime(b.startGm) : tsToGameTime(b.startTs, quarterStartTs);
     const t2 = b.endGm   != null ? gmToQTime(b.endGm)   : tsToGameTime(b.endTs,   quarterStartTs);
-    const qNum   = b.quarter || "";
-    const qClass = qNum ? `q${qNum}` : "";
-    const qBadge = qNum ? `<span class="burst-quarter ${qClass}" style="font-size:13px;font-weight:800;padding:2px 8px">Q${qNum}</span>` : "";
+    const startQ = b.startGm != null ? Math.min(4, Math.floor(b.startGm / 30) + 1) : b.quarter;
+    const endQ   = b.endGm   != null ? Math.min(4, Math.floor(b.endGm   / 30) + 1) : b.quarter;
+    const qBadge = startQ
+      ? (startQ !== endQ
+        ? `<span class="burst-quarter q${startQ}" style="font-size:13px;font-weight:800;padding:2px 8px">Q${startQ}</span><span class="burst-quarter q${endQ}" style="font-size:13px;font-weight:800;padding:2px 8px">Q${endQ}</span>`
+        : `<span class="burst-quarter q${startQ}" style="font-size:13px;font-weight:800;padding:2px 8px">Q${startQ}</span>`)
+      : "";
     const bKey   = esc(b.name) + "_" + b.startTs;
     return `<div class="hc-card" data-key="${bKey}" style="background:${cardBg}">
       <div class="hc-glow" style="background:${accent}"></div>
