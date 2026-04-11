@@ -914,7 +914,8 @@ function teamColor(name) {
   return { ...c, accent: c.accent || c.txt };
 }
 function logoHaloFilter(name) {
-  return 'none';
+  const h = (TEAM_COLORS[name] || {}).halo ?? 1;
+  return `drop-shadow(0 0 2px rgba(255,255,255,${(.7*h).toFixed(2)})) drop-shadow(0 0 4px rgba(255,255,255,${(.6*h).toFixed(2)})) drop-shadow(0 0 5px rgba(255,255,255,${(.3*h).toFixed(2)}))`;
 }
 
 // ── Colour clash resolution ──────────────────────────────────────────────────
