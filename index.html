@@ -1611,17 +1611,21 @@ function styleTeamCard(cardId, nameId, scoreId, ratId, goalsId, behindsId, name,
   const card   = document.getElementById(cardId);
   const logo   = teamLogo(name);
   const isCard2 = cardId === "card2";
-  // Gradient from team colour on the logo side
+  // Team colour background with subtle gradient
+  const pillBg  = col.pill?.bg || col.accent || col.txt;
+  const pillTxt = col.pill?.txt || "#FFFFFF";
   const gradDir = isCard2 ? "270deg" : "90deg";
-  card.style.background = `linear-gradient(${gradDir}, rgba(0,0,0,0) 40%, #0d1117 100%), linear-gradient(${gradDir}, ${col.accent}22 0%, #0d1117 55%)`;
-  card.style.borderLeft  = isCard2 ? "none" : `3px solid ${col.accent}`;
-  card.style.borderRight = isCard2 ? `3px solid ${col.accent}` : "none";
+  card.style.background = `linear-gradient(${gradDir}, ${pillBg} 0%, ${pillBg}cc 70%, ${pillBg}88 100%)`;
+  card.style.borderLeft  = isCard2 ? "none" : `3px solid ${pillTxt}44`;
+  card.style.borderRight = isCard2 ? `3px solid ${pillTxt}44` : "none";
 
-  document.getElementById(nameId).style.color  = col.txt;
+  document.getElementById(nameId).style.color  = pillTxt;
   document.getElementById(nameId).textContent  = name;
   document.getElementById(scoreId).textContent = sum.score ?? "—";
-  document.getElementById(scoreId).style.color = col.txt;
+  document.getElementById(scoreId).style.color = pillTxt;
   document.getElementById(ratId).innerHTML     = ratingPill(sum.avgRating);
+  const gbEl = document.getElementById(goalsId).parentElement;
+  if (gbEl) gbEl.style.color = pillTxt;
   document.getElementById(goalsId).textContent   = goals;
   document.getElementById(behindsId).textContent = behinds;
 
@@ -1629,7 +1633,7 @@ function styleTeamCard(cardId, nameId, scoreId, ratId, goalsId, behindsId, name,
   const logoEl = document.getElementById(cardId === "card1" ? "c1logo" : "c2logo");
   const bgEl   = document.getElementById(cardId === "card1" ? "c1bg"   : "c2bg");
   if (logoEl) { logoEl.src = logo; logoEl.alt = name; }
-  if (bgEl)   { bgEl.src   = logo; bgEl.alt   = name; }
+  if (bgEl)   { bgEl.src   = logo; bgEl.alt   = name; bgEl.style.opacity = "0.15"; }
 }
 
 // ── Delta colour scales ───────────────────────────────────────────────────────
