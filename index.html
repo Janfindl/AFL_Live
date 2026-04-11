@@ -1233,7 +1233,7 @@ function renderFixtureRound(roundIdx) {
       btnHtml = `<button class="gs-watch-btn gs-upcoming-btn" disabled title="Game hasn't started yet">▶ Watch</button>`;
     }
 
-    return `<div class="gs-game-card ${cardCls}" data-fw="${g.fw_id}" style="background:linear-gradient(90deg, ${hPillBg} 0%, ${hPillBg}cc 35%, #0d1117 50%, ${aPillBg}cc 65%, ${aPillBg} 100%)">
+    return `<div class="gs-game-card ${cardCls}" data-fw="${g.fw_id}" style="background:linear-gradient(90deg, ${hPillBg} 0%, ${hPillBg} 35%, ${aPillBg} 65%, ${aPillBg} 100%)">
       <img class="gs-card-bg home" src="${hLogo}" alt="" onerror="this.style.display='none'">
       <img class="gs-card-bg away" src="${aLogo}" alt="" onerror="this.style.display='none'">
       <div class="gs-teams-row" style="position:relative;z-index:1">
