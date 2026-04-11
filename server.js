@@ -248,40 +248,48 @@ function computeBursts(fetchLog) {
       ps.series.push({ ts: entry.ts, value: action.v, q: entry.q, stats: { ...cur } });
     }
   }
-  const allBests = [];
+  const allWindows = [];
   for (const [key, { name, team, series }] of playerMap) {
     if (series.length < 2) continue;
-    let best = { gain: 0, startIdx: -1, endIdx: -1 };
+    const candidates = [];
     for (let i = 0; i < series.length; i++) {
       const winEnd = series[i].ts + BURST_WINDOW_MS;
+      let bestGain = 0, bestEndIdx = -1;
       for (let j = i + 1; j < series.length; j++) {
         if (series[j].ts > winEnd) break;
         const gain = series[j].value - series[i].value;
-        if (gain > best.gain) best = { gain, startIdx: i, endIdx: j };
+        if (gain > bestGain) { bestGain = gain; bestEndIdx = j; }
       }
+      if (bestGain > 0 && bestEndIdx >= 0) candidates.push({ gain: bestGain, si: i, ei: bestEndIdx });
     }
-    if (best.gain <= 0) continue;
-    const startStats = series[best.startIdx].stats;
-    const endStats   = series[best.endIdx].stats;
-    const statContribs = STAT_KEYS
-      .map(stat => {
-        const delta        = (endStats[stat] || 0) - (startStats[stat] || 0);
-        const contribution = Math.round(delta * WEIGHTS[stat] * 100) / 100;
-        return { stat, delta, contribution };
-      })
-      .filter(x => Math.abs(x.contribution) >= 0.01)
-      .sort((a, b) => b.contribution - a.contribution);
-    allBests.push({
-      name, team,
-      startTs: series[best.startIdx].ts,
-      endTs:   series[best.endIdx].ts,
-      gain:    Math.round(best.gain * 100) / 100,
-      quarter: series[best.startIdx].q,
-      statContribs,
-    });
+    candidates.sort((a, b) => b.gain - a.gain);
+    const used = [];
+    for (const c of candidates) {
+      const overlaps = used.some(u => c.si <= u.ei && c.ei >= u.si);
+      if (overlaps) continue;
+      used.push(c);
+      const startStats = series[c.si].stats;
+      const endStats   = series[c.ei].stats;
+      const statContribs = STAT_KEYS
+        .map(stat => {
+          const delta        = (endStats[stat] || 0) - (startStats[stat] || 0);
+          const contribution = Math.round(delta * WEIGHTS[stat] * 100) / 100;
+          return { stat, delta, contribution };
+        })
+        .filter(x => Math.abs(x.contribution) >= 0.01)
+        .sort((a, b) => b.contribution - a.contribution);
+      allWindows.push({
+        name, team,
+        startTs: series[c.si].ts,
+        endTs:   series[c.ei].ts,
+        gain:    Math.round(c.gain * 100) / 100,
+        quarter: series[c.si].q,
+        statContribs,
+      });
+    }
   }
-  allBests.sort((a, b) => b.gain - a.gain);
-  return allBests.slice(0, 10);
+  allWindows.sort((a, b) => b.gain - a.gain);
+  return allWindows.slice(0, 10);
 }
 
 // ── Modified projected value (needed by buildCachedResponse) ─────────────────
