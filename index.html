@@ -72,7 +72,7 @@ header{
 }
 .team-card-logo{
   width:72px;height:72px;object-fit:contain;flex-shrink:0;
-  filter:drop-shadow(0 0 2px rgba(255,255,255,1)) drop-shadow(0 0 4px rgba(255,255,255,.9)) drop-shadow(0 0 6px rgba(255,255,255,.5));z-index:1;
+  z-index:1;
 }
 .team-card-body{
   flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;z-index:1;
@@ -379,7 +379,7 @@ header{
 .gs-card-bg.away{right:-40px}
 .gs-teams-row{display:flex;align-items:center;gap:8px}
 .gs-team{display:flex;flex-direction:column;align-items:center;gap:4px;flex:1;min-width:0}
-.gs-team-logo{width:100px;height:100px;object-fit:contain;filter:drop-shadow(0 0 2px rgba(255,255,255,1)) drop-shadow(0 0 4px rgba(255,255,255,.9)) drop-shadow(0 0 6px rgba(255,255,255,.5))}
+.gs-team-logo{width:100px;height:100px;object-fit:contain}
 .gs-team-name{font-size:15px;font-weight:800;text-align:center;text-transform:uppercase;
   letter-spacing:.3px;color:#e6edf3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;width:100%}
 .gs-score-block{display:flex;flex-direction:column;align-items:center;gap:0;flex-shrink:0;min-width:80px}
@@ -877,15 +877,15 @@ const TEAM_COLORS = {
   "Adelaide Crows":        { txt:"#E82334", bg:"rgba(0,38,100,.22)",    pill:{bg:"#002264",txt:"#FFD200",border:"2px solid #E82334"}, pillAlt:{bg:"#FFD200",txt:"#002264",border:"2px solid #E82334"}, pillHue:"navy" },
   "Brisbane Lions":        { txt:"#F5A800", bg:"rgba(111,28,66,.22)",   pill:{bg:"#7B1D46",txt:"#F5A800"}, pillAlt:{bg:"#F5A800",txt:"#7B1D46"}, pillHue:"maroon" },
   "Brisbane":              { txt:"#F5A800", bg:"rgba(111,28,66,.22)",   pill:{bg:"#7B1D46",txt:"#F5A800"}, pillAlt:{bg:"#F5A800",txt:"#7B1D46"}, pillHue:"maroon" },
-  "Carlton":               { txt:"#1C5DB8", bg:"rgba(0,20,80,.26)",     pill:{bg:"#002B5C",txt:"#FFFFFF"}, pillAlt:{bg:"#FFFFFF",txt:"#002B5C"}, pillHue:"blue"   },
+  "Carlton":               { txt:"#1C5DB8", bg:"rgba(0,20,80,.26)",     pill:{bg:"#002B5C",txt:"#FFFFFF"}, pillAlt:{bg:"#FFFFFF",txt:"#002B5C"}, pillHue:"blue", halo:0.8 },
   "Collingwood":           { txt:"#C8C8C8", bg:"rgba(200,200,200,.09)", pill:{bg:"#000000",txt:"#FFFFFF"}, pillAlt:{bg:"#FFFFFF",txt:"#000000"}, pillHue:"black"  },
   "Essendon":              { txt:"#E03244", bg:"rgba(204,32,49,.14)",   pill:{bg:"#000000",txt:"#CC2028",border:"1px solid #CC2028"}, pillAlt:{bg:"#CC2028",txt:"#000000"}, pillHue:"essendon" },
   "Fremantle":             { txt:"#9060CC", bg:"rgba(100,60,160,.18)",  pill:{bg:"#2C1F6B",txt:"#FFFFFF"}, pillAlt:{bg:"#CC2028",txt:"#FFFFFF"}, pillHue:"purple" },
   "Geelong":               { txt:"#1F7EC8", bg:"rgba(31,126,200,.18)",  pill:{bg:"#1B3E6F",txt:"#FFFFFF"}, pillAlt:{bg:"#FFFFFF",txt:"#1B3E6F"}, pillHue:"blue"   },
   "Geelong Cats":          { txt:"#1F7EC8", bg:"rgba(31,126,200,.18)",  pill:{bg:"#1B3E6F",txt:"#FFFFFF"}, pillAlt:{bg:"#FFFFFF",txt:"#1B3E6F"}, pillHue:"blue"   },
-  "Gold Coast":            { txt:"#FFB800", bg:"rgba(220,40,20,.15)",   pill:{bg:"#E8173C",txt:"#FFB800"}, pillAlt:{bg:"#E8173C",txt:"#FFB800"}, pillHue:"gold_coast" },
-  "Gold Coast Suns":       { txt:"#FFB800", bg:"rgba(220,40,20,.15)",   pill:{bg:"#E8173C",txt:"#FFB800"}, pillAlt:{bg:"#E8173C",txt:"#FFB800"}, pillHue:"gold_coast" },
-  "Gold Coast SUNS":       { txt:"#FFB800", bg:"rgba(220,40,20,.15)",   pill:{bg:"#E8173C",txt:"#FFB800"}, pillAlt:{bg:"#E8173C",txt:"#FFB800"}, pillHue:"gold_coast" },
+  "Gold Coast":            { txt:"#FFB800", bg:"rgba(220,40,20,.15)",   pill:{bg:"#E8173C",txt:"#FFB800"}, pillAlt:{bg:"#E8173C",txt:"#FFB800"}, pillHue:"gold_coast", halo:0.8 },
+  "Gold Coast Suns":       { txt:"#FFB800", bg:"rgba(220,40,20,.15)",   pill:{bg:"#E8173C",txt:"#FFB800"}, pillAlt:{bg:"#E8173C",txt:"#FFB800"}, pillHue:"gold_coast", halo:0.8 },
+  "Gold Coast SUNS":       { txt:"#FFB800", bg:"rgba(220,40,20,.15)",   pill:{bg:"#E8173C",txt:"#FFB800"}, pillAlt:{bg:"#E8173C",txt:"#FFB800"}, pillHue:"gold_coast", halo:0.8 },
   "GWS":                   { txt:"#F47920", bg:"rgba(120,120,120,.14)", pill:{bg:"#F26724",txt:"#FFFFFF"}, pillAlt:{bg:"#595959",txt:"#F26724"}, pillHue:"orange" },
   "GWS Giants":            { txt:"#F47920", bg:"rgba(120,120,120,.14)", pill:{bg:"#F26724",txt:"#FFFFFF"}, pillAlt:{bg:"#595959",txt:"#F26724"}, pillHue:"orange" },
   "GWS GIANTS":            { txt:"#F47920", bg:"rgba(120,120,120,.14)", pill:{bg:"#F26724",txt:"#FFFFFF"}, pillAlt:{bg:"#595959",txt:"#F26724"}, pillHue:"orange" },
@@ -912,6 +912,10 @@ const TEAM_COLORS = {
 function teamColor(name) {
   const c = TEAM_COLORS[name] || { txt:"#8b949e", bg:"rgba(139,148,158,.1)" };
   return { ...c, accent: c.accent || c.txt };
+}
+function logoHaloFilter(name) {
+  const h = (TEAM_COLORS[name] || {}).halo ?? 1;
+  return `drop-shadow(0 0 2px rgba(255,255,255,${(.7*h).toFixed(2)})) drop-shadow(0 0 4px rgba(255,255,255,${(.6*h).toFixed(2)})) drop-shadow(0 0 5px rgba(255,255,255,${(.3*h).toFixed(2)}))`;
 }
 
 // ── Colour clash resolution ──────────────────────────────────────────────────
@@ -1242,12 +1246,12 @@ function renderFixtureRound(roundIdx) {
       <img class="gs-card-bg away" src="${aLogo}" alt="" onerror="this.style.display='none'">
       <div class="gs-teams-row" style="position:relative;z-index:1">
         <div class="gs-team">
-          <img class="gs-team-logo" src="${hLogo}" alt="${g.hteam}" onerror="this.style.visibility='hidden'">
+          <img class="gs-team-logo" src="${hLogo}" alt="${g.hteam}" style="filter:${logoHaloFilter(g.hteam)}" onerror="this.style.visibility='hidden'">
           <div class="gs-team-name" style="color:${hCol}">${g.hteam}</div>
         </div>
         ${scoreHtml}
         <div class="gs-team">
-          <img class="gs-team-logo" src="${aLogo}" alt="${g.ateam}" onerror="this.style.visibility='hidden'">
+          <img class="gs-team-logo" src="${aLogo}" alt="${g.ateam}" style="filter:${logoHaloFilter(g.ateam)}" onerror="this.style.visibility='hidden'">
           <div class="gs-team-name" style="color:${aCol}">${g.ateam}</div>
         </div>
       </div>
@@ -1716,7 +1720,7 @@ function styleTeamCard(cardId, nameId, scoreId, ratId, goalsId, behindsId, name,
   // Logos
   const logoEl = document.getElementById(cardId === "card1" ? "c1logo" : "c2logo");
   const bgEl   = document.getElementById(cardId === "card1" ? "c1bg"   : "c2bg");
-  if (logoEl) { logoEl.src = logo; logoEl.alt = name; }
+  if (logoEl) { logoEl.src = logo; logoEl.alt = name; logoEl.style.filter = logoHaloFilter(name); }
   if (bgEl)   { bgEl.src   = logo; bgEl.alt   = name; bgEl.style.opacity = "0.15"; }
 }
 
