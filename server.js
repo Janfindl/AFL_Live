@@ -54,15 +54,17 @@ function pkeyAction(a) { return a.j ? `${a.n}#${a.j}` : a.n; }
 // then split by team and compute each team's weighted average.
 function weightedTeamRatings(allPlayers, teams) {
   const sorted = [...allPlayers].sort((a, b) => (b.rating || 0) - (a.rating || 0));
-  const top23 = sorted.slice(0, 23);
   const playerWeights = new Map();
-  for (let i = 0; i < top23.length; i++) {
-    const w = top23.length === 1 ? 23 : 23 - 22 * (i / (top23.length - 1)); // 23 → 1
-    playerWeights.set(top23[i], w);
+  // Top 23: weight 23→1 linearly; #24+ get weight 1
+  for (let i = 0; i < sorted.length; i++) {
+    const w = i < 23
+      ? (sorted.length <= 1 ? 23 : 23 - 22 * (i / 22)) // 23 → 1
+      : 1;
+    playerWeights.set(sorted[i], w);
   }
   const result = {};
   for (const tm of teams) {
-    const tp = top23.filter(p => p.team === tm);
+    const tp = allPlayers.filter(p => p.team === tm);
     let wSum = 0, rSum = 0;
     for (const p of tp) {
       const w = playerWeights.get(p) || 1;
