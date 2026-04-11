@@ -50,21 +50,40 @@ const WEIGHTS = {
 // ── Player key: disambiguate players sharing a surname (e.g. C Warner / C Warner)
 function pkeyAction(a) { return a.j ? `${a.n}#${a.j}` : a.n; }
 
-// Quartile-weighted team rating:
-// (avg_Q1 × 4 + avg_Q2 × 3 + avg_Q3 × 2 + avg_Q4 × 1) / 10
-// Each quartile = ~6 players (for a 23-player team), sorted by rating.
-function weightedTeamRatings(allPlayers, teams) {
+// Quartile-weighted team rating with game-progress stabilisation.
+// Blends projected ratings (reactive) with value-based ratings (stable)
+// weighted by game progress. Early game leans on projected, late game
+// anchors to actual accumulated value.
+function weightedTeamRatings(allPlayers, teams, elapsedMins) {
+  const GAME_MINS = 120;
   function quartileRating(teamPlayers) {
     if (!teamPlayers.length) return 0;
-    const sorted = [...teamPlayers].sort((a, b) => (b.rating || 0) - (a.rating || 0));
-    const n = sorted.length;
+    const n = teamPlayers.length;
     const qSize = Math.ceil(n / 4);
-    const q1 = sorted.slice(0, qSize);
-    const q2 = sorted.slice(qSize, qSize * 2);
-    const q3 = sorted.slice(qSize * 2, qSize * 3);
-    const q4 = sorted.slice(qSize * 3);
-    const avg = arr => arr.length ? arr.reduce((s, p) => s + (p.rating || 0), 0) / arr.length : 0;
-    return +Math.min(10, (avg(q1) * 0.5 + avg(q2) * 0.25 + avg(q3) * 0.15 + avg(q4) * 0.1) * 1.2).toFixed(1);
+    const avg = (arr, key) => arr.length ? arr.reduce((s, p) => s + (p[key] || 0), 0) / arr.length : 0;
+
+    // Projected rating (from projectedValue — reactive, volatile early)
+    const byRating = [...teamPlayers].sort((a, b) => (b.rating || 0) - (a.rating || 0));
+    const rq1 = avg(byRating.slice(0, qSize), 'rating');
+    const rq2 = avg(byRating.slice(qSize, qSize * 2), 'rating');
+    const rq3 = avg(byRating.slice(qSize * 2, qSize * 3), 'rating');
+    const rq4 = avg(byRating.slice(qSize * 3), 'rating');
+    const projTeam = Math.min(10, (rq1 * 0.5 + rq2 * 0.25 + rq3 * 0.15 + rq4 * 0.1) * 1.2);
+
+    // Value rating (from raw value — stable, grounded in actual stats)
+    const byValue = [...teamPlayers].sort((a, b) => (b.value || 0) - (a.value || 0));
+    const valRatings = byValue.map(p => calcRating(p.value || 0));
+    const vq1 = valRatings.slice(0, qSize).reduce((s,v) => s+v, 0) / qSize;
+    const vq2 = valRatings.slice(qSize, qSize*2).reduce((s,v) => s+v, 0) / Math.min(qSize, valRatings.length - qSize);
+    const vq3 = valRatings.slice(qSize*2, qSize*3).reduce((s,v) => s+v, 0) / Math.min(qSize, valRatings.length - qSize*2);
+    const vq4 = valRatings.slice(qSize*3).reduce((s,v) => s+v, 0) / Math.max(1, valRatings.length - qSize*3);
+    const valTeam = Math.min(10, (vq1 * 0.5 + vq2 * 0.25 + vq3 * 0.15 + vq4 * 0.1) * 1.2);
+
+    // Blend: early game trusts projected (rewards hot starts),
+    // late game anchors to value (stabilises as data accumulates)
+    const el = elapsedMins || GAME_MINS;
+    const valWeight = Math.min(0.5, el / GAME_MINS * 0.5); // 0 → 0.5 over the game
+    return +Math.min(10, projTeam * (1 - valWeight) + valTeam * valWeight).toFixed(1);
   }
   const result = {};
   for (const tm of teams) {
@@ -325,7 +344,7 @@ function applyModProjectedValue(players, completedQuarters) {
 function buildCachedResponse(cached, mid) {
   const allPlayers = cached.players || [];
   const teams = cached.teams || [];
-  const teamRatings = weightedTeamRatings(allPlayers, teams);
+  const teamRatings = weightedTeamRatings(allPlayers, teams, cached.elapsedMins);
   const summary = {};
   for (const tm of teams) {
     const tp  = allPlayers.filter(p => p.team === tm);
@@ -674,7 +693,7 @@ http.createServer(async (req, res) => {
       });
       // Recompute summary avgRating from fresh player ratings (combined scale)
       if (cached.summary && cached.teams) {
-        const tr = weightedTeamRatings(cached.players || [], cached.teams);
+        const tr = weightedTeamRatings(cached.players || [], cached.teams, cached.elapsedMins);
         for (const tm of Object.keys(tr)) {
           if (cached.summary[tm]) cached.summary[tm].avgRating = tr[tm];
         }
