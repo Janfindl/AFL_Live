@@ -374,7 +374,7 @@ header{
 }
 .gs-game-card.live{border-color:rgba(248,81,73,.5)}
 .gs-game-card.upcoming{border-color:#30363d;opacity:.85}
-.gs-card-bg{position:absolute;width:90px;height:90px;object-fit:contain;opacity:.1;pointer-events:none;top:50%;transform:translateY(-50%)}
+.gs-card-bg{position:absolute;width:90px;height:90px;object-fit:contain;opacity:.15;pointer-events:none;top:50%;transform:translateY(-50%)}
 .gs-card-bg.home{left:-8px}
 .gs-card-bg.away{right:-8px}
 .gs-teams-row{display:flex;align-items:center;gap:8px}
@@ -1194,10 +1194,10 @@ function renderFixtureRound(roundIdx) {
     const cardCls    = isLive ? "live" : isUpcoming ? "upcoming" : "";
     const hTC  = TEAM_COLORS[g.hteam] || {};
     const aTC  = TEAM_COLORS[g.ateam] || {};
-    const hCol = hTC.txt || "#e6edf3";
-    const aCol = aTC.txt || "#e6edf3";
-    const hPillBg = hTC.pill?.bg || hCol;
-    const aPillBg = aTC.pill?.bg || aCol;
+    const hCol = hTC.pill?.txt || "#e6edf3";
+    const aCol = aTC.pill?.txt || "#e6edf3";
+    const hPillBg = hTC.pill?.bg || hTC.txt || "#161b22";
+    const aPillBg = aTC.pill?.bg || aTC.txt || "#161b22";
 
     let scoreHtml = "";
     if (isDone || isLive || hasData) {
@@ -1233,7 +1233,7 @@ function renderFixtureRound(roundIdx) {
       btnHtml = `<button class="gs-watch-btn gs-upcoming-btn" disabled title="Game hasn't started yet">▶ Watch</button>`;
     }
 
-    return `<div class="gs-game-card ${cardCls}" data-fw="${g.fw_id}" style="background:linear-gradient(90deg, ${hPillBg}44 0%, #161b22 45%, #161b22 55%, ${aPillBg}44 100%)">
+    return `<div class="gs-game-card ${cardCls}" data-fw="${g.fw_id}" style="background:linear-gradient(90deg, ${hPillBg} 0%, ${hPillBg}cc 35%, #0d1117 50%, ${aPillBg}cc 65%, ${aPillBg} 100%)">
       <img class="gs-card-bg home" src="${hLogo}" alt="" onerror="this.style.display='none'">
       <img class="gs-card-bg away" src="${aLogo}" alt="" onerror="this.style.display='none'">
       <div class="gs-teams-row" style="position:relative;z-index:1">
