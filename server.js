@@ -50,28 +50,25 @@ const WEIGHTS = {
 // ── Player key: disambiguate players sharing a surname (e.g. C Warner / C Warner)
 function pkeyAction(a) { return a.j ? `${a.n}#${a.j}` : a.n; }
 
-// Weighted team ratings: rank ALL players on a single combined scale (best=3×, worst=1×),
-// then split by team and compute each team's weighted average.
+// Quartile-weighted team rating per team:
+// (avg_Q1 × 4 + avg_Q2 × 3 + avg_Q3 × 2 + avg_Q4 × 1) / 10
+// Each quartile = ~6 players (for a 23-player team), sorted by rating.
 function weightedTeamRatings(allPlayers, teams) {
-  const sorted = [...allPlayers].sort((a, b) => (b.rating || 0) - (a.rating || 0));
-  const playerWeights = new Map();
-  // Top 23: weight 23→1 linearly; #24+ get weight 1
-  for (let i = 0; i < sorted.length; i++) {
-    const w = i < 23
-      ? (sorted.length <= 1 ? 23 : 23 - 22 * (i / 22)) // 23 → 1
-      : 1;
-    playerWeights.set(sorted[i], w);
+  function quartileRating(teamPlayers) {
+    if (!teamPlayers.length) return 0;
+    const sorted = [...teamPlayers].sort((a, b) => (b.rating || 0) - (a.rating || 0));
+    const n = sorted.length;
+    const qSize = Math.ceil(n / 4);
+    const q1 = sorted.slice(0, qSize);
+    const q2 = sorted.slice(qSize, qSize * 2);
+    const q3 = sorted.slice(qSize * 2, qSize * 3);
+    const q4 = sorted.slice(qSize * 3);
+    const avg = arr => arr.length ? arr.reduce((s, p) => s + (p.rating || 0), 0) / arr.length : 0;
+    return +((avg(q1) * 4 + avg(q2) * 3 + avg(q3) * 2 + avg(q4) * 1) / 10).toFixed(1);
   }
   const result = {};
   for (const tm of teams) {
-    const tp = allPlayers.filter(p => p.team === tm);
-    let wSum = 0, rSum = 0;
-    for (const p of tp) {
-      const w = playerWeights.get(p) || 1;
-      wSum += w;
-      rSum += (p.rating || 0) * w;
-    }
-    result[tm] = wSum > 0 ? +(rSum / wSum).toFixed(1) : 0;
+    result[tm] = quartileRating(allPlayers.filter(p => p.team === tm));
   }
   return result;
 }
