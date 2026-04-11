@@ -560,13 +560,6 @@ function getState(mid) {
     snapshotHistory:   [],
     fullTimeTs:        saved?.fullTimeTs        ?? null,
     burstCache:        { ts: 0, bursts: saved?.bursts || [] },
-    // Preserve last-saved panel data to use on first cycle after restart
-    // (rebuilt snapshots may be stale, producing empty/wrong hot/cold/quarter)
-    savedHot5:         saved?.hot5              || [],
-    savedQuiet5:       saved?.quiet5            || [],
-    savedQTop5:        saved?.qTop5             || [],
-    savedHotWindowMins:   saved?.hotWindowMins  ?? 0,
-    savedQuietWindowMins: saved?.quietWindowMins ?? 0,
     firstCycle:        true,
   };
   for (const entry of state.fetchLog) {
@@ -844,27 +837,17 @@ async function fetchRatings(mid) {
   all.sort((a, b) => b.projectedValue - a.projectedValue);
   all.forEach((p, i) => { p.rank = i + 1; });
 
-  // On first cycle after restart, rebuilt snapshots are stale — fall back to saved panel data
-  const newestSnap = snapshotHistory.length > 0 ? snapshotHistory[snapshotHistory.length - 1].ts : 0;
-  const snapsStale = state.firstCycle && (Date.now() - newestSnap > HOT_WINDOW_MS);
+  const hot5 = [...all]
+    .filter(p => p.delta5min !== null)
+    .sort((a, b) => b.delta5min - a.delta5min)
+    .slice(0, 10)
+    .map((p, i) => ({ ...p, hotRank: i + 1 }));
 
-  let hot5, quiet5;
-  if (snapsStale && state.savedHot5.length > 0) {
-    hot5   = state.savedHot5;
-    quiet5 = state.savedQuiet5;
-  } else {
-    hot5 = [...all]
-      .filter(p => p.delta5min !== null)
-      .sort((a, b) => b.delta5min - a.delta5min)
-      .slice(0, 10)
-      .map((p, i) => ({ ...p, hotRank: i + 1 }));
-
-    quiet5 = [...all]
-      .filter(p => p.quietDelta !== null)
-      .sort((a, b) => a.quietDelta - b.quietDelta)
-      .slice(0, 10)
-      .map((p, i) => ({ ...p, quietRank: i + 1 }));
-  }
+  const quiet5 = [...all]
+    .filter(p => p.quietDelta !== null)
+    .sort((a, b) => a.quietDelta - b.quietDelta)
+    .slice(0, 10)
+    .map((p, i) => ({ ...p, quietRank: i + 1 }));
 
   if (!isStatCorrection && all.length > 0) {
     const t1Total = all.filter(p => p.team === team1Name).reduce((s, p) => s + p.value, 0);
@@ -944,6 +927,17 @@ async function fetchRatings(mid) {
   }
   const bursts = state.burstCache.bursts;
 
+  // ── First cycle after restart: skip saving to preserve existing correct data ──
+  // The rebuilt snapshot history has stale timestamps, so hot/cold/quiet deltas
+  // computed on this cycle would be wrong and overwrite previously correct values.
+  // We still record the snapshot + fetch log entry in memory so the NEXT cycle
+  // has a fresh snapshot pair and can compute accurate deltas.
+  if (state.firstCycle) {
+    state.firstCycle = false;
+    console.log(`[restart] first cycle complete — skipped save to preserve existing panel data`);
+    return;
+  }
+
   // ── Persist full pre-computed response + internal state to disk ───────────────
   const savedPlayers = all.map(p => {
     const s = { name: p.name, team: p.team, jersey: p.jersey, rank: p.rank, value: p.value,
@@ -966,8 +960,8 @@ async function fetchRatings(mid) {
     qTop5:           qTop5.map(p => { const s = { ...p }; return s; }),
     quarterLog,
     quarterStatLog,
-    hotWindowMins:   snapsStale ? state.savedHotWindowMins   : hotWindowMins,
-    quietWindowMins: snapsStale ? state.savedQuietWindowMins : quietWindowMins,
+    hotWindowMins,
+    quietWindowMins,
     momentum,
     scoreEvents:     state.scoreEvents,
     quarterStartTs:  state.quarterStartTs,
@@ -980,12 +974,6 @@ async function fetchRatings(mid) {
     fetches:           state.fetchLog,
     savedAt:           new Date().toISOString(),
   });
-
-  // After first cycle, clear restart flag so subsequent cycles compute fresh
-  if (state.firstCycle) {
-    state.firstCycle = false;
-    console.log(`[restart] first cycle complete — ${snapsStale ? "used saved hot/cold (snapshots stale)" : "computed fresh hot/cold"}`);
-  }
 }
 
 // ── Footywire live detection ──────────────────────────────────────────────────
