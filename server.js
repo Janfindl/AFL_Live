@@ -57,7 +57,7 @@ function weightedTeamRatings(allPlayers, teams) {
   const n = sorted.length;
   const playerWeights = new Map();
   for (let i = 0; i < n; i++) {
-    const w = n === 1 ? 5 : 5 - 4 * (i / (n - 1)); // 5 → 1
+    const w = n === 1 ? 20 : 20 - 19 * (i / (n - 1)); // 20 → 1
     playerWeights.set(sorted[i], w);
   }
   const result = {};
