@@ -229,13 +229,14 @@ async function syncFromGitHub() {
 }
 
 // ── Top 10 best 15-min windows (needed by buildCachedResponse) ───────────────
-const BURST_WINDOW_MS = 15 * 60 * 1000;
+const BURST_WINDOW_MINS = 15;
 const STAT_KEYS = Object.keys(WEIGHTS);
 
 function computeBursts(fetchLog) {
   const playerMap    = new Map();
   const runningStats = new Map();
   for (const entry of (fetchLog || [])) {
+    const gameMins = entry.t;
     for (const action of (entry.actions || [])) {
       if (action.v === undefined) continue;
       const key = pkeyAction(action);
@@ -245,7 +246,7 @@ function computeBursts(fetchLog) {
       if (!runningStats.has(key)) runningStats.set(key, {});
       const cur = runningStats.get(key);
       STAT_KEYS.forEach(k => { if (typeof action[k] === "number") cur[k] = action[k]; });
-      ps.series.push({ ts: entry.ts, value: action.v, q: entry.q, stats: { ...cur } });
+      ps.series.push({ ts: entry.ts, value: action.v, q: entry.q, gm: gameMins, stats: { ...cur } });
     }
   }
   const allWindows = [];
@@ -253,10 +254,12 @@ function computeBursts(fetchLog) {
     if (series.length < 2) continue;
     const candidates = [];
     for (let i = 0; i < series.length; i++) {
-      const winEnd = series[i].ts + BURST_WINDOW_MS;
+      if (series[i].gm == null) continue;
+      const winEnd = series[i].gm + BURST_WINDOW_MINS;
       let bestGain = 0, bestEndIdx = -1;
       for (let j = i + 1; j < series.length; j++) {
-        if (series[j].ts > winEnd) break;
+        if (series[j].gm == null) continue;
+        if (series[j].gm > winEnd) break;
         const gain = series[j].value - series[i].value;
         if (gain > bestGain) { bestGain = gain; bestEndIdx = j; }
       }

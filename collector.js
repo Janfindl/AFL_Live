@@ -8,10 +8,8 @@ const qs    = require("querystring");
 
 const GAME_MINS    = 120;
 const QUARTER_MINS = GAME_MINS / 4;
-const HOT_WINDOW_MS   = 10 * 60 * 1000;
-const QUIET_WINDOW_MS = 15 * 60 * 1000;
-const BURST_WINDOW_MS = 15 * 60 * 1000;
-const BURST_THRESHOLD = 15;
+const HOT_WINDOW_MINS   = 10; // game time minutes
+const QUIET_WINDOW_MINS = 15; // game time minutes
 const HISTORY_MAX     = 42;
 
 // ── Formula ───────────────────────────────────────────────────────────────────
@@ -382,8 +380,8 @@ process.on("SIGINT",  flushAndExit);
 const STAT_KEYS  = Object.keys(WEIGHTS);
 const BASIC_KEYS = ["K","HB","D","M","I50","R50","FF","FA"];
 
-function recordSnapshot(players, snapshotHistory) {
-  const snap = { ts: Date.now(), map: {} };
+function recordSnapshot(players, snapshotHistory, gameMins) {
+  const snap = { ts: Date.now(), gm: gameMins, map: {} };
   players.forEach(p => {
     const entry = { value: p.value };
     STAT_KEYS.forEach(k => { entry[k] = typeof p[k] === "number" ? p[k] : 0; });
@@ -393,21 +391,25 @@ function recordSnapshot(players, snapshotHistory) {
   if (snapshotHistory.length > HISTORY_MAX) snapshotHistory.shift();
 }
 
-function getRefSnapshot(windowMs, minTs = 0, snapshotHistory) {
+// Find reference snapshot by game time window (minutes), not wall clock
+function getRefSnapshot(windowMins, minTs = 0, snapshotHistory, currentGameMins) {
   if (snapshotHistory.length === 0) return null;
-  const targetTs  = Date.now() - windowMs;
+  const targetGm = (currentGameMins || 0) - windowMins;
   const inQuarter = snapshotHistory.filter(s => s.ts >= minTs);
   if (inQuarter.length === 0) return null;
-  const older = inQuarter.filter(s => s.ts <= targetTs);
+  // Find snapshots at or before the target game time
+  const older = inQuarter.filter(s => s.gm != null && s.gm <= targetGm);
   return older.length > 0 ? older[older.length - 1] : inQuarter[0];
 }
 
 // ── Burst detection ───────────────────────────────────────────────────────────
-// Top 10 best 15-min windows — each player's single best window, ranked by gain
+// Top 10 best 15-min windows (game time) — each player's best non-overlapping windows
+const BURST_WINDOW_MINS = 15;
 function computeBursts(fetchLog) {
   const playerMap    = new Map();
   const runningStats = new Map();
   for (const entry of (fetchLog || [])) {
+    const gameMins = entry.t; // elapsed game minutes
     for (const action of (entry.actions || [])) {
       if (action.v === undefined) continue;
       const key = pkeyAction(action);
@@ -417,20 +419,22 @@ function computeBursts(fetchLog) {
       if (!runningStats.has(key)) runningStats.set(key, {});
       const cur = runningStats.get(key);
       STAT_KEYS.forEach(k => { if (typeof action[k] === "number") cur[k] = action[k]; });
-      ps.series.push({ ts: entry.ts, value: action.v, q: entry.q, stats: { ...cur } });
+      ps.series.push({ ts: entry.ts, value: action.v, q: entry.q, gm: gameMins, stats: { ...cur } });
     }
   }
   // Find all non-overlapping best windows per player, then take global top 10
   const allWindows = [];
   for (const [key, { name, team, series }] of playerMap) {
     if (series.length < 2) continue;
-    // Collect all candidate windows sorted by gain descending
+    // Collect all candidate windows sorted by gain descending (using game time)
     const candidates = [];
     for (let i = 0; i < series.length; i++) {
-      const winEnd = series[i].ts + BURST_WINDOW_MS;
+      if (series[i].gm == null) continue;
+      const winEndGm = series[i].gm + BURST_WINDOW_MINS;
       let bestGain = 0, bestEndIdx = -1;
       for (let j = i + 1; j < series.length; j++) {
-        if (series[j].ts > winEnd) break;
+        if (series[j].gm == null) continue;
+        if (series[j].gm > winEndGm) break;
         const gain = series[j].value - series[i].value;
         if (gain > bestGain) { bestGain = gain; bestEndIdx = j; }
       }
@@ -757,9 +761,8 @@ async function fetchRatings(mid) {
     p.rating            = calcRating(p.projectedValue);
   });
 
-  const hotRef        = getRefSnapshot(HOT_WINDOW_MS, 0, snapshotHistory);
-  const hotWindowMs   = hotRef ? Date.now() - hotRef.ts : 0;
-  const hotWindowMins = Math.round(hotWindowMs / 6000) / 10;
+  const hotRef        = getRefSnapshot(HOT_WINDOW_MINS, 0, snapshotHistory, el);
+  const hotWindowMins = hotRef && hotRef.gm != null && el != null ? Math.round((el - hotRef.gm) * 10) / 10 : 0;
 
   all.forEach(p => {
     const refEntry = hotRef ? (hotRef.map[pkey(p)] ?? null) : null;
@@ -767,9 +770,8 @@ async function fetchRatings(mid) {
     p.statContribs = statContributions(p, refEntry);
   });
 
-  const quietRef        = getRefSnapshot(QUIET_WINDOW_MS, 0, snapshotHistory);
-  const quietWindowMs   = quietRef ? Date.now() - quietRef.ts : 0;
-  const quietWindowMins = Math.round(quietWindowMs / 6000) / 10;
+  const quietRef        = getRefSnapshot(QUIET_WINDOW_MINS, 0, snapshotHistory, el);
+  const quietWindowMins = quietRef && quietRef.gm != null && el != null ? Math.round((el - quietRef.gm) * 10) / 10 : 0;
   const quietWindowFrac = quietWindowMins / GAME_MINS;
 
   const isFullTimeNow = gameTime?.isFullTime === true;
@@ -794,7 +796,7 @@ async function fetchRatings(mid) {
     p.quietStatContribs = statContributions(p, refEntry);
   });
 
-  if (!isStatCorrection) recordSnapshot(all, snapshotHistory);
+  if (!isStatCorrection) recordSnapshot(all, snapshotHistory, el);
 
   if (currentQ !== null && currentQ !== state.trackedQuarter) {
     if (state.trackedQuarter !== null && state.quarterBaseline !== null) {
