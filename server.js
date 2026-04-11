@@ -64,7 +64,7 @@ function weightedTeamRatings(allPlayers, teams) {
     const q3 = sorted.slice(qSize * 2, qSize * 3);
     const q4 = sorted.slice(qSize * 3);
     const avg = arr => arr.length ? arr.reduce((s, p) => s + (p.rating || 0), 0) / arr.length : 0;
-    return +((avg(q1) * 4 + avg(q2) * 3 + avg(q3) * 2 + avg(q4) * 1) / 10).toFixed(1);
+    return +((avg(q1) * 10 + avg(q2) * 5 + avg(q3) * 2.5 + avg(q4) * 1.25) / 10).toFixed(1);
   }
   const result = {};
   for (const tm of teams) {
