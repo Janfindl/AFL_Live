@@ -254,7 +254,18 @@ const STAT_KEYS = Object.keys(WEIGHTS);
 function computeBursts(fetchLog) {
   const playerMap    = new Map();
   const runningStats = new Map();
+  // Compute play-time (pt) per fetch entry: cumulative game-clock advance,
+  // excluding quarter breaks.
+  let pt = 0;
+  let prevFetch = null;
   for (const entry of (fetchLog || [])) {
+    if (prevFetch && entry.q != null && prevFetch.q != null
+        && entry.q === prevFetch.q
+        && entry.t != null && prevFetch.t != null) {
+      const dt = entry.t - prevFetch.t;
+      if (dt > 0) pt += dt;
+    }
+    const entryPt = pt;
     const gameMins = entry.t;
     for (const action of (entry.actions || [])) {
       if (action.v === undefined) continue;
@@ -266,27 +277,26 @@ function computeBursts(fetchLog) {
       const cur = runningStats.get(key);
       STAT_KEYS.forEach(k => { if (typeof action[k] === "number") cur[k] = action[k]; });
       const lastEntry = ps.series.length > 0 ? ps.series[ps.series.length - 1] : null;
-      if (!lastEntry || gameMins == null || lastEntry.gm == null || gameMins > lastEntry.gm) {
-        ps.series.push({ ts: entry.ts, value: action.v, q: entry.q, gm: gameMins, stats: { ...cur } });
+      if (!lastEntry || entryPt > lastEntry.pt || lastEntry.q !== entry.q) {
+        ps.series.push({ ts: entry.ts, value: action.v, q: entry.q, gm: gameMins, pt: entryPt, stats: { ...cur } });
       } else {
         lastEntry.value = action.v;
         lastEntry.stats = { ...cur };
         lastEntry.ts = entry.ts;
+        lastEntry.gm = gameMins;
       }
     }
+    prevFetch = entry;
   }
   const allWindows = [];
   for (const [key, { name, team, series }] of playerMap) {
     if (series.length < 2) continue;
     const candidates = [];
     for (let i = 0; i < series.length; i++) {
-      if (series[i].gm == null) continue;
-      const winEnd = series[i].gm + BURST_WINDOW_MINS;
+      const winEnd = series[i].pt + BURST_WINDOW_MINS;
       let bestGain = 0, bestEndIdx = -1;
       for (let j = i + 1; j < series.length; j++) {
-        if (series[j].gm == null) continue;
-        if (series[j].gm > winEnd) break;
-        if (series[j].q !== series[i].q) break; // don't span quarter breaks
+        if (series[j].pt > winEnd) break;
         const gain = series[j].value - series[i].value;
         if (gain > bestGain) { bestGain = gain; bestEndIdx = j; }
       }
@@ -314,6 +324,8 @@ function computeBursts(fetchLog) {
         endTs:   series[c.ei].ts,
         startGm: series[c.si].gm,
         endGm:   series[c.ei].gm,
+        startQ:  series[c.si].q,
+        endQ:    series[c.ei].q,
         gain:    Math.round(c.gain * 100) / 100,
         quarter: series[c.si].q,
         statContribs,
@@ -381,6 +393,7 @@ function buildCachedResponse(cached, mid) {
     momentum:        cached.momentum     || [],
     scoreEvents:     cached.scoreEvents  || [],
     quarterStartTs:  cached.quarterStartTs || {},
+    estimatedQMins:  cached.estimatedQMins || {},
     bursts:          computeBursts(mid ? loadFetches(mid) : (cached.fetches || [])),
     summary,
     fetchedAt:       new Date().toISOString(),

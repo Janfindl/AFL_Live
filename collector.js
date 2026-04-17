@@ -74,6 +74,41 @@ function calculateValue(p, elapsedFrac = 1) {
   return Math.round(v * 100) / 100;
 }
 
+// ── Estimated quarter length formula ──────────────────────────────────────────
+// T = 26.0 + 0.67 * G + 0.30 * B  (both teams combined)
+// Baseline 26 min = 20 min playing time + ~6 min from non-scoring stoppages
+function estimateQMins(totalG, totalB) {
+  return 26.0 + 0.67 * totalG + 0.30 * totalB;
+}
+
+// Compute estimated quarter lengths from completedQuarters and current live scoring
+function computeEstimatedQMins(completedQuarters, allPlayers, currentQ) {
+  const est = {};
+  // Completed quarters: sum G and B from per-player stat deltas
+  for (const [q, qData] of Object.entries(completedQuarters || {})) {
+    let totalG = 0, totalB = 0;
+    for (const entry of Object.values(qData)) {
+      if (typeof entry === "object" && entry !== null) {
+        totalG += entry.G || 0;
+        totalB += entry.B || 0;
+      }
+    }
+    est[q] = Math.round(estimateQMins(totalG, totalB) * 100) / 100;
+  }
+  // Current quarter: sum G and B from live quarterDelta stats
+  if (currentQ && !est[currentQ]) {
+    let totalG = 0, totalB = 0;
+    for (const p of (allPlayers || [])) {
+      if (p.qStatDeltas) {
+        totalG += p.qStatDeltas.G || 0;
+        totalB += p.qStatDeltas.B || 0;
+      }
+    }
+    est[currentQ] = Math.round(estimateQMins(totalG, totalB) * 100) / 100;
+  }
+  return est;
+}
+
 // ── Game time ─────────────────────────────────────────────────────────────────
 function parseGameTime(sb) {
   if (!sb) return null;
@@ -86,8 +121,9 @@ function parseGameTime(sb) {
   if (!m) return null;
   const quarter  = parseInt(m[1], 10);
   const qClock   = parseInt(m[2], 10) + parseInt(m[3], 10) / 60;
-  const qElapsed = Math.min(qClock, QUARTER_MINS);
-  return { quarter, elapsedMins: (quarter - 1) * QUARTER_MINS + qElapsed };
+  // elapsedMins is uncapped — accurate clock for delta timestamps. The 30-min
+  // per-quarter cap is applied only at the ratings site.
+  return { quarter, elapsedMins: (quarter - 1) * QUARTER_MINS + qClock };
 }
 
 function projectValue(val, elapsedMins) {
@@ -408,8 +444,20 @@ const BURST_WINDOW_MINS = 15;
 function computeBursts(fetchLog) {
   const playerMap    = new Map();
   const runningStats = new Map();
+  // Compute play-time (pt) per fetch entry: cumulative game-clock advance,
+  // excluding quarter breaks. Within a quarter, pt advances with the game
+  // clock (entry.t delta). Across quarter boundaries, no pt is added.
+  let pt = 0;
+  let prevFetch = null;
   for (const entry of (fetchLog || [])) {
-    const gameMins = entry.t; // elapsed game minutes
+    if (prevFetch && entry.q != null && prevFetch.q != null
+        && entry.q === prevFetch.q
+        && entry.t != null && prevFetch.t != null) {
+      const dt = entry.t - prevFetch.t;
+      if (dt > 0) pt += dt;
+    }
+    const entryPt = pt;
+    const gameMins = entry.t; // elapsed game minutes (capped)
     for (const action of (entry.actions || [])) {
       if (action.v === undefined) continue;
       const key = pkeyAction(action);
@@ -419,32 +467,32 @@ function computeBursts(fetchLog) {
       if (!runningStats.has(key)) runningStats.set(key, {});
       const cur = runningStats.get(key);
       STAT_KEYS.forEach(k => { if (typeof action[k] === "number") cur[k] = action[k]; });
-      // Only record if game time advanced (skip frozen clock during breaks/time-on)
+      // Record a new snapshot when play time advances OR the quarter changes
+      // (so the Q-end and next-Q-start both exist as distinct snapshots).
       const lastEntry = ps.series.length > 0 ? ps.series[ps.series.length - 1] : null;
-      if (!lastEntry || gameMins == null || lastEntry.gm == null || gameMins > lastEntry.gm) {
-        ps.series.push({ ts: entry.ts, value: action.v, q: entry.q, gm: gameMins, stats: { ...cur } });
+      if (!lastEntry || entryPt > lastEntry.pt || lastEntry.q !== entry.q) {
+        ps.series.push({ ts: entry.ts, value: action.v, q: entry.q, gm: gameMins, pt: entryPt, stats: { ...cur } });
       } else {
-        // Clock frozen — update value/stats in place (latest stats at this game time)
+        // Play-time frozen within the same quarter — update in place
         lastEntry.value = action.v;
         lastEntry.stats = { ...cur };
         lastEntry.ts = entry.ts;
+        lastEntry.gm = gameMins;
       }
     }
+    prevFetch = entry;
   }
   // Find all non-overlapping best windows per player, then take global top 10
   const allWindows = [];
   for (const [key, { name, team, series }] of playerMap) {
     if (series.length < 2) continue;
-    // Collect all candidate windows sorted by gain descending (using game time)
+    // Collect all candidate windows sorted by gain descending (using play time)
     const candidates = [];
     for (let i = 0; i < series.length; i++) {
-      if (series[i].gm == null) continue;
-      const winEndGm = series[i].gm + BURST_WINDOW_MINS;
+      const winEndPt = series[i].pt + BURST_WINDOW_MINS;
       let bestGain = 0, bestEndIdx = -1;
       for (let j = i + 1; j < series.length; j++) {
-        if (series[j].gm == null) continue;
-        if (series[j].gm > winEndGm) break;
-        if (series[j].q !== series[i].q) break; // don't span quarter breaks
+        if (series[j].pt > winEndPt) break;
         const gain = series[j].value - series[i].value;
         if (gain > bestGain) { bestGain = gain; bestEndIdx = j; }
       }
@@ -473,6 +521,8 @@ function computeBursts(fetchLog) {
         endTs:   series[c.ei].ts,
         startGm: series[c.si].gm,
         endGm:   series[c.ei].gm,
+        startQ:  series[c.si].q,
+        endQ:    series[c.ei].q,
         gain:    Math.round(c.gain * 100) / 100,
         quarter: series[c.si].q,
         statContribs,
@@ -765,14 +815,18 @@ async function fetchRatings(mid) {
 
   if (all.length === 0) return;
 
-  const el          = gameTime ? gameTime.elapsedMins : null;
-  const elapsedFrac = el ? Math.min(el / GAME_MINS, 1) : 0;
+  const el          = gameTime ? gameTime.elapsedMins : null;       // uncapped — for timestamps
   const currentQ    = gameTime ? gameTime.quarter : null;
+  // Cap per-quarter elapsed at QUARTER_MINS for rating/projection calcs only.
+  const elForRating = (el != null && currentQ != null)
+    ? (currentQ - 1) * QUARTER_MINS + Math.min(el - (currentQ - 1) * QUARTER_MINS, QUARTER_MINS)
+    : el;
+  const elapsedFrac = elForRating ? Math.min(elForRating / GAME_MINS, 1) : 0;
 
   all.forEach(p => {
     p.value             = calculateValue(p, elapsedFrac);
-    const rawPv         = el ? projectValue(p.value, el) : p.value;
-    const fracElapsed   = el ? Math.min(el / GAME_MINS, 1) : 1;
+    const rawPv         = elForRating ? projectValue(p.value, elForRating) : p.value;
+    const fracElapsed   = elForRating ? Math.min(elForRating / GAME_MINS, 1) : 1;
     const prevPv        = fracElapsed > 0 ? p.value / fracElapsed : rawPv;
     p.projectedValue    = Math.round((rawPv + prevPv) / 2 * 100) / 100;
     p.rating            = calcRating(p.projectedValue);
@@ -1018,6 +1072,8 @@ async function fetchRatings(mid) {
     return s;
   });
 
+  const estimatedQMins = computeEstimatedQMins(state.completedQuarters, all, currentQ);
+
   saveGameData(mid, {
     // Full pre-computed API response fields
     inProgress:      basicData.inProgress === "Y",
@@ -1025,6 +1081,7 @@ async function fetchRatings(mid) {
     matchInfo,
     elapsedMins:     el,
     quarter:         currentQ,
+    estimatedQMins,
     players:         savedPlayers,
     hot5:            hot5.map(p => { const s = { ...p }; return s; }),
     quiet5:          quiet5.map(p => { const s = { ...p }; return s; }),
