@@ -1008,18 +1008,23 @@ async function fetchRatings(mid) {
       return e !== undefined ? e : null;
     }
     function liveEntry() { return { v: p.quarterDelta, ...p.qStatDeltas }; }
-    quarterLog[p.name] = {
+    // Key by jersey-qualified pk so surname collisions (e.g. C Warner #1 vs
+    // #37) don't overwrite each other. UI prefers pk lookup, falls back to
+    // name for legacy saved data.
+    const qlVal = {
       Q1: state.completedQuarters[1] ? cqv(cqEntry(1)) : (currentQ === 1 ? p.quarterDelta : null),
       Q2: state.completedQuarters[2] ? cqv(cqEntry(2)) : (currentQ === 2 ? p.quarterDelta : null),
       Q3: state.completedQuarters[3] ? cqv(cqEntry(3)) : (currentQ === 3 ? p.quarterDelta : null),
       Q4: state.completedQuarters[4] ? cqv(cqEntry(4)) : (currentQ === 4 ? p.quarterDelta : null),
     };
-    quarterStatLog[p.name] = {
+    const qslVal = {
       Q1: state.completedQuarters[1] ? cqEntry(1) : (currentQ === 1 ? liveEntry() : null),
       Q2: state.completedQuarters[2] ? cqEntry(2) : (currentQ === 2 ? liveEntry() : null),
       Q3: state.completedQuarters[3] ? cqEntry(3) : (currentQ === 3 ? liveEntry() : null),
       Q4: state.completedQuarters[4] ? cqEntry(4) : (currentQ === 4 ? liveEntry() : null),
     };
+    quarterLog[pk]     = qlVal;
+    quarterStatLog[pk] = qslVal;
   });
 
   applyModProjectedValue(all, state.completedQuarters);

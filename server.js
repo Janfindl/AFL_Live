@@ -91,28 +91,30 @@ function normalizeCompletedQuarters(completedQuarters) {
   }
 }
 
-// Rebuild quarterLog entries from (possibly repaired) completedQuarters.
+// Rebuild quarterLog entries (keyed by jersey-qualified pk) from
+// (possibly repaired) completedQuarters. Writing by pk avoids the
+// surname-collision bug where C Warner#1 and C Warner#37 shared a
+// "C Warner" key. Legacy name-only entries are left in place so the
+// UI's fallback still works for older saved games.
 function syncQuarterLogFromCompleted(data) {
-  if (!data || !data.completedQuarters || !data.quarterLog) return;
-  const nameKey = {};
+  if (!data || !data.completedQuarters) return;
+  if (!data.quarterLog) data.quarterLog = {};
+  if (!data.quarterStatLog) data.quarterStatLog = {};
+  // Collect every pk seen across quarters.
+  const pkSet = new Set();
   for (const q of [1, 2, 3, 4]) {
     const qData = data.completedQuarters[q];
     if (!qData) continue;
-    for (const pk of Object.keys(qData)) {
-      const name = pk.includes("#") ? pk.split("#")[0] : pk;
-      nameKey[name] = pk;
-    }
+    for (const pk of Object.keys(qData)) pkSet.add(pk);
   }
-  for (const name of Object.keys(data.quarterLog)) {
-    const pk = nameKey[name];
-    if (!pk) continue;
+  for (const pk of pkSet) {
+    if (!data.quarterLog[pk]) data.quarterLog[pk] = { Q1: null, Q2: null, Q3: null, Q4: null };
+    if (!data.quarterStatLog[pk]) data.quarterStatLog[pk] = { Q1: null, Q2: null, Q3: null, Q4: null };
     for (const q of [1, 2, 3, 4]) {
       const qData = data.completedQuarters[q];
       if (qData && qData[pk] && typeof qData[pk] === "object") {
-        data.quarterLog[name]["Q" + q] = qData[pk].v;
-        if (data.quarterStatLog?.[name]) {
-          data.quarterStatLog[name]["Q" + q] = { ...qData[pk] };
-        }
+        data.quarterLog[pk]["Q" + q] = qData[pk].v;
+        data.quarterStatLog[pk]["Q" + q] = { ...qData[pk] };
       }
     }
   }

@@ -2018,11 +2018,16 @@ function getQTop5ForQ(q, data) {
   if (!q || !data) return null;
   const key = `Q${q}`;
   const rows = (data.players || [])
-    .map(p => ({
-      ...p,
-      quarterDelta: data.quarterLog?.[p.name]?.[key] ?? null,
-      qStatDeltas:  data.quarterStatLog?.[p.name]?.[key] ?? null,
-    }))
+    .map(p => {
+      // Prefer jersey-keyed lookup (e.g. "C Warner#1") so surname collisions
+      // don't share the same quarterLog entry. Legacy files use name-only.
+      const pk = puid(p);
+      return {
+        ...p,
+        quarterDelta: data.quarterLog?.[pk]?.[key] ?? data.quarterLog?.[p.name]?.[key] ?? null,
+        qStatDeltas:  data.quarterStatLog?.[pk]?.[key] ?? data.quarterStatLog?.[p.name]?.[key] ?? null,
+      };
+    })
     .filter(p => p.quarterDelta !== null)
     .sort((a, b) => b.quarterDelta - a.quarterDelta)
     .slice(0, 10);
@@ -2097,7 +2102,7 @@ function renderQuarterLog(quarterLog, players) {
   if (!quarterLog || !players || players.length === 0) return;
   const QUARTERS = ["Q1","Q2","Q3","Q4"];
   const rows = players.map(p => {
-    const log  = quarterLog[p.name] || {};
+    const log  = quarterLog[puid(p)] || quarterLog[p.name] || {};
     const vals = QUARTERS.map(q => (log[q] !== null && log[q] !== undefined) ? log[q] : null);
     const total = vals.reduce((s, v) => s + (v ?? 0), 0);
     return { p, log, vals, total };
