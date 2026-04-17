@@ -1682,10 +1682,10 @@ function render(data) {
   document.getElementById("liveBadge").style.display = data.inProgress ? "" : "none";
 
   // Burst
-  renderBurst(data.bursts, data.quarterStartTs, data.estimatedQMins);
+  renderBurst(data.bursts, data.quarterStartTs);
 
   // Momentum
-  renderMomentum(data.momentum, data.teams, data.quarterStartTs, data.scoreEvents, data.estimatedQMins);
+  renderMomentum(data.momentum, data.teams, data.quarterStartTs, data.scoreEvents);
 
   // Best (top 10 on ground)
   renderBest(data.players);
@@ -1935,7 +1935,7 @@ function tsToGameTime(ts, quarterStartTs) {
   return `Q${quarter} ${mins}:${String(secs).padStart(2, "0")}`;
 }
 
-function renderBurst(bursts, quarterStartTs, estimatedQMins) {
+function renderBurst(bursts, quarterStartTs) {
   const el = document.getElementById("burstList");
   const filtered = (bursts || []).filter(b => b.gain >= 10);
   if (filtered.length === 0) {
@@ -1959,16 +1959,11 @@ function renderBurst(bursts, quarterStartTs, estimatedQMins) {
     const accent = col.accent || col.txt;
     const cardBg = i % 2 === 0 ? "#13181f" : "#0f1318";
     // Use game time if available, fall back to wall-clock conversion
-    // gm values from collector use fixed 30-min quarters; remap to estimated lengths
-    const eqm = estimatedQMins || {};
-    const _qLen = [eqm[1]||eqm["1"]||30, eqm[2]||eqm["2"]||30, eqm[3]||eqm["3"]||30, eqm[4]||eqm["4"]||30];
     function gmToQTime(gm, q) {
-      if (gm == null) return "\u2014";
-      // Prefer the explicit quarter; fall back to gm/30 for legacy data.
+      if (gm == null) return "—";
+      // Prefer explicit quarter; fall back to gm/30 for legacy data.
       const useQ = q != null ? q : Math.min(4, Math.floor(gm / 30) + 1);
-      const qClock = gm - (useQ - 1) * 30; // raw clock within the quarter (may exceed 30 during time-on)
-      const estQMins = _qLen[useQ - 1];
-      const qMins = (qClock / 30) * estQMins; // rescale to estimated quarter length
+      const qMins = gm - (useQ - 1) * 30;
       const m = Math.floor(qMins);
       const s = Math.round((qMins - m) * 60);
       return `Q${useQ} ${m}:${String(s).padStart(2, "0")}`;
@@ -2142,7 +2137,7 @@ function renderQuarterLog(quarterLog, players) {
 }
 
 // ── Momentum chart ────────────────────────────────────────────────────────────
-function renderMomentum(momentum, teams, quarterStartTs, scoreEvents, estimatedQMins) {
+function renderMomentum(momentum, teams, quarterStartTs, scoreEvents) {
   const el = document.getElementById("momentumChart");
   const [t1, t2] = teams;
   const c1 = resolvedColor(t1).accent, c2 = resolvedColor(t2).accent;
@@ -2160,18 +2155,9 @@ function renderMomentum(momentum, teams, quarterStartTs, scoreEvents, estimatedQ
   const chartH  = H - LABEL_H - SCORE_H; // bar area height = 76
   const midY    = LABEL_H + chartH / 2;  // centre line y = 52
 
-  // Variable quarter lengths from scoring formula: T = 26.0 + 0.67*G + 0.30*B
-  // Falls back to 30 min per quarter if no estimates available
-  const eqm = estimatedQMins || {};
-  const qLen = [
-    eqm[1] || eqm["1"] || 30,
-    eqm[2] || eqm["2"] || 30,
-    eqm[3] || eqm["3"] || 30,
-    eqm[4] || eqm["4"] || 30,
-  ];
-  // Cumulative quarter start offsets in game-minutes
-  const qStart = [0, qLen[0], qLen[0]+qLen[1], qLen[0]+qLen[1]+qLen[2]];
-  const GAME_MINS = qLen[0] + qLen[1] + qLen[2] + qLen[3];
+  // Compressed game-time axis: each quarter = 25% of chart width, breaks collapsed
+  const Q_MINS    = 30;
+  const GAME_MINS = 120;
   const BIN_MS    = 2 * 60 * 1000;
   const gameStartTs = (quarterStartTs && quarterStartTs[1]) ? quarterStartTs[1] : momentum[0].ts;
 
@@ -2180,17 +2166,16 @@ function renderMomentum(momentum, teams, quarterStartTs, scoreEvents, estimatedQ
     .map(([q, t]) => [Number(q), t])
     .sort((a, b) => a[0] - b[0]);
 
-  // Map real timestamp → game-time minutes (quarter breaks collapsed, variable quarter lengths)
+  // Map real timestamp → game-time minutes (quarter breaks collapsed)
   function tsToGameMins(ts) {
-    let quarter = 1, qStartTs = gameStartTs;
+    let quarter = 1, qStart = gameStartTs;
     for (const [q, t] of qSorted) {
-      if (ts >= t) { quarter = q; qStartTs = t; }
+      if (ts >= t) { quarter = q; qStart = t; }
     }
     const nextQ    = qSorted.find(([q]) => q === quarter + 1);
-    const qEndTs   = nextQ ? nextQ[1] : Infinity;
-    const thisQLen = qLen[quarter - 1] || 30;
-    const elapsed  = Math.max(0, Math.min(ts, qEndTs) - qStartTs) / 60000;
-    return qStart[quarter - 1] + Math.min(elapsed, thisQLen);
+    const qEnd     = nextQ ? nextQ[1] : Infinity;
+    const elapsed  = Math.max(0, Math.min(ts, qEnd) - qStart) / 60000;
+    return (quarter - 1) * Q_MINS + Math.min(elapsed, Q_MINS);
   }
 
   const tsToX = ts => Math.max(0, Math.min(W, tsToGameMins(ts) / GAME_MINS * W));
@@ -2221,15 +2206,15 @@ function renderMomentum(momentum, teams, quarterStartTs, scoreEvents, estimatedQ
     }
   }
 
-  // Drop bins that fall in quarter breaks (elapsed > estimated quarter length + buffer).
-  // Break-period stat adjustments would all clamp to the quarter boundary, causing bar pile-up.
+  // Drop bins that fall in quarter breaks (elapsed > 40 mins in their quarter).
+  // Break-period stat adjustments have elapsed > Q_MINS and would all clamp to the
+  // same x position (the quarter boundary), causing bar pile-up.
   const playBins = bins.filter(b => {
-    let q = 1, qStartTs = gameStartTs;
-    for (const [qn, t] of qSorted) { if (b.binStart >= t) { q = qn; qStartTs = t; } }
+    let q = 1, qStart = gameStartTs;
+    for (const [qn, t] of qSorted) { if (b.binStart >= t) { q = qn; qStart = t; } }
     const nextQ = qSorted.find(([qn]) => qn === q + 1);
     if (!nextQ) return true; // Q4 — no following break, always keep
-    const thisQLen = qLen[q - 1] || 30;
-    return (b.binStart - qStartTs) / 60000 < thisQLen + 10; // estimated length + 10 min buffer
+    return (b.binStart - qStart) / 60000 < Q_MINS + 10; // 40-min cutoff (30 + 10 time-on buffer)
   });
 
   const nets   = playBins.map(b => b.homeVal - b.awayVal);
@@ -2297,4 +2282,243 @@ function renderMomentum(momentum, teams, quarterStartTs, scoreEvents, estimatedQ
   const leaderC    = totalNet >= 0 ? c1 : c2;
   const leaderAbbr = teamAbbr(totalNet >= 0 ? t1 : t2);
 
-  e
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+    ${bars}
+    <line x1="0" y1="${midY}" x2="${W}" y2="${midY}" stroke="#30363d" stroke-width="1"/>
+    ${qMarkers}
+    ${qWinLabels}
+    <text x="${W-4}" y="${midY-4}" text-anchor="end"
+          fill="${leaderC}" font-size="11" font-family="sans-serif" font-weight="800"
+          >${leaderAbbr}</text>
+    <line x1="0" y1="${H - SCORE_H}" x2="${W}" y2="${H - SCORE_H}" stroke="#30363d" stroke-width="0.5"/>
+    ${scoreMarkers}
+  </svg>`;
+}
+
+// ── Table helpers ─────────────────────────────────────────────────────────────
+function getFiltered(players) {
+  if (!currentData) return players;
+  const [t1,t2] = currentData.teams;
+  return players.filter(p => {
+    if (activeTeam==="t1" && p.team!==t1) return false;
+    if (activeTeam==="t2" && p.team!==t2) return false;
+    return true;
+  });
+}
+function getSorted(players) {
+  return [...players].sort((a,b) => {
+    let av=a[sortCol]??0, bv=b[sortCol]??0;
+    if(typeof av==="string"){av=av.toLowerCase();bv=bv.toLowerCase()}
+    const primary = av<bv ? sortDir : av>bv ? -sortDir : 0;
+    if (primary !== 0) return primary;
+    // Tiebreaker: descending value when sorting by rating, otherwise no secondary sort
+    if (sortCol === "rating") return (b.value??0) - (a.value??0);
+    return 0;
+  });
+}
+
+const RATING_COLORS = [
+  "#CC0000","#FF0000","#FF6600","#FFCC00","#CCCC00",
+  "#99CC00","#33CC66","#33CCCC","#33CCFF","#fb7185"
+];
+// Mapping: 10→[9], 9.0-9.5→[8], 8.0-8.5→[7], … 2.0-2.5→[1], 0-1.5→[0]
+function ratingColor(r) {
+  if (r >= 10) return RATING_COLORS[9];
+  if (r <  2)  return RATING_COLORS[0];
+  return RATING_COLORS[Math.floor(r) - 1];
+}
+function ratingPill(r) {
+  const c = ratingColor(r);
+  return `<span class="pill" style="background:${c}28;color:${c};border:1px solid ${c}55">${r.toFixed(1)} ★</span>`;
+}
+
+function chgBadge(p) {
+  const prev = prevValues[puid(p)];
+  if (prev === undefined) return `<span class="chg chg-new">● new</span>`;
+  const d = p.value - prev;
+  if (Math.abs(d) < 0.05) return `<span style="color:#3d4550;font-size:10px">—</span>`;
+  const sign=d>0?"+":"", cls=d>0?"chg-up":"chg-dn", arr=d>0?"▲":"▼";
+  return `<span class="chg ${cls}">${arr}${sign}${d.toFixed(1)}</span>`;
+}
+
+function nc(v, isTO=false) {
+  if(!v||v===0) return `<td class="zero">0</td>`;
+  if(isTO&&v>0) return `<td class="neg">${v}</td>`;
+  return `<td>${v}</td>`;
+}
+
+// ── Best (top 10 on ground) ───────────────────────────────────────────────────
+function renderBest(players) {
+  const el = document.getElementById("bestList");
+  if (!players || players.length === 0) return;
+  const top10 = [...players].sort((a, b) => b.value - a.value).slice(0, 10);
+  const oldPosBest = capturePositions(el, '.hc-card[data-key]');
+  el.innerHTML = top10.map((p, i) => {
+    const col  = resolvedColor(p.team);
+    const abbr = teamAbbr(p.team);
+    const rc   = ratingColor(p.rating);
+    const cardBg = i % 2 === 0 ? '#13181f' : '#0f1318';
+    return `<div class="hc-card" data-key="${esc(puid(p))}" style="background:${cardBg}">
+      <div class="hc-glow" style="background:${col.accent}"></div>
+      <div class="hc-rank-wrap">
+        <div class="hc-rank" style="background:${teamPillStyle(p.team).bg};color:${teamPillStyle(p.team).txt}">${i + 1}</div>
+      </div>
+      <div class="hc-info">
+        <div class="hc-name" style="color:${col.txt}">${esc(p.name)}</div>
+        <div class="hc-meta">
+          <span class="hc-team" style="background:${teamPillStyle(p.team).bg};color:${teamPillStyle(p.team).txt};${teamPillStyle(p.team).border?`border:${teamPillStyle(p.team).border}`:''}">${abbr}</span>
+          ${ratingPill(p.rating)}
+        </div>
+        <div class="hc-stats">${statChips(p.statContribs, true, p.name, true)}</div>
+        ${pvMatchStats(p)}
+      </div>
+      <div class="hc-right">
+        <div class="hc-delta" style="color:${rc}">${p.value.toFixed(1)}</div>
+        <div class="hc-delta-sub">value</div>
+        <div style="font-size:11px;color:${rc};font-weight:700;margin-top:3px">▶ ${p.projectedValue.toFixed(1)}</div>
+      </div>
+    </div>`;
+  }).join("");
+  flipAnimate(el, '.hc-card[data-key]', oldPosBest);
+  applyFlash(el);
+}
+
+function qValColor(v) {
+  if (v === null || v === undefined) return null;
+  // Map 0–12 onto RATING_COLORS index 0–9 (red→blue); negatives clamp to red
+  const idx = Math.min(9, Math.max(0, Math.floor(v * 9 / 12)));
+  return RATING_COLORS[idx];
+}
+
+function renderTable(players, quarterLog) {
+  const rows = getSorted(getFiltered(players));
+  if (!rows.length) {
+    tbody.innerHTML=`<tr><td colspan="24" style="text-align:center;padding:24px;color:#8b949e">No players match</td></tr>`;
+    return;
+  }
+  const oldPos = capturePositions(tbody, 'tr[data-key]');
+  const QUARTERS = ["Q1","Q2","Q3","Q4"];
+  tbody.innerHTML = rows.map(p => {
+    const col  = resolvedColor(p.team);
+    const abbr = teamAbbr(p.team);
+    const rc   = ratingColor(p.rating);
+    const barW = (p.rating / 10 * 100).toFixed(0);
+    const qLog = (quarterLog || {})[p.name] || {};
+    const qCells = QUARTERS.map(q => {
+      const v = (qLog[q] !== null && qLog[q] !== undefined) ? qLog[q] : null;
+      if (v === null) return `<td class="zero">—</td>`;
+      const color = qValColor(v);
+      const sign  = v >= 0 ? "+" : "";
+      return `<td style="color:${color};font-weight:700;font-variant-numeric:tabular-nums">${sign}${v.toFixed(1)}</td>`;
+    }).join("");
+    return `<tr data-key="${esc(puid(p))}">
+      <td class="left rnk">${p.rank}</td>
+      <td class="rtg-cell">${ratingPill(p.rating)}</td>
+      <td class="left">
+        <span class="pname">${esc(p.name)}</span>
+        <span class="ttag" style="background:${teamPillStyle(p.team).bg};color:${teamPillStyle(p.team).txt};${teamPillStyle(p.team).border?`border:${teamPillStyle(p.team).border}`:''}">${abbr}</span>
+      </td>
+      <td>${chgBadge(p)}</td>
+      ${nc(p.ED)}${nc(p.CP)}${nc(p.CM)}${nc(p.MG)}${nc(p["1%"])}${nc(p.T)}${nc(p.HO)}
+      ${nc(p.TO,true)}${nc(p.CG,true)}${nc(p.ITC)}${nc(p.G)}${nc(p.B)}${nc(p.SI)}${nc(p.GA)}
+      ${qCells}
+      <td>${p.value.toFixed(1)}</td>
+      <td style="color:${rc};font-weight:700">${p.projectedValue.toFixed(1)}</td>
+    </tr>`;
+  }).join("");
+  flipAnimate(tbody, 'tr[data-key]', oldPos);
+}
+
+const basicBody = document.getElementById("basicBody");
+function renderBasicTable(players) {
+  const rows = getSorted(getFiltered(players));
+  if (!rows.length) {
+    basicBody.innerHTML=`<tr><td colspan="20" style="text-align:center;padding:24px;color:#8b949e">No players match</td></tr>`;
+    return;
+  }
+  const oldPos = capturePositions(basicBody, 'tr[data-key]');
+  basicBody.innerHTML = rows.map(p => {
+    const col  = resolvedColor(p.team);
+    const abbr = teamAbbr(p.team);
+    const rc   = ratingColor(p.rating);
+    return `<tr data-key="${esc(puid(p))}">
+      <td class="left rnk">${p.rank}</td>
+      <td class="rtg-cell">${ratingPill(p.rating)}</td>
+      <td class="left">
+        <span class="pname">${esc(p.name)}</span>
+        <span class="ttag" style="background:${teamPillStyle(p.team).bg};color:${teamPillStyle(p.team).txt};${teamPillStyle(p.team).border?`border:${teamPillStyle(p.team).border}`:''}">${abbr}</span>
+      </td>
+      <td>${chgBadge(p)}</td>
+      ${nc(p.K)}${nc(p.HB)}${nc(p.D)}${nc(p.M)}${nc(p.G)}${nc(p.B)}${nc(p.T)}${nc(p.HO)}
+      ${nc(p.GA)}${nc(p.I50)}${nc(p.R50)}${nc(p.CG,true)}${nc(p.FF)}${nc(p.FA,true)}
+      <td>${p.value.toFixed(1)}</td>
+      <td style="color:${rc};font-weight:700">${p.projectedValue.toFixed(1)}</td>
+    </tr>`;
+  }).join("");
+  flipAnimate(basicBody, 'tr[data-key]', oldPos);
+}
+
+function esc(s){ return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+// ── Sort headers ──────────────────────────────────────────────────────────────
+document.querySelectorAll(".ctable thead th[data-col]").forEach(th => {
+  th.addEventListener("click", () => {
+    const col = th.dataset.col;
+    sortDir = sortCol===col ? sortDir*-1 : (col==="rank"||col==="name"?-1:1);
+    sortCol = col;
+    document.querySelectorAll(".ctable thead th").forEach(h=>h.classList.remove("sort-asc","sort-desc"));
+    // Highlight matching column in both tables
+    document.querySelectorAll(`.ctable thead th[data-col="${col}"]`).forEach(h=>h.classList.add(sortDir===1?"sort-desc":"sort-asc"));
+    renderActiveTable();
+  });
+});
+document.querySelector('.ctable thead th[data-col="value"]').classList.add("sort-desc");
+
+// ── Mobile panel tab switching ────────────────────────────────────────────────
+(function(){
+  const panelCols = document.querySelectorAll(".panel-col");
+  // Set first panel active by default for mobile
+  if (panelCols[0]) panelCols[0].classList.add("mob-active");
+  document.getElementById("mobilePanelTabs").addEventListener("click", e => {
+    const btn = e.target.closest(".mpanel-tab");
+    if (!btn) return;
+    document.querySelectorAll(".mpanel-tab").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    const idx = parseInt(btn.dataset.panel);
+    panelCols.forEach((col, i) => col.classList.toggle("mob-active", i === idx));
+  });
+})();
+
+// ── Filters ───────────────────────────────────────────────────────────────────
+function renderActiveTable() {
+  if (!currentData) return;
+  renderTable(currentData.players, currentData.quarterLog);
+  renderBasicTable(currentData.players);
+}
+document.getElementById("filterTabs").addEventListener("click", e => {
+  const b = e.target.closest(".ftab"); if(!b) return;
+  document.querySelectorAll(".ftab").forEach(x=>x.classList.remove("active"));
+  b.classList.add("active");
+  activeTeam = b.dataset.team;
+  renderActiveTable();
+});
+document.getElementById("viewToggle").addEventListener("click", e => {
+  const b = e.target.closest(".vtab"); if(!b) return;
+  document.querySelectorAll(".vtab").forEach(x=>x.classList.remove("active"));
+  b.classList.add("active");
+  activeView = b.dataset.view;
+  document.getElementById("mainTable").style.display  = activeView === "adv"   ? "" : "none";
+  document.getElementById("basicTable").style.display = activeView === "basic" ? "" : "none";
+  renderActiveTable();
+});
+
+// ── Countdown ─────────────────────────────────────────────────────────────────
+function tick() {
+  countdown--;
+  if(countdown<=0) countdown=REFRESH;
+  cdEl.textContent = countdown;
+  ringFill.style.strokeDashoffset = CIRC*(1-countdown/REFRESH);
+}
+</script>
+</body>
+</html>
