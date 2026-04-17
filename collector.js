@@ -574,6 +574,19 @@ function statContributions(player, refEntry) {
 // ── Reconstruct a player's per-quarter delta from the fetch log ──────────────
 function inferQDeltaFromLog(key, q, fetchLog) {
   if (!fetchLog.length) return null;
+  // If the collector started mid-game we have no pre-quarter reference for
+  // quarter q — its delta would be the accumulated cross-quarter value, which
+  // is bogus. Return null so the UI can show "no data" instead.
+  //   - baseline.q > q: we missed q entirely.
+  //   - baseline.q == q with qClock > 1 min: baseline landed mid-quarter.
+  // (baseline at the very start of a quarter — qClock ≈ 0 — is fine.)
+  const firstWithQ = fetchLog.find(e => e.q != null);
+  if (firstWithQ && firstWithQ.baseline) {
+    const bQ = firstWithQ.q;
+    const bQClock = firstWithQ.t != null ? firstWithQ.t - (bQ - 1) * 30 : 0;
+    if (bQ > q) return null;
+    if (bQ === q && bQClock > 1) return null;
+  }
   let cum          = {};
   let statsBeforeQ = null;
   let statsAtQEnd  = null;
@@ -710,27 +723,39 @@ function getState(mid) {
 
     if (state.trackedQuarter !== null) {
       const q        = state.trackedQuarter;
-      const runningQ = new Map();
-      let   baseline = null;
-      for (const logEntry of state.fetchLog) {
-        // Skip pre-game entries (q==null): inflated action.v pollutes baseline.
-        if (logEntry.q == null) continue;
-        if (logEntry.q === q && baseline === null) {
-          baseline = {};
-          for (const [key, cur] of runningQ) {
-            baseline[key] = { v: cur._v || 0 };
-            STAT_KEYS.forEach(k => { baseline[key][k] = cur[k] || 0; });
+      // If the baseline is mid-quarter of q, the rebuilt quarterBaseline would
+      // be empty (runningQ is empty before the baseline entry), producing bogus
+      // deltas. Leave state.quarterBaseline alone — the fetch-loop fallback at
+      // line ~886 will seed a per-player baseline from the current p.value the
+      // first time we observe each player, which is the best we can do.
+      const firstWithQ = state.fetchLog.find(e => e.q != null);
+      const baselineMidQuarter = firstWithQ && firstWithQ.baseline && (
+        firstWithQ.q > q || (firstWithQ.q === q &&
+          firstWithQ.t != null && (firstWithQ.t - (firstWithQ.q - 1) * 30) > 1)
+      );
+      if (!baselineMidQuarter) {
+        const runningQ = new Map();
+        let   baseline = null;
+        for (const logEntry of state.fetchLog) {
+          // Skip pre-game entries (q==null): inflated action.v pollutes baseline.
+          if (logEntry.q == null) continue;
+          if (logEntry.q === q && baseline === null) {
+            baseline = {};
+            for (const [key, cur] of runningQ) {
+              baseline[key] = { v: cur._v || 0 };
+              STAT_KEYS.forEach(k => { baseline[key][k] = cur[k] || 0; });
+            }
+          }
+          for (const action of (logEntry.actions || [])) {
+            const key = pkeyAction(action);
+            if (!runningQ.has(key)) runningQ.set(key, {});
+            const cur = runningQ.get(key);
+            if (typeof action.v === "number") cur._v = action.v;
+            STAT_KEYS.forEach(k => { if (typeof action[k] === "number") cur[k] = action[k]; });
           }
         }
-        for (const action of (logEntry.actions || [])) {
-          const key = pkeyAction(action);
-          if (!runningQ.has(key)) runningQ.set(key, {});
-          const cur = runningQ.get(key);
-          if (typeof action.v === "number") cur._v = action.v;
-          STAT_KEYS.forEach(k => { if (typeof action[k] === "number") cur[k] = action[k]; });
-        }
+        if (baseline !== null) state.quarterBaseline = baseline;
       }
-      if (baseline !== null) state.quarterBaseline = baseline;
     }
   }
   // ── Migrate name-only keys → name#jersey in completedQuarters & quarterBaseline
@@ -884,11 +909,9 @@ async function fetchRatings(mid) {
             const entry = { v: Math.round((p.value - base.v) * 100) / 100 };
             STAT_KEYS.forEach(k => { entry[k] = (p[k] || 0) - (base[k] || 0); });
             qData[pk] = entry;
-          } else {
-            const entry = { v: Math.round(p.value * 100) / 100 };
-            STAT_KEYS.forEach(k => { entry[k] = p[k] || 0; });
-            qData[pk] = entry;
           }
+          // else: no pre-quarter reference — skip this player for this quarter
+          // rather than writing p.value as a bogus delta.
         }
       });
       state.completedQuarters[state.trackedQuarter] = qData;
