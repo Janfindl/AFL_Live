@@ -28,6 +28,7 @@ try { commentary = require("./commentary"); } catch (e) { console.warn("[comment
 
 const PORT     = process.env.PORT || 3000;
 const GAME_MINS = 120;
+const QUARTER_MINS = 30;
 
 // ── Formula constants (needed for buildCachedResponse after /api/import) ─────
 const WEIGHTS = {
@@ -46,6 +47,76 @@ const WEIGHTS = {
   HO:   0.251832,
   CG:  -1.124769,
 };
+const CONSTANT = 9.257290;
+
+// Detect & repair completedQuarters entries that were saved as cumulative
+// stats (pre-fix bug when the collector restarted mid-game). Rewrites any
+// quarter whose stats are overwhelmingly >= the previous quarter's into
+// a proper per-quarter delta + recomputed v.
+function normalizeCompletedQuarters(completedQuarters) {
+  if (!completedQuarters) return;
+  const sKeys = Object.keys(WEIGHTS);
+  for (let q = 2; q <= 4; q++) {
+    const qData = completedQuarters[q];
+    const prevData = completedQuarters[q - 1];
+    if (!qData || !prevData) continue;
+    let ge = 0, lt = 0;
+    for (const pk of Object.keys(qData)) {
+      const entry = qData[pk], prev = prevData[pk];
+      if (!entry || typeof entry !== "object" || !prev || typeof prev !== "object") continue;
+      for (const k of sKeys) {
+        const e = entry[k] || 0, p = prev[k] || 0;
+        if (e === 0 && p === 0) continue;
+        if (e >= p) ge++; else lt++;
+      }
+    }
+    const total = ge + lt;
+    if (total < 50) continue;
+    if (ge / total < 0.7) continue;
+    const fixed = {};
+    for (const pk of Object.keys(qData)) {
+      const entry = qData[pk], prev = prevData[pk] || {};
+      if (!entry || typeof entry !== "object") { fixed[pk] = entry; continue; }
+      const out = {}; let statSum = 0;
+      for (const k of sKeys) {
+        const d = (entry[k] || 0) - (prev[k] || 0);
+        out[k] = d;
+        statSum += d * WEIGHTS[k];
+      }
+      out.v = Math.round((statSum + CONSTANT * (QUARTER_MINS / GAME_MINS)) * 100) / 100;
+      fixed[pk] = out;
+    }
+    completedQuarters[q] = fixed;
+    // Keep quarterLog in sync if it exists alongside
+  }
+}
+
+// Rebuild quarterLog entries from (possibly repaired) completedQuarters.
+function syncQuarterLogFromCompleted(data) {
+  if (!data || !data.completedQuarters || !data.quarterLog) return;
+  const nameKey = {};
+  for (const q of [1, 2, 3, 4]) {
+    const qData = data.completedQuarters[q];
+    if (!qData) continue;
+    for (const pk of Object.keys(qData)) {
+      const name = pk.includes("#") ? pk.split("#")[0] : pk;
+      nameKey[name] = pk;
+    }
+  }
+  for (const name of Object.keys(data.quarterLog)) {
+    const pk = nameKey[name];
+    if (!pk) continue;
+    for (const q of [1, 2, 3, 4]) {
+      const qData = data.completedQuarters[q];
+      if (qData && qData[pk] && typeof qData[pk] === "object") {
+        data.quarterLog[name]["Q" + q] = qData[pk].v;
+        if (data.quarterStatLog?.[name]) {
+          data.quarterStatLog[name]["Q" + q] = { ...qData[pk] };
+        }
+      }
+    }
+  }
+}
 
 // ── Player key: disambiguate players sharing a surname (e.g. C Warner / C Warner)
 function pkeyAction(a) { return a.j ? `${a.n}#${a.j}` : a.n; }
@@ -705,6 +776,9 @@ http.createServer(async (req, res) => {
         res.end(JSON.stringify({ error: "No data for this game" }));
         return;
       }
+      // Auto-repair legacy cumulative-stats completedQuarters and sync quarterLog.
+      normalizeCompletedQuarters(cached.completedQuarters);
+      syncQuarterLogFromCompleted(cached);
       const savedAt = cached.savedAt ? new Date(cached.savedAt).getTime() : 0;
       const isLive  = savedAt > 0 && (Date.now() - savedAt) < IN_PROGRESS_STALE_MS;
       cached.inProgress = isLive ? !!(cached.inProgress) : false;

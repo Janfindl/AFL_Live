@@ -668,9 +668,52 @@ function refreshFixture() {
 // ── Per-game state ────────────────────────────────────────────────────────────
 const gameStates = new Map();
 
+// Auto-repair completedQuarters entries that were saved as cumulative stats
+// (a pre-fix bug when the collector restarted mid-game). Detects a quarter
+// whose stats are overwhelmingly >= the previous quarter's stats — that's
+// the signature of cumulative-through-end rather than per-quarter delta —
+// and rewrites it as Q_delta = Q_cum - prev_cum, recomputing v.
+function normalizeCompletedQuarters(completedQuarters) {
+  if (!completedQuarters) return;
+  for (let q = 2; q <= 4; q++) {
+    const qData = completedQuarters[q];
+    const prevData = completedQuarters[q - 1];
+    if (!qData || !prevData) continue;
+    let ge = 0, lt = 0;
+    for (const pk of Object.keys(qData)) {
+      const entry = qData[pk], prev = prevData[pk];
+      if (!entry || typeof entry !== "object" || !prev || typeof prev !== "object") continue;
+      for (const k of STAT_KEYS) {
+        const e = entry[k] || 0, p = prev[k] || 0;
+        if (e === 0 && p === 0) continue;
+        if (e >= p) ge++; else lt++;
+      }
+    }
+    const total = ge + lt;
+    if (total < 50) continue;                // not enough signal
+    if (ge / total < 0.7) continue;          // already delta-like
+    console.log(`[repair] Q${q} looks cumulative (${ge}/${total} stats >= prev) — converting to delta`);
+    const fixed = {};
+    for (const pk of Object.keys(qData)) {
+      const entry = qData[pk], prev = prevData[pk] || {};
+      if (!entry || typeof entry !== "object") { fixed[pk] = entry; continue; }
+      const out = {}; let statSum = 0;
+      for (const k of STAT_KEYS) {
+        const d = (entry[k] || 0) - (prev[k] || 0);
+        out[k] = d;
+        statSum += d * WEIGHTS[k];
+      }
+      out.v = Math.round((statSum + CONSTANT * (QUARTER_MINS / GAME_MINS)) * 100) / 100;
+      fixed[pk] = out;
+    }
+    completedQuarters[q] = fixed;
+  }
+}
+
 function getState(mid) {
   if (gameStates.has(mid)) return gameStates.get(mid);
   const saved = loadGameData(mid);
+  if (saved?.completedQuarters) normalizeCompletedQuarters(saved.completedQuarters);
   const state = {
     trackedQuarter:    saved?.quarter          ?? null,
     quarterBaseline:   saved?.quarterBaseline  ?? null,
