@@ -529,6 +529,9 @@ function inferQDeltaFromLog(key, q, fetchLog) {
   let statsAtQEnd  = null;
   let inQ          = false;
   for (const entry of fetchLog) {
+    // Skip pre-game entries (q==null): their action.v includes an inflated
+    // CONSTANT term from the elapsedFrac fallback and pollutes the baseline.
+    if (entry.q == null) continue;
     if (entry.q === q && !inQ) {
       statsBeforeQ = { ...cum };
       inQ = true;
@@ -660,6 +663,8 @@ function getState(mid) {
       const runningQ = new Map();
       let   baseline = null;
       for (const logEntry of state.fetchLog) {
+        // Skip pre-game entries (q==null): inflated action.v pollutes baseline.
+        if (logEntry.q == null) continue;
         if (logEntry.q === q && baseline === null) {
           baseline = {};
           for (const [key, cur] of runningQ) {
@@ -761,7 +766,7 @@ async function fetchRatings(mid) {
   if (all.length === 0) return;
 
   const el          = gameTime ? gameTime.elapsedMins : null;
-  const elapsedFrac = el ? Math.min(el / GAME_MINS, 1) : 1;
+  const elapsedFrac = el ? Math.min(el / GAME_MINS, 1) : 0;
   const currentQ    = gameTime ? gameTime.quarter : null;
 
   all.forEach(p => {

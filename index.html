@@ -1881,8 +1881,7 @@ function renderHot(hot5, windowMins) {
 
 // ── Cold list ─────────────────────────────────────────────────────────────────
 function renderQuiet(quiet5, windowMins) {
-  document.getElementById("quietWindowLbl").textContent =
-    windowMins > 0 ? windowMins.toFixed(1) : "5";
+  document.getElementById("quietWindowLbl").textContent = "15";
   const el = document.getElementById("quietList");
   if (!quiet5 || quiet5.length === 0) {
     el.innerHTML = `<div style="padding:20px;text-align:center;color:#8b949e;font-size:11px">Building history…</div>`;
