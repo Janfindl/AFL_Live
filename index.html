@@ -1777,16 +1777,20 @@ function flipAnimate(container, selector, oldPos) {
 }
 
 // ── Stat chips ────────────────────────────────────────────────────────────────
-function statChips(contribs, isHot, playerName, hideEmpty) {
+function statChips(contribs, isHot, playerName, hideEmpty, ns) {
   if (!contribs || contribs.length === 0)
     return hideEmpty ? "" : `<span style="font-size:9px;color:#8b949e;font-style:italic">no activity</span>`;
+  // ns = 'w' (window — hot/cold), 'q' (quarter), 's' (season totals).
+  // Namespacing prevents the same chip key being read across panels with
+  // different delta sources.
+  const prefix = ns ? `_${ns}_` : '_w_';
   return contribs.slice(0, 5).map(c => {
     const sign    = c.delta >= 0 ? "+" : "";
     const ptsSign = c.contribution >= 0 ? "+" : "";
     const bg  = c.contribution > 0 ? "rgba(255,255,255,.1)" : "rgba(248,81,73,.18)";
     const col = c.contribution > 0 ? "#e6edf3"             : "#f85149";
     const dataAttrs = playerName
-      ? ` data-player="${esc(playerName)}" data-stat="_w_${c.stat}" data-value="${c.delta}" data-contrib="${c.contribution}"`
+      ? ` data-player="${esc(playerName)}" data-stat="${prefix}${c.stat}" data-value="${c.delta}" data-contrib="${c.contribution}"`
       : "";
     return `<span class="stat-chip" style="background:${bg};color:${col}"${dataAttrs}>
       ${sign}${c.delta}<span style="opacity:.8">${c.stat}</span>
@@ -1811,32 +1815,41 @@ function pvMatchStats(p) {
   }</div>`;
 }
 
-// For each chip whose value changed since last render, hold a solid
-// green/red highlight (no animation, no auto-removal). The highlight
-// persists until the next render rewrites the chip — at which point the
-// new chip only gets the highlight if its value also changed.
+// For each chip whose value changed since last refresh, hold a solid
+// green (value increased) / red (value decreased) highlight. The class
+// persists until the next refresh rewrites the chip; the new chip only
+// gets the highlight if its value also moved at that next refresh.
 function applyFlash(el) {
   el.querySelectorAll('[data-stat][data-player][data-value]').forEach(chip => {
     const player = chip.dataset.player;
     const stat   = chip.dataset.stat;
     const value  = parseFloat(chip.dataset.value);
-    const contrib = parseFloat(chip.dataset.contrib || '0');
-    const prev   = prevStatMap[player]?.[stat];
-    if (prev == null || value === prev) return;
-    chip.classList.add(contrib >= 0 ? 'stat-chip-pos' : 'stat-chip-neg');
+    // Very first render for this player: prevStatMap has no entry at all,
+    // so we skip the comparison (start state = no highlight).
+    if (!prevStatMap[player]) return;
+    const prev = prevStatMap[player][stat] ?? 0; // chip first appearance → treat as 0
+    if (value === prev) return;
+    chip.classList.add(value > prev ? 'stat-chip-pos' : 'stat-chip-neg');
   });
 }
 
 function updatePrevStatMap(players) {
+  // Walk every rendered chip and snapshot its current value. This catches
+  // every namespace the chip might use (_w_, _q_, _s_) regardless of which
+  // panel produced it. Next refresh's applyFlash compares against this.
+  document.querySelectorAll('[data-stat][data-player][data-value]').forEach(chip => {
+    const player = chip.dataset.player;
+    const stat   = chip.dataset.stat;
+    const value  = parseFloat(chip.dataset.value);
+    if (!prevStatMap[player]) prevStatMap[player] = {};
+    prevStatMap[player][stat] = value;
+  });
+  // Keep the player-totals snapshot (used by the Players table flash logic).
   for (const p of players) {
     const pk = puid(p);
     if (!prevStatMap[pk]) prevStatMap[pk] = {};
     for (const k of Object.keys(STAT_WEIGHTS)) {
       if (p[k] != null) prevStatMap[pk][k] = p[k];
-    }
-    // Also capture window deltas from statContribs
-    for (const c of (p.statContribs || [])) {
-      prevStatMap[pk][`_w_${c.stat}`] = c.delta;
     }
   }
 }
@@ -1867,7 +1880,7 @@ function renderHot(hot5, windowMins) {
         <div class="hc-meta">
           <span class="hc-team" style="background:${teamPillStyle(p.team).bg};color:${teamPillStyle(p.team).txt};${teamPillStyle(p.team).border?`border:${teamPillStyle(p.team).border}`:''}">${abbr}</span>
         </div>
-        <div class="hc-stats">${statChips(p.statContribs, true, p.name)}</div>
+        <div class="hc-stats">${statChips(p.statContribs, true, puid(p), false, 'w')}</div>
       </div>
       <div class="hc-right">
         <div class="hc-delta" style="color:${hotDeltaColor(delta)}">${sign}${delta.toFixed(1)}</div>
@@ -1908,7 +1921,7 @@ function renderQuiet(quiet5, windowMins) {
           <span class="hc-team" style="background:${teamPillStyle(p.team).bg};color:${teamPillStyle(p.team).txt};${teamPillStyle(p.team).border?`border:${teamPillStyle(p.team).border}`:''}">${abbr}</span>
           <span style="font-size:9px;color:#8b949e">exp&nbsp;+${exp.toFixed(1)}</span>
         </div>
-        <div class="hc-stats">${statChips(coldContribs, false, p.name)}</div>
+        <div class="hc-stats">${statChips(coldContribs, false, puid(p), false, 'w')}</div>
       </div>
       <div class="hc-right">
         <div class="hc-delta" style="color:${coldDeltaColor(qd)}">${sign}${qd.toFixed(1)}</div>
@@ -2085,7 +2098,7 @@ function renderQTop(qTop5, quarter) {
           <span class="hc-team" style="background:${teamPillStyle(p.team).bg};color:${teamPillStyle(p.team).txt};${teamPillStyle(p.team).border?`border:${teamPillStyle(p.team).border}`:''}">${abbr}</span>
           ${ratingPill(p.rating)}
         </div>
-        <div class="hc-stats">${statChips(contribs, true, p.name)}</div>
+        <div class="hc-stats">${statChips(contribs, true, puid(p), false, 'q')}</div>
       </div>
       <div class="hc-right">
         <div class="hc-delta" style="color:${rc}">${sign}${delta.toFixed(1)}</div>
@@ -2375,7 +2388,7 @@ function renderBest(players) {
           <span class="hc-team" style="background:${teamPillStyle(p.team).bg};color:${teamPillStyle(p.team).txt};${teamPillStyle(p.team).border?`border:${teamPillStyle(p.team).border}`:''}">${abbr}</span>
           ${ratingPill(p.rating)}
         </div>
-        <div class="hc-stats">${statChips(p.statContribs, true, p.name, true)}</div>
+        <div class="hc-stats">${statChips(p.statContribs, true, puid(p), true, 'w')}</div>
         ${pvMatchStats(p)}
       </div>
       <div class="hc-right">
