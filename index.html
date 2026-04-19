@@ -237,10 +237,10 @@ header{
   padding:2px 6px;border-radius:4px;font-size:9px;font-weight:700;white-space:nowrap;
 }
 .stat-chip-pts{font-size:8px;font-weight:400;opacity:.75}
-@keyframes flash-up  {0%{box-shadow:inset 0 0 0 100px rgba(34,197,94,.55)}80%{box-shadow:inset 0 0 0 100px rgba(34,197,94,.12)}100%{box-shadow:none}}
-@keyframes flash-down{0%{box-shadow:inset 0 0 0 100px rgba(248,81,73,.55)}80%{box-shadow:inset 0 0 0 100px rgba(248,81,73,.12)}100%{box-shadow:none}}
-.stat-flash-up  {animation:flash-up   5s ease-out forwards;border-radius:4px}
-.stat-flash-down{animation:flash-down 5s ease-out forwards;border-radius:4px}
+/* Persistent positive/negative chip highlight — held solid until the next
+   refresh re-renders the chip and re-evaluates the contribution sign. */
+.stat-chip-pos{background:rgba(34,197,94,.22)!important;color:#34d399!important;border-radius:4px}
+.stat-chip-neg{background:rgba(248,81,73,.22)!important;color:#f85149!important;border-radius:4px}
 .pv-match-stats{display:flex;flex-wrap:wrap;gap:3px;margin-top:5px}
 .pv-stat-chip{display:inline-flex;align-items:baseline;gap:2px;padding:2px 5px;border-radius:3px;font-size:9px;font-weight:700;background:rgba(255,255,255,.06);color:#e6edf3;white-space:nowrap}
 .hc-right{
@@ -1783,12 +1783,15 @@ function statChips(contribs, isHot, playerName, hideEmpty) {
   return contribs.slice(0, 5).map(c => {
     const sign    = c.delta >= 0 ? "+" : "";
     const ptsSign = c.contribution >= 0 ? "+" : "";
-    const bg  = c.contribution > 0 ? "rgba(255,255,255,.1)" : "rgba(248,81,73,.18)";
-    const col = c.contribution > 0 ? "#e6edf3"             : "#f85149";
+    // Hold green for positive contribution, red for negative — persists until
+    // the next refresh re-renders the chip.
+    const cls = c.contribution > 0 ? "stat-chip stat-chip-pos"
+              : c.contribution < 0 ? "stat-chip stat-chip-neg"
+              : "stat-chip";
     const dataAttrs = playerName
       ? ` data-player="${esc(playerName)}" data-stat="_w_${c.stat}" data-value="${c.delta}"`
       : "";
-    return `<span class="stat-chip" style="background:${bg};color:${col}"${dataAttrs}>
+    return `<span class="${cls}"${dataAttrs}>
       ${sign}${c.delta}<span style="opacity:.8">${c.stat}</span>
       <span class="stat-chip-pts">${ptsSign}${c.contribution.toFixed(1)}</span>
     </span>`;
@@ -1811,20 +1814,11 @@ function pvMatchStats(p) {
   }</div>`;
 }
 
-// Flash stat chips whose value has changed since last render
-function applyFlash(el) {
-  el.querySelectorAll('[data-stat][data-player][data-value]').forEach(chip => {
-    const player = chip.dataset.player;
-    const stat   = chip.dataset.stat;
-    const value  = parseFloat(chip.dataset.value);
-    const prev   = prevStatMap[player]?.[stat];
-    if (prev == null || value === prev) return;
-    chip.classList.remove('stat-flash-up', 'stat-flash-down');
-    void chip.offsetWidth; // force reflow to restart animation
-    chip.classList.add(value > 0 ? 'stat-flash-up' : 'stat-flash-down');
-    setTimeout(() => chip.classList.remove('stat-flash-up', 'stat-flash-down'), 5100);
-  });
-}
+// Stat chip highlights are now driven by the chip's contribution sign
+// (stat-chip-pos / stat-chip-neg in statChips()) and persist until the next
+// refresh re-renders. No animation needed — kept as a no-op so existing
+// callers (renderHot, renderQuiet, etc.) don't break.
+function applyFlash(_el) { /* no-op */ }
 
 function updatePrevStatMap(players) {
   for (const p of players) {
