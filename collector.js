@@ -1255,7 +1255,32 @@ console.log(`AFL Live Collector starting`);
 console.log(`Data directory → ${DATA_DIR}`);
 console.log(`GitHub repo    → ${GH_REPO || "(not configured — set GITHUB_TOKEN + GITHUB_REPO)"}`);
 
-syncFromGitHub()
+// Verify GitHub credentials up front so a missing/expired token or a token
+// without push rights is obvious in the logs — otherwise the collector records
+// games locally but silently fails to push them, and the website goes stale.
+async function verifyGitHubAuth() {
+  if (!GH_TOKEN || !GH_REPO) {
+    console.error("[github] ❌ NOT CONFIGURED — set GITHUB_TOKEN and GITHUB_REPO. Recorded games will NOT reach the website.");
+    return;
+  }
+  let r;
+  try { r = await ghRequest("GET", `/repos/${GH_REPO}`); }
+  catch (e) { console.error(`[github] ⚠ auth check failed: ${e.message}`); return; }
+  if (r.status === 200) {
+    const canPush = !!r.body?.permissions?.push;
+    console.log(`[github] ✅ auth OK — repo ${GH_REPO} (push=${canPush})`);
+    if (!canPush) console.error("[github] ⚠ token lacks push permission — pushes will fail (needs contents:write).");
+  } else if (r.status === 401) {
+    console.error("[github] ❌ HTTP 401 — GITHUB_TOKEN is invalid or EXPIRED. Regenerate it; data will not reach the website until fixed.");
+  } else if (r.status === 404) {
+    console.error(`[github] ❌ HTTP 404 — repo "${GH_REPO}" not found or token lacks access. Check GITHUB_REPO and token scope.`);
+  } else {
+    console.error(`[github] ⚠ unexpected HTTP ${r.status} verifying auth.`);
+  }
+}
+
+verifyGitHubAuth()
+  .then(syncFromGitHub)
   .catch(e => console.error("[github] startup sync failed:", e.message))
   .finally(() => {
     gameStates.clear();
