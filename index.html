@@ -632,6 +632,7 @@ header{
           <div class="team-card-name" id="c1name">—</div>
           <div class="team-card-gb"><span id="c1goals">—</span>.<span id="c1behinds">—</span></div>
           <div id="c1rat">—</div>
+          <div class="team-card-pressure" id="c1pressure" style="font-size:10px;margin-top:3px;line-height:1.3;letter-spacing:.2px"></div>
         </div>
         <div class="team-card-score" id="c1score">—</div>
         <img class="team-card-bg" id="c1bg" src="" alt="">
@@ -642,6 +643,7 @@ header{
           <div class="team-card-name" id="c2name">—</div>
           <div class="team-card-gb"><span id="c2goals">—</span>.<span id="c2behinds">—</span></div>
           <div id="c2rat">—</div>
+          <div class="team-card-pressure" id="c2pressure" style="font-size:10px;margin-top:3px;line-height:1.3;letter-spacing:.2px"></div>
         </div>
         <div class="team-card-score" id="c2score">—</div>
         <img class="team-card-bg" id="c2bg" src="" alt="">
@@ -1712,6 +1714,12 @@ function styleTeamCard(cardId, nameId, scoreId, ratId, goalsId, behindsId, name,
   document.getElementById(scoreId).textContent = sum.score ?? "—";
   document.getElementById(scoreId).style.color = pillTxt;
   document.getElementById(ratId).innerHTML     = ratingPill(sum.avgRating);
+  const pEl = document.getElementById(cardId === "card1" ? "c1pressure" : "c2pressure");
+  if (pEl) {
+    const fmtP = v => (v == null ? "—" : v.toFixed(2));
+    pEl.style.color = pillTxt;
+    pEl.innerHTML = `<span style="opacity:.7">PRESSURE</span> 5m ${fmtP(sum.pressure5)} · 10m ${fmtP(sum.pressure10)} · G ${fmtP(sum.pressureGame)}`;
+  }
   const gbEl = document.getElementById(goalsId).parentElement;
   if (gbEl) gbEl.style.color = pillTxt;
   document.getElementById(goalsId).textContent   = goals;

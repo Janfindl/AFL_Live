@@ -439,6 +439,7 @@ function recordSnapshot(players, snapshotHistory, gameMins) {
   players.forEach(p => {
     const entry = { value: p.value };
     STAT_KEYS.forEach(k => { entry[k] = typeof p[k] === "number" ? p[k] : 0; });
+    entry.D = typeof p.D === "number" ? p.D : 0; // disposals — for the Pressure metric window
     snap.map[pkey(p)] = entry;
   });
   snapshotHistory.push(snap);
@@ -454,6 +455,50 @@ function getRefSnapshot(windowMins, minTs = 0, snapshotHistory, currentGameMins)
   // Find snapshots at or before the target game time
   const older = inQuarter.filter(s => s.gm != null && s.gm <= targetGm);
   return older.length > 0 ? older[older.length - 1] : inQuarter[0];
+}
+
+// ── Pressure metric ───────────────────────────────────────────────────────────
+// Pressure(Team) = (Tackles[team] + Turnovers[opp]) / Disposals[opp].
+// Windowed over the last N game-minutes; "game" uses cumulative totals.
+function teamWindowStats(all, refMap) {
+  const acc = {};
+  let missingD = false;
+  for (const p of all) {
+    const tm = p.team;
+    if (!acc[tm]) acc[tm] = { D: 0, TO: 0, T: 0 };
+    let rD = 0, rTO = 0, rT = 0;
+    if (refMap) {
+      const e = refMap[pkey(p)];
+      if (e) {
+        if (e.D == null) missingD = true; // pre-upgrade snapshot without disposals
+        rD = e.D || 0; rTO = e.TO || 0; rT = e.T || 0;
+      }
+    }
+    acc[tm].D  += (p.D  || 0) - rD;
+    acc[tm].TO += (p.TO || 0) - rTO;
+    acc[tm].T  += (p.T  || 0) - rT;
+  }
+  return { acc, missingD };
+}
+function pressureVal(acc, team, opp) {
+  if (!acc[team] || !acc[opp]) return null;
+  const num = acc[team].T + acc[opp].TO; // tackles by team + turnovers forced on opp
+  const den = acc[opp].D;                // opposition disposals
+  return den > 0 ? Math.round((num / den) * 100) / 100 : null;
+}
+function computePressure(all, t1, t2, snapshotHistory, el) {
+  const out = { [t1]: {}, [t2]: {} };
+  const game = teamWindowStats(all, null).acc;
+  out[t1].game = pressureVal(game, t1, t2);
+  out[t2].game = pressureVal(game, t2, t1);
+  for (const [key, mins] of [["p5", 5], ["p10", 10]]) {
+    const ref = getRefSnapshot(mins, 0, snapshotHistory, el);
+    const { acc, missingD } = teamWindowStats(all, ref ? ref.map : null);
+    const invalid = ref && missingD; // ref snapshot predates disposal tracking
+    out[t1][key] = invalid ? null : pressureVal(acc, t1, t2);
+    out[t2][key] = invalid ? null : pressureVal(acc, t2, t1);
+  }
+  return out;
 }
 
 // ── Burst detection ───────────────────────────────────────────────────────────
@@ -1088,6 +1133,7 @@ async function fetchRatings(mid) {
   }
 
   const teamRatings = weightedTeamRatings(all, [team1Name, team2Name]);
+  const pressure    = computePressure(all, team1Name, team2Name, snapshotHistory, el);
   const summary = {};
   for (const tm of [team1Name, team2Name]) {
     const tp = all.filter(p => p.team === tm);
@@ -1096,6 +1142,9 @@ async function fetchRatings(mid) {
       avgRating:    teamRatings[tm],
       avgProjected: +(tp.reduce((s, p) => s + p.projectedValue, 0) / (tp.length || 1)).toFixed(1),
       topPlayer:    tp[0] ? tp[0].name : "—",
+      pressure5:    pressure[tm].p5,
+      pressure10:   pressure[tm].p10,
+      pressureGame: pressure[tm].game,
     };
   }
 
