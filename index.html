@@ -1716,7 +1716,7 @@ function styleTeamCard(cardId, nameId, scoreId, ratId, goalsId, behindsId, name,
   document.getElementById(ratId).innerHTML     = ratingPill(sum.avgRating);
   const pEl = document.getElementById(cardId === "card1" ? "c1pressure" : "c2pressure");
   if (pEl) {
-    const fmtP = v => (v == null ? "—" : v.toFixed(2));
+    const fmtP = v => (v == null ? "—" : v.toFixed(1));
     pEl.style.color = pillTxt;
     pEl.innerHTML = `<span style="opacity:.7">PRESSURE</span> 5m ${fmtP(sum.pressure5)} · 10m ${fmtP(sum.pressure10)} · G ${fmtP(sum.pressureGame)}`;
   }

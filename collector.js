@@ -442,7 +442,6 @@ function recordSnapshot(players, snapshotHistory, gameMins) {
   players.forEach(p => {
     const entry = { value: p.value };
     STAT_KEYS.forEach(k => { entry[k] = typeof p[k] === "number" ? p[k] : 0; });
-    entry.D = typeof p.D === "number" ? p.D : 0; // disposals — for the Pressure metric window
     snap.map[pkey(p)] = entry;
   });
   snapshotHistory.push(snap);
@@ -461,45 +460,40 @@ function getRefSnapshot(windowMins, minTs = 0, snapshotHistory, currentGameMins)
 }
 
 // ── Pressure metric ───────────────────────────────────────────────────────────
-// Pressure(Team) = (Tackles[team] + Turnovers[opp]) / Disposals[opp].
+// Pressure(Team) = 450 * ((Tackles[team] * 2) + Turnovers[opp]) / EffDisposals[opp].
 // Windowed over the last N game-minutes; "game" uses cumulative totals.
 function teamWindowStats(all, refMap) {
   const acc = {};
-  let missingD = false;
   for (const p of all) {
     const tm = p.team;
-    if (!acc[tm]) acc[tm] = { D: 0, TO: 0, T: 0 };
-    let rD = 0, rTO = 0, rT = 0;
+    if (!acc[tm]) acc[tm] = { ED: 0, TO: 0, T: 0 };
+    let rED = 0, rTO = 0, rT = 0;
     if (refMap) {
       const e = refMap[pkey(p)];
-      if (e) {
-        if (e.D == null) missingD = true; // pre-upgrade snapshot without disposals
-        rD = e.D || 0; rTO = e.TO || 0; rT = e.T || 0;
-      }
+      if (e) { rED = e.ED || 0; rTO = e.TO || 0; rT = e.T || 0; }
     }
-    acc[tm].D  += (p.D  || 0) - rD;
+    acc[tm].ED += (p.ED || 0) - rED;
     acc[tm].TO += (p.TO || 0) - rTO;
     acc[tm].T  += (p.T  || 0) - rT;
   }
-  return { acc, missingD };
+  return acc;
 }
 function pressureVal(acc, team, opp) {
   if (!acc[team] || !acc[opp]) return null;
-  const num = acc[team].T + acc[opp].TO; // tackles by team + turnovers forced on opp
-  const den = acc[opp].D;                // opposition disposals
-  return den > 0 ? Math.round((num / den) * 100) / 100 : null;
+  const num = 450 * ((acc[team].T * 2) + acc[opp].TO);
+  const den = acc[opp].ED; // opposition effective disposals
+  return den > 0 ? Math.round((num / den) * 10) / 10 : null;
 }
 function computePressure(all, t1, t2, snapshotHistory, el) {
   const out = { [t1]: {}, [t2]: {} };
-  const game = teamWindowStats(all, null).acc;
+  const game = teamWindowStats(all, null);
   out[t1].game = pressureVal(game, t1, t2);
   out[t2].game = pressureVal(game, t2, t1);
   for (const [key, mins] of [["p5", 5], ["p10", 10]]) {
     const ref = getRefSnapshot(mins, 0, snapshotHistory, el);
-    const { acc, missingD } = teamWindowStats(all, ref ? ref.map : null);
-    const invalid = ref && missingD; // ref snapshot predates disposal tracking
-    out[t1][key] = invalid ? null : pressureVal(acc, t1, t2);
-    out[t2][key] = invalid ? null : pressureVal(acc, t2, t1);
+    const acc = teamWindowStats(all, ref ? ref.map : null);
+    out[t1][key] = pressureVal(acc, t1, t2);
+    out[t2][key] = pressureVal(acc, t2, t1);
   }
   return out;
 }
