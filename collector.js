@@ -115,9 +115,9 @@ function parseGameTime(sb) {
   if (!sb) return null;
   const title = (sb.match(/class="tbtitle"[^>]*>([\s\S]*?)<\/td>/i)||[])[1]||"";
   if (/full\s*time/i.test(title) || /final\s*scores?/i.test(title)) return { quarter: 4, elapsedMins: GAME_MINS, isFullTime: true };
-  if (/(?:three|3\w*)[\s-]*quarter\s*time/i.test(title))    return { quarter: 3, elapsedMins: 90 };
-  if (/half\s*time/i.test(title))                            return { quarter: 2, elapsedMins: 60 };
-  if (/quarter\s*time/i.test(title))                         return { quarter: 1, elapsedMins: 30 };
+  if (/(?:three|3\w*)[\s-]*quarter\s*time/i.test(title))    return { quarter: 3, elapsedMins: 90, isBreak: true };
+  if (/half\s*time/i.test(title))                            return { quarter: 2, elapsedMins: 60, isBreak: true };
+  if (/quarter\s*time/i.test(title))                         return { quarter: 1, elapsedMins: 30, isBreak: true };
   const m = sb.match(/(\d+)(?:st|nd|rd|th) Quarter\s+(\d+):(\d+)/i);
   if (!m) return null;
   const quarter  = parseInt(m[1], 10);
@@ -996,7 +996,10 @@ async function fetchRatings(mid) {
     p.quietStatContribs = statContributions(p, refEntry);
   });
 
-  if (!isStatCorrection) recordSnapshot(all, snapshotHistory, el);
+  // Skip snapshots during breaks (QT/HT/3QT) — the game clock is frozen, so break
+  // snapshots would flood the window buffer with same-game-minute entries and push
+  // out real play snapshots. Windows must reflect game minutes, not break time.
+  if (!isStatCorrection && !(gameTime && gameTime.isBreak)) recordSnapshot(all, snapshotHistory, el);
 
   if (currentQ !== null && currentQ !== state.trackedQuarter) {
     if (state.trackedQuarter !== null && state.quarterBaseline !== null) {
