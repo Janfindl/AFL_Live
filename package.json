@@ -1,6 +1,6 @@
 {
   "name": "afl-live-ratings",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "AFL live player ratings dashboard",
   "main": "server.js",
   "scripts": {
