@@ -460,7 +460,7 @@ function getRefSnapshot(windowMins, minTs = 0, snapshotHistory, currentGameMins)
 }
 
 // ── Pressure metric ───────────────────────────────────────────────────────────
-// Pressure(Team) = 450 * ((Tackles[team] * 2) + Turnovers[opp]) / EffDisposals[opp].
+// Pressure(Team) = 300 * ((Tackles[team] * 2) + Turnovers[opp]) / EffDisposals[opp].
 // Windowed over the last N game-minutes; "game" uses cumulative totals.
 function teamWindowStats(all, refMap) {
   const acc = {};
@@ -480,7 +480,7 @@ function teamWindowStats(all, refMap) {
 }
 function pressureVal(acc, team, opp) {
   if (!acc[team] || !acc[opp]) return null;
-  const num = 450 * ((acc[team].T * 2) + acc[opp].TO);
+  const num = 300 * ((acc[team].T * 2) + acc[opp].TO);
   const den = acc[opp].ED; // opposition effective disposals
   return den > 0 ? Math.round((num / den) * 10) / 10 : null;
 }
