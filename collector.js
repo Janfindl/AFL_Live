@@ -10,7 +10,8 @@ const GAME_MINS    = 120;
 const QUARTER_MINS = GAME_MINS / 4;
 const HOT_WINDOW_MINS   = 10; // game time minutes
 const QUIET_WINDOW_MINS = 15; // game time minutes
-const HISTORY_MAX     = 42;
+const HISTORY_MAX     = 80; // snapshots kept in memory (~19 game-min) — must exceed
+                            // the longest lookback window (quiet 15m, pressure 10m)
 
 // ── Formula ───────────────────────────────────────────────────────────────────
 const WEIGHTS = {
@@ -811,7 +812,7 @@ function getState(mid) {
         STAT_KEYS.forEach(k => { if (typeof action[k] === "number") cur[k] = action[k]; });
       }
       if (running.size > 0) {
-        const snap = { ts: logEntry.ts, map: {} };
+        const snap = { ts: logEntry.ts, gm: logEntry.t, map: {} };
         for (const [key, p] of running) {
           if (typeof p.value === "number") {
             const s = { value: p.value };
