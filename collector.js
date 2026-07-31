@@ -192,6 +192,24 @@ function parseTable(html, colMap) {
   return players;
 }
 
+// Parse a Head-to-Head / team-totals table: rows of [home, statistic, away].
+// Preserves Footywire's exact labels and displayed values (incl. "-", "%", ratios).
+function parseHeadToHead(html) {
+  if (!html) return [];
+  const out = [];
+  const rowRe = /<tr[^>]*class="(?:darkcolor|lightcolor)"[^>]*>([\s\S]*?)<\/tr>/g;
+  let m;
+  while ((m = rowRe.exec(html)) !== null) {
+    const cells = [];
+    const cellRe = /<td[^>]*>([\s\S]*?)<\/td>/g;
+    let c;
+    while ((c = cellRe.exec(m[1])) !== null)
+      cells.push(c[1].replace(/<[^>]+>/g, "").replace(/&nbsp;/g, "").trim());
+    if (cells.length >= 3 && cells[1]) out.push({ stat: cells[1], home: cells[0], away: cells[2] });
+  }
+  return out;
+}
+
 const BASIC_MAP = { _name: 1, K: 2, HB: 3, D: 4, M: 5, G: 6, B: 7, T: 8, HO: 9, GA: 10, I50: 11, R50: 12, CG: 13, FF: 15, FA: 16 };
 const ADV_MAP   = { _name: 1, CP: 2, UP: 3, ED: 4, "DE%": 5, CM: 6, UM: 7, "1%": 8, SI: 12, MG: 13, TO: 14, ITC: 15 };
 
@@ -1166,6 +1184,12 @@ async function fetchRatings(mid) {
     quarterStartTs:  state.quarterStartTs,
     bursts,
     summary,
+    // Footywire team-totals ("Head to Head") tables, captured verbatim every poll.
+    headToHead: {
+      teams:    [team1Name, team2Name],
+      basic:    parseHeadToHead(basicData.headToHead),
+      advanced: parseHeadToHead(advData.headToHead),
+    },
     // Internal state fields (for restart recovery)
     completedQuarters: state.completedQuarters,
     quarterBaseline:   state.quarterBaseline,
