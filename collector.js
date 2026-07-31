@@ -210,7 +210,10 @@ function parseHeadToHead(html) {
   return out;
 }
 
-const BASIC_MAP = { _name: 1, K: 2, HB: 3, D: 4, M: 5, G: 6, B: 7, T: 8, HO: 9, GA: 10, I50: 11, R50: 12, CG: 13, FF: 15, FA: 16 };
+// Data-row column order (verified live 2026-07-31): No(0) Player(1) K HB D M G B T
+// HO GA I50 FF FA CL CG R50 AF SC. Previously FF/FA/CL/CG/R50 were mis-indexed,
+// so "CG" (clangers, a rating input) was actually recording Frees Against.
+const BASIC_MAP = { _name: 1, K: 2, HB: 3, D: 4, M: 5, G: 6, B: 7, T: 8, HO: 9, GA: 10, I50: 11, FF: 12, FA: 13, CL: 14, CG: 15, R50: 16 };
 const ADV_MAP   = { _name: 1, CP: 2, UP: 3, ED: 4, "DE%": 5, CM: 6, UM: 7, "1%": 8, SI: 12, MG: 13, TO: 14, ITC: 15 };
 
 function mergeTeam(basicHtml, advHtml, teamName) {
