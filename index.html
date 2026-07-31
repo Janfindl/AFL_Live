@@ -1716,9 +1716,9 @@ function styleTeamCard(cardId, nameId, scoreId, ratId, goalsId, behindsId, name,
   document.getElementById(ratId).innerHTML     = ratingPill(sum.avgRating);
   const pEl = document.getElementById(cardId === "card1" ? "c1pressure" : "c2pressure");
   if (pEl) {
-    const fmtP = v => (v == null ? "—" : v.toFixed(1));
+    const fmtP = v => (v == null ? "—" : String(Math.round(v / 5) * 5)); // nearest 5, no decimals
     pEl.style.color = pillTxt;
-    pEl.innerHTML = `<span style="opacity:.7">PRESSURE</span> ${fmtP(sum.pressure10)}`;
+    pEl.innerHTML = `<span style="opacity:.7">PRESSURE</span> ${fmtP(sum.pressure10)} · <span style="opacity:.7">GAME</span> ${fmtP(sum.pressureGame)}`;
   }
   const gbEl = document.getElementById(goalsId).parentElement;
   if (gbEl) gbEl.style.color = pillTxt;
