@@ -1216,6 +1216,27 @@ function isAnyGameWindowActive() {
   return false;
 }
 
+// Detect live games WITHOUT the live_stats listing page (which now returns 503).
+// Take fixture games currently inside their time window and probe each mid's
+// data feed directly — the POST feed still works even though the listing does not.
+async function fetchLiveMidsFromFixture() {
+  const live = new Set();
+  if (!fixtureCache) return live;
+  const now = Date.now();
+  const PRE_MS = 10 * 60 * 1000, POST_MS = 210 * 60 * 1000;
+  const cands = [];
+  for (const round of fixtureCache.rounds)
+    for (const g of round.games)
+      if (g.dateTs && now >= g.dateTs - PRE_MS && now <= g.dateTs + POST_MS) cands.push(g.fw_id);
+  await Promise.allSettled(cands.map(async mid => {
+    try {
+      const d = await fetchFootywire("N", mid);
+      if (d && d.inProgress === "Y") live.add(Number(mid));
+    } catch (e) { /* transient — skip this tick */ }
+  }));
+  return live;
+}
+
 const autoRecording = new Set();
 
 async function autoRecordTick() {
@@ -1223,9 +1244,9 @@ async function autoRecordTick() {
   if (!isAnyGameWindowActive() && autoRecording.size === 0) return;
   let liveMids = new Set();
   try {
-    liveMids = await fetchLiveMidsFromFootywire();
+    liveMids = await fetchLiveMidsFromFixture();
   } catch(e) {
-    console.error(`[autoRecord] Footywire live detection failed: ${e.message}`);
+    console.error(`[autoRecord] live detection failed: ${e.message}`);
   }
   const tickNow    = Date.now();
   const candidates = new Set(liveMids);
