@@ -1882,19 +1882,23 @@ function renderFieldSections(t1, t2, s1, s2) {
   const pl = document.getElementById("tsPoleL"), pr = document.getElementById("tsPoleR");
   if (pl) pl.textContent = "◁ " + abbr(t1);
   if (pr) pr.textContent = abbr(t2) + " ▷";
-  document.querySelectorAll("#fieldSections .ts-vlbl.top").forEach(e => e.style.color = col1); // home
-  document.querySelectorAll("#fieldSections .ts-vlbl.bot").forEach(e => e.style.color = col2); // away
-  const setBar = (id, posT1) => {
+  const WHITE = "#ffffff", GREY = "#6e7681";
+  const applyBar = (id, posT1) => {
     const f = document.getElementById(id);
     if (!f) return;
-    const d = posT1 - 50; // >0 team1 leads (fill down), <0 team2 leads (fill up)
-    if (Math.abs(d) < 0.5) { f.style.height = "0%"; return; }
-    if (d > 0) { const h = Math.min(50, d);  f.style.top = "50%";      f.style.height = h + "%"; f.style.background = col1; }
-    else       { const h = Math.min(50, -d); f.style.top = (50 - h) + "%"; f.style.height = h + "%"; f.style.background = col2; }
+    const bar = f.parentElement;
+    const topEl = bar.querySelector(".ts-vlbl.top"), botEl = bar.querySelector(".ts-vlbl.bot");
+    const d = posT1 - 50; // >0 team1/home majority (fill down), <0 team2/away majority (fill up)
+    if (Math.abs(d) < 0.5) { f.style.height = "0%"; }
+    else if (d > 0) { const h = Math.min(50, d);  f.style.top = "50%";          f.style.height = h + "%"; f.style.background = col1; }
+    else            { const h = Math.min(50, -d); f.style.top = (50 - h) + "%"; f.style.height = h + "%"; f.style.background = col2; }
+    // label lights up own colour in majority, white if equal, grey if minority
+    if (topEl) topEl.style.color = Math.abs(d) < 0.5 ? WHITE : (d > 0 ? col1 : GREY);
+    if (botEl) botEl.style.color = Math.abs(d) < 0.5 ? WHITE : (d < 0 ? col2 : GREY);
   };
-  setBar("tvAtk", attackPos);
-  setBar("tvMid", midPos);
-  setBar("tvDef", defencePos);
+  applyBar("tvAtk", attackPos);
+  applyBar("tvMid", midPos);
+  applyBar("tvDef", defencePos);
 }
 
 // ── Delta colour scales ───────────────────────────────────────────────────────
