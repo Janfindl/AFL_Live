@@ -501,23 +501,16 @@ function computePressure(all, t1, t2, snapshotHistory, el) {
 
 // ── Field sections (Attack / Midfield / Defence, last 10 game-min) ─────────────
 // Uses team Inside-50s and Scoring Shots (from the Head-to-Head table) over a
-// rolling 10-minute window. In50s-per-scoring-shot < 2.20 = clinical attack.
-const FIELD_IN50SS_THRESHOLD = 2.20;
+// rolling 10-minute window. Returns raw windowed I50 count and In50s-per-scoring-
+// shot per team; the frontend renders the territory bars (threshold 2.20).
 function computeFieldSections(cur, t1, t2, sectionHistory, el) {
   const target = (el || 0) - 10;
   const older  = sectionHistory.filter(s => s.gm != null && s.gm <= target);
   const base   = (older.length ? older[older.length - 1] : sectionHistory[0]) || { a: { i50: 0, ss: 0 }, b: { i50: 0, ss: 0 } };
   const dA = { i50: cur.a.i50 - base.a.i50, ss: cur.a.ss - base.a.ss };
   const dB = { i50: cur.b.i50 - base.b.i50, ss: cur.b.ss - base.b.ss };
-  const ratio = d => (d.ss > 0 ? d.i50 / d.ss : null); // In50s per scoring shot over the window
-  const rA = ratio(dA), rB = ratio(dB);
-  // per team: attack (own ratio), defence (opp ratio), midfield (own I50 vs opp I50)
-  const mk = (ownR, oppR, ownI, oppI) => ({
-    attack:   ownR == null ? null : ownR < FIELD_IN50SS_THRESHOLD,
-    defence:  oppR == null ? null : oppR > FIELD_IN50SS_THRESHOLD,
-    midfield: ownI === oppI ? null : ownI > oppI,
-  });
-  return { [t1]: mk(rA, rB, dA.i50, dB.i50), [t2]: mk(rB, rA, dB.i50, dA.i50) };
+  const ratio = d => (d.ss > 0 ? Math.round((d.i50 / d.ss) * 100) / 100 : null); // In50s per scoring shot
+  return { [t1]: { i50: dA.i50, in50ss: ratio(dA) }, [t2]: { i50: dB.i50, in50ss: ratio(dB) } };
 }
 
 // ── Burst detection ───────────────────────────────────────────────────────────
@@ -1182,9 +1175,8 @@ async function fetchRatings(mid) {
       pressure5:    pressure[tm].p5,
       pressure10:   pressure[tm].p10,
       pressureGame: pressure[tm].game,
-      attack:       sections[tm].attack,
-      defence:      sections[tm].defence,
-      midfield:     sections[tm].midfield,
+      i50w:         sections[tm].i50,     // Inside-50s over last 10 game-min
+      in50ssW:      sections[tm].in50ss,  // In50s per scoring shot over last 10 game-min (null if no shots)
     };
   }
 

@@ -102,12 +102,16 @@ header{
 .pg-legend{display:flex;gap:14px;font-size:12px;font-weight:800;font-variant-numeric:tabular-nums;margin-top:1px}
 .pg-legend .dot{font-size:13px;vertical-align:middle;margin-right:3px}
 
-/* Field sections (Attack / Midfield / Defence) */
-.field-sections{display:flex;gap:1px;background:#30363d;flex-shrink:0}
-.fs-col{flex:1;background:#0d1117;padding:7px 12px 9px;display:flex;flex-direction:column;align-items:center;gap:5px;min-width:0}
-.fs-title{font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;opacity:.65}
-.fs-teams{display:flex;gap:8px}
-.fs-team{min-width:46px;text-align:center;padding:3px 9px;border-radius:5px;font-size:12px;font-weight:800;color:#fff;background:#30363d;transition:background .35s}
+/* Field territory bars (Attack / Midfield / Defence, last 10 min) */
+.territory{background:#0d1117;padding:8px 16px 14px;display:flex;flex-direction:column;gap:9px;flex-shrink:0}
+.ts-sub{text-align:center;font-size:10px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;opacity:.45}
+.ts-row{display:flex;flex-direction:column;gap:3px}
+.ts-label{text-align:center;font-size:10px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;opacity:.6}
+.ts-bar{position:relative;height:24px;background:#161b22;border-radius:4px;overflow:hidden}
+.ts-fill{position:absolute;top:0;bottom:0;width:0;display:flex;align-items:center;transition:width .6s cubic-bezier(.4,0,.2,1);overflow:hidden}
+.ts-fill.left{left:0;justify-content:flex-start}
+.ts-fill.right{right:0;justify-content:flex-end}
+.ts-fill span{font-size:12px;font-weight:800;color:#fff;padding:0 8px;white-space:nowrap;text-shadow:0 1px 2px rgba(0,0,0,.5)}
 
 /* Momentum panel */
 .momentum-panel{
@@ -698,19 +702,20 @@ header{
       </div>
     </div>
 
-    <!-- Field sections: Attack / Midfield / Defence (last 10 min) -->
-    <div class="field-sections" id="fieldSections">
-      <div class="fs-col">
-        <div class="fs-title">Team Attack</div>
-        <div class="fs-teams"><span class="fs-team" id="fsAtk1">—</span><span class="fs-team" id="fsAtk2">—</span></div>
+    <!-- Field territory bars: Attack / Midfield / Defence (last 10 min) -->
+    <div class="territory" id="fieldSections">
+      <div class="ts-sub">Last 10 mins</div>
+      <div class="ts-row">
+        <div class="ts-label">Team Attack</div>
+        <div class="ts-bar"><div class="ts-fill left" id="tsAtkL"><span></span></div><div class="ts-fill right" id="tsAtkR"><span></span></div></div>
       </div>
-      <div class="fs-col">
-        <div class="fs-title">Midfield</div>
-        <div class="fs-teams"><span class="fs-team" id="fsMid1">—</span><span class="fs-team" id="fsMid2">—</span></div>
+      <div class="ts-row">
+        <div class="ts-label">Midfield</div>
+        <div class="ts-bar"><div class="ts-fill left" id="tsMidL"><span></span></div><div class="ts-fill right" id="tsMidR"><span></span></div></div>
       </div>
-      <div class="fs-col">
-        <div class="fs-title">Team Defence</div>
-        <div class="fs-teams"><span class="fs-team" id="fsDef1">—</span><span class="fs-team" id="fsDef2">—</span></div>
+      <div class="ts-row">
+        <div class="ts-label">Team Defence</div>
+        <div class="ts-bar"><div class="ts-fill left" id="tsDefL"><span></span></div><div class="ts-fill right" id="tsDefR"><span></span></div></div>
       </div>
     </div>
 
@@ -1868,21 +1873,34 @@ function renderPressureGauge(t1, t2, s1, s2) {
   leg("pgLeg2", t2, s2 ? s2.pressure10 : null, col2);
 }
 
-// Field sections head-to-head — green = positive, red = negative, grey = neutral.
+// Field territory bars — each row is an animated tug-of-war over the last 10 min.
+// % owned by team1 (left) is driven by In50s-per-scoring-shot vs the 2.20 pivot:
+//   Attack  = team1's ratio  (1.74 → team1 dominates; 3.5 → cede to team2's defence)
+//   Defence = team2's ratio  (high → team1's defence rebounds; low → team2 dominates)
+//   Midfield = inside-50 share.
 function renderFieldSections(t1, t2, s1, s2) {
   if (!document.getElementById("fieldSections")) return;
-  const GREEN = "#238636", RED = "#da3633", NEUTRAL = "#30363d";
-  const abbr = n => (n || "").replace(/[^A-Za-z ]/g, "").split(/\s+/).filter(Boolean).map(w => w[0]).join("").slice(0, 3).toUpperCase();
-  const val  = (s, k) => (s ? s[k] : null);
-  const cell = (id, name, state) => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.textContent = abbr(name);
-    el.style.background = state === true ? GREEN : state === false ? RED : NEUTRAL;
+  const col1 = resolvedColor(t1).accent, col2 = resolvedColor(t2).accent;
+  const T = 2.20, K = 87; // 2.20 = neutral (50%); ~1.74 → dominate, ~3.5 → cede
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  const i1 = s1 ? (s1.i50w || 0) : 0, i2 = s2 ? (s2.i50w || 0) : 0;
+  const r1 = s1 ? s1.in50ssW : null, r2 = s2 ? s2.in50ssW : null;
+  const attackPos  = r1 != null ? clamp(50 + (T - r1) * K, 0, 100) : (i1 > 0 ? 2  : 50);
+  const defencePos = r2 != null ? clamp(50 + (r2 - T) * K, 0, 100) : (i2 > 0 ? 98 : 50);
+  const midPos     = (i1 + i2) > 0 ? (i1 / (i1 + i2)) * 100 : 50;
+  const setRow = (idL, idR, posLeft) => {
+    const L = document.getElementById(idL), R = document.getElementById(idR);
+    if (!L || !R) return;
+    const lw = clamp(Math.round(posLeft), 0, 100), rw = 100 - lw;
+    L.style.width = lw + "%"; R.style.width = rw + "%";
+    L.style.background = `linear-gradient(90deg, ${col1}ee, ${col1}99)`;
+    R.style.background = `linear-gradient(270deg, ${col2}ee, ${col2}99)`;
+    L.querySelector("span").textContent = lw >= 12 ? lw + "%" : "";
+    R.querySelector("span").textContent = rw >= 12 ? rw + "%" : "";
   };
-  cell("fsAtk1", t1, val(s1, "attack"));   cell("fsAtk2", t2, val(s2, "attack"));
-  cell("fsMid1", t1, val(s1, "midfield")); cell("fsMid2", t2, val(s2, "midfield"));
-  cell("fsDef1", t1, val(s1, "defence"));  cell("fsDef2", t2, val(s2, "defence"));
+  setRow("tsAtkL", "tsAtkR", attackPos);
+  setRow("tsMidL", "tsMidR", midPos);
+  setRow("tsDefL", "tsDefR", defencePos);
 }
 
 // ── Delta colour scales ───────────────────────────────────────────────────────
