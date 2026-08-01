@@ -1776,14 +1776,14 @@ function pgStep(ts) {
     const st = pgAnim[key];
     const el = document.getElementById(key === "n1" ? "pgNeedle1" : "pgNeedle2");
     if (!el || !st.live) continue;
-    // slow, bouncy spring (dt=0.2 → ~1/5 speed) → travels in with pronounced wobble
-    const accel = (st.target - st.cur) * 0.09 - st.vel * 0.06;
+    // slow spring (dt=0.2 → ~1/5 speed), firmer damping → gentle settle, less wobble
+    const accel = (st.target - st.cur) * 0.09 - st.vel * 0.18;
     st.vel += accel * 0.2;
     st.cur += st.vel * 0.2;
-    // continuous flutter — pronounced, livelier while the needle is travelling
-    const energy  = 0.6 + Math.min(2.0, Math.abs(st.vel));
+    // subtle continuous flutter, a touch livelier while the needle is travelling
+    const energy  = 0.45 + Math.min(1.6, Math.abs(st.vel));
     const phase   = key === "n1" ? 0 : 2.1;
-    const flutter = (Math.sin(t*10 + phase)*1.1 + Math.sin(t*21)*0.6 + Math.sin(t*38)*0.3) * energy;
+    const flutter = (Math.sin(t*10 + phase)*0.7 + Math.sin(t*21)*0.4 + Math.sin(t*38)*0.2) * energy;
     const disp    = Math.max(-90, Math.min(90, st.cur + flutter)); // keep the needle on the visible arc
     el.setAttribute("transform", `rotate(${disp.toFixed(2)} 100 100)`);
   }
