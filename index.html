@@ -1767,10 +1767,35 @@ function styleTeamCard(cardId, nameId, scoreId, ratId, goalsId, behindsId, name,
   if (bgEl)   { bgEl.src   = logo; bgEl.alt   = name; bgEl.style.opacity = "0.15"; }
 }
 
-// Twin-needle pressure gauge — each needle points to a team's current (10m) pressure.
+// Twin-needle pressure gauge — needles point to each team's current (10m) pressure.
+// Driven by a light spring so they swing in with an overshoot (wobble) and carry a
+// subtle continuous flutter, for an analog-instrument feel. Needles are drawn straight
+// up (0° = mid-scale) and rotated about the pivot; target = (fraction - 0.5) * 180°.
+const pgAnim = {
+  n1: { cur: 0, vel: 0, target: 0, live: false },
+  n2: { cur: 0, vel: 0, target: 0, live: false },
+  running: false,
+};
+function pgStep(ts) {
+  const t = ts / 1000;
+  for (const key of ["n1", "n2"]) {
+    const st = pgAnim[key];
+    const el = document.getElementById(key === "n1" ? "pgNeedle1" : "pgNeedle2");
+    if (!el || !st.live) continue;
+    // underdamped spring toward target → overshoot then settle
+    st.vel = (st.vel + (st.target - st.cur) * 0.10) * 0.78;
+    st.cur += st.vel;
+    // subtle multi-frequency flutter, a touch livelier while the needle is moving
+    const energy  = 0.35 + Math.min(1.4, Math.abs(st.vel) * 0.8);
+    const phase   = key === "n1" ? 0 : 2.1;
+    const flutter = (Math.sin(t*11 + phase)*0.55 + Math.sin(t*23)*0.3 + Math.sin(t*41)*0.15) * energy;
+    el.setAttribute("transform", `rotate(${(st.cur + flutter).toFixed(2)} 100 100)`);
+  }
+  requestAnimationFrame(pgStep);
+}
 function renderPressureGauge(t1, t2, s1, s2) {
   if (!document.getElementById("pressureGauge")) return;
-  const MAX = 500, cx = 100, cy = 100, R = 78;
+  const MAX = 500, cx = 100, cy = 100;
   const col1 = resolvedColor(t1).accent, col2 = resolvedColor(t2).accent;
   const maxLbl = document.getElementById("pgMaxLbl"); if (maxLbl) maxLbl.textContent = MAX; // keep scale label in sync
   // Notch ticks over the gradient arc (drawn once)
@@ -1783,19 +1808,20 @@ function renderPressureGauge(t1, t2, s1, s2) {
     }
     ticksEl.innerHTML = ticks;
   }
-  const setNeedle = (id, val, color) => {
-    const n = document.getElementById(id);
-    if (!n) return;
-    if (val == null) { n.style.display = "none"; return; }
-    n.style.display = "";
+  const setTarget = (key, id, val, color) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const st = pgAnim[key];
+    if (val == null) { el.style.display = "none"; st.live = false; return; }
+    el.style.display = "";
+    el.setAttribute("stroke", color);
     const f = Math.max(0, Math.min(1, val / MAX));
-    const a = Math.PI * (1 - f);
-    n.setAttribute("x2", (cx + R * Math.cos(a)).toFixed(1));
-    n.setAttribute("y2", (cy - R * Math.sin(a)).toFixed(1));
-    n.setAttribute("stroke", color);
+    st.target = (f - 0.5) * 180;
+    if (!st.live) { st.cur = st.target; st.vel = 0; st.live = true; } // first reading: snap into place
   };
-  setNeedle("pgNeedle1", s1 ? s1.pressure10 : null, col1);
-  setNeedle("pgNeedle2", s2 ? s2.pressure10 : null, col2);
+  setTarget("n1", "pgNeedle1", s1 ? s1.pressure10 : null, col1);
+  setTarget("n2", "pgNeedle2", s2 ? s2.pressure10 : null, col2);
+  if (!pgAnim.running) { pgAnim.running = true; requestAnimationFrame(pgStep); }
   const r5   = v => (v == null ? "—" : String(Math.round(v / 5) * 5));
   const abbr = n => (n || "").replace(/[^A-Za-z ]/g, "").split(/\s+/).filter(Boolean).map(w => w[0]).join("").slice(0, 3).toUpperCase();
   const leg  = (id, name, val, color) => {
