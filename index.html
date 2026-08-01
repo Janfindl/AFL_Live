@@ -1893,10 +1893,10 @@ function renderFieldSections(t1, t2, s1, s2) {
     if (!f) return;
     const bar = f.parentElement;
     const topEl = bar.querySelector(".ts-vlbl.top"), botEl = bar.querySelector(".ts-vlbl.bot");
-    const d = posT1 - 50; // >0 team1/home majority (col1, fills the BOTTOM half), <0 team2/away majority (col2, fills the TOP half)
+    const d = posT1 - 50; // >0 team1/home majority (col1, fills UP toward home name), <0 team2/away majority (col2, fills DOWN toward away name)
     if (Math.abs(d) < 0.5) { f.style.height = "0%"; }
-    else if (d > 0) { const h = Math.min(50, d);  f.style.top = "50%";          f.style.height = h + "%"; f.style.background = col1; }
-    else            { const h = Math.min(50, -d); f.style.top = (50 - h) + "%"; f.style.height = h + "%"; f.style.background = col2; }
+    else if (d > 0) { const h = Math.min(50, d);  f.style.top = (50 - h) + "%"; f.style.height = h + "%"; f.style.background = col1; }
+    else            { const h = Math.min(50, -d); f.style.top = "50%";          f.style.height = h + "%"; f.style.background = col2; }
     // label lights up own colour in majority, white if equal, grey if minority
     if (topEl) topEl.style.color = Math.abs(d) < 0.5 ? WHITE : (d > 0 ? col1 : GREY);
     if (botEl) botEl.style.color = Math.abs(d) < 0.5 ? WHITE : (d < 0 ? col2 : GREY);
