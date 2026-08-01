@@ -1167,6 +1167,7 @@ async function fetchRatings(mid) {
   const summary = {};
   for (const tm of [team1Name, team2Name]) {
     const tp = all.filter(p => p.team === tm);
+    const cg = tm === team1Name ? curSec.a : curSec.b; // whole-game cumulative i50 / scoring shots
     summary[tm] = {
       score:        tm === team1Name ? score1 : score2,
       avgRating:    teamRatings[tm],
@@ -1177,6 +1178,8 @@ async function fetchRatings(mid) {
       pressureGame: pressure[tm].game,
       i50w:         sections[tm].i50,     // Inside-50s over last 10 game-min
       in50ssW:      sections[tm].in50ss,  // In50s per scoring shot over last 10 game-min (null if no shots)
+      i50g:         cg.i50,               // Inside-50s whole game
+      in50ssG:      cg.ss > 0 ? Math.round((cg.i50 / cg.ss) * 100) / 100 : null, // In50/SS whole game
     };
   }
 

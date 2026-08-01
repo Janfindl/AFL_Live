@@ -111,6 +111,7 @@ header{
 .ts-vbar{position:relative;width:18px;height:64px;background:#161b22;border-radius:3px}
 .ts-vbar::before{content:'';position:absolute;left:0;right:0;top:50%;height:1px;background:#8b949e;opacity:.55;z-index:1}
 .ts-vfill{position:absolute;left:0;right:0;height:0;border-radius:2px;transition:top .6s cubic-bezier(.4,0,.2,1),height .6s cubic-bezier(.4,0,.2,1),background .3s}
+.ts-notch{position:absolute;left:-3px;right:-3px;height:3px;border-radius:2px;z-index:2;transform:translateY(-50%);pointer-events:none;box-shadow:0 0 0 1px #0d1117;transition:top .6s cubic-bezier(.4,0,.2,1),background .3s}
 .ts-vlbl{position:absolute;left:-4px;right:-4px;text-align:center;font-size:9px;font-weight:800;letter-spacing:.2px}
 .ts-vlbl.top{top:-13px}
 .ts-vlbl.bot{bottom:-13px}
@@ -699,9 +700,9 @@ header{
       <div class="territory-tile">
         <div class="ts-team" id="tsHome">—</div>
         <div class="ts-vwrap" id="fieldSections">
-          <div class="ts-vbar"><span class="ts-vlbl top">ATT</span><div class="ts-vfill" id="tvAtk"></div><span class="ts-vlbl bot">DEF</span></div>
-          <div class="ts-vbar"><span class="ts-vlbl top">MID</span><div class="ts-vfill" id="tvMid"></div><span class="ts-vlbl bot">MID</span></div>
-          <div class="ts-vbar"><span class="ts-vlbl top">DEF</span><div class="ts-vfill" id="tvDef"></div><span class="ts-vlbl bot">ATT</span></div>
+          <div class="ts-vbar"><span class="ts-vlbl top">ATT</span><div class="ts-vfill" id="tvAtk"></div><div class="ts-notch" id="tnAtk"></div><span class="ts-vlbl bot">DEF</span></div>
+          <div class="ts-vbar"><span class="ts-vlbl top">MID</span><div class="ts-vfill" id="tvMid"></div><div class="ts-notch" id="tnMid"></div><span class="ts-vlbl bot">MID</span></div>
+          <div class="ts-vbar"><span class="ts-vlbl top">DEF</span><div class="ts-vfill" id="tvDef"></div><div class="ts-notch" id="tnDef"></div><span class="ts-vlbl bot">ATT</span></div>
         </div>
         <div class="ts-team" id="tsAway">—</div>
         <div class="ts-dbg" id="tsDbg"></div>
@@ -1886,6 +1887,12 @@ function renderFieldSections(t1, t2, s1, s2) {
   const attackPos  = r1 != null ? clamp(50 + (T - r1) * K, 0, 100) : (i1 > 0 ? 2  : 50);
   const defencePos = r2 != null ? clamp(50 + (r2 - T) * K, 0, 100) : (i2 > 0 ? 98 : 50);
   const midPos     = (i1 + i2) > 0 ? (i1 / (i1 + i2)) * 100 : 50;
+  // whole-game positions (for the notches)
+  const i1g = s1 ? (s1.i50g || 0) : 0, i2g = s2 ? (s2.i50g || 0) : 0;
+  const r1g = s1 ? s1.in50ssG : null, r2g = s2 ? s2.in50ssG : null;
+  const attackPosG  = r1g != null ? clamp(50 + (T - r1g) * K, 0, 100) : null;
+  const defencePosG = r2g != null ? clamp(50 + (r2g - T) * K, 0, 100) : null;
+  const midPosG     = (i1g + i2g) > 0 ? (i1g / (i1g + i2g)) * 100 : null;
   const hn = document.getElementById("tsHome"), an = document.getElementById("tsAway");
   if (hn) { hn.textContent = "◀ " + t1; hn.style.color = col1; } // home = top, arrow left
   if (an) { an.textContent = t2 + " ▶"; an.style.color = col2; } // away = bottom, arrow right
@@ -1908,6 +1915,18 @@ function renderFieldSections(t1, t2, s1, s2) {
   applyBar("tvAtk", attackPos);
   applyBar("tvMid", midPos);
   applyBar("tvDef", defencePos);
+  // whole-game notch on each column, coloured by the section leader
+  const setNotch = (id, posG) => {
+    const n = document.getElementById(id);
+    if (!n) return;
+    if (posG == null) { n.style.display = "none"; return; }
+    n.style.display = "";
+    n.style.top = (100 - posG) + "%"; // home = top
+    n.style.background = Math.abs(posG - 50) < 0.5 ? WHITE : (posG > 50 ? col1 : col2);
+  };
+  setNotch("tnAtk", attackPosG);
+  setNotch("tnMid", midPosG);
+  setNotch("tnDef", defencePosG);
 }
 
 // ── Delta colour scales ───────────────────────────────────────────────────────
