@@ -103,12 +103,14 @@ header{
 .pg-legend .dot{font-size:13px;vertical-align:middle;margin-right:3px}
 
 /* Field territory — 3 vertical bars under the pressure gauge (last 10 min) */
-.ts-vwrap{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:9px;margin-bottom:2px}
+.ts-vwrap{display:flex;align-items:center;justify-content:center;gap:8px;margin-top:15px;margin-bottom:15px}
 .ts-pole{font-size:10px;font-weight:800;opacity:.7;white-space:nowrap;letter-spacing:.3px}
 .ts-vbar{position:relative;width:16px;height:46px;background:#161b22;border-radius:3px}
 .ts-vbar::before{content:'';position:absolute;left:0;right:0;top:50%;height:1px;background:#8b949e;opacity:.55;z-index:1}
 .ts-vfill{position:absolute;left:0;right:0;height:0;border-radius:2px;transition:top .6s cubic-bezier(.4,0,.2,1),height .6s cubic-bezier(.4,0,.2,1),background .3s}
-.ts-vlbl{position:absolute;left:0;right:0;bottom:-13px;text-align:center;font-size:8px;font-weight:800;opacity:.5;letter-spacing:.3px}
+.ts-vlbl{position:absolute;left:-4px;right:-4px;text-align:center;font-size:8px;font-weight:800;letter-spacing:.2px}
+.ts-vlbl.top{top:-12px}
+.ts-vlbl.bot{bottom:-12px}
 
 /* Momentum panel */
 .momentum-panel{
@@ -691,9 +693,9 @@ header{
         </div>
         <div class="ts-vwrap" id="fieldSections">
           <span class="ts-pole" id="tsPoleL">◁</span>
-          <div class="ts-vbar"><div class="ts-vfill" id="tvAtk"></div><span class="ts-vlbl">ATT</span></div>
-          <div class="ts-vbar"><div class="ts-vfill" id="tvMid"></div><span class="ts-vlbl">MID</span></div>
-          <div class="ts-vbar"><div class="ts-vfill" id="tvDef"></div><span class="ts-vlbl">DEF</span></div>
+          <div class="ts-vbar"><span class="ts-vlbl top">ATT</span><div class="ts-vfill" id="tvAtk"></div><span class="ts-vlbl bot">DEF</span></div>
+          <div class="ts-vbar"><span class="ts-vlbl top">MID</span><div class="ts-vfill" id="tvMid"></div><span class="ts-vlbl bot">MID</span></div>
+          <div class="ts-vbar"><span class="ts-vlbl top">DEF</span><div class="ts-vfill" id="tvDef"></div><span class="ts-vlbl bot">ATT</span></div>
           <span class="ts-pole" id="tsPoleR">▷</span>
         </div>
       </div>
@@ -1880,6 +1882,8 @@ function renderFieldSections(t1, t2, s1, s2) {
   const pl = document.getElementById("tsPoleL"), pr = document.getElementById("tsPoleR");
   if (pl) pl.textContent = "◁ " + abbr(t1);
   if (pr) pr.textContent = abbr(t2) + " ▷";
+  document.querySelectorAll("#fieldSections .ts-vlbl.top").forEach(e => e.style.color = col1); // home
+  document.querySelectorAll("#fieldSections .ts-vlbl.bot").forEach(e => e.style.color = col2); // away
   const setBar = (id, posT1) => {
     const f = document.getElementById(id);
     if (!f) return;
