@@ -1770,8 +1770,9 @@ function styleTeamCard(cardId, nameId, scoreId, ratId, goalsId, behindsId, name,
 // Twin-needle pressure gauge — each needle points to a team's current (10m) pressure.
 function renderPressureGauge(t1, t2, s1, s2) {
   if (!document.getElementById("pressureGauge")) return;
-  const MAX = 300, cx = 100, cy = 100, R = 78;
+  const MAX = 500, cx = 100, cy = 100, R = 78;
   const col1 = resolvedColor(t1).accent, col2 = resolvedColor(t2).accent;
+  const maxLbl = document.getElementById("pgMaxLbl"); if (maxLbl) maxLbl.textContent = MAX; // keep scale label in sync
   // Notch ticks over the gradient arc (drawn once)
   const ticksEl = document.getElementById("pgTicks");
   if (ticksEl && !ticksEl.childNodes.length) {
