@@ -67,24 +67,25 @@ header{
   flex-shrink:0;
 }
 .team-card{
-  padding:14px 18px;display:flex;align-items:center;gap:14px;
-  background:#0d1117;min-width:0;position:relative;overflow:hidden;
+  padding:10px 14px;display:flex;align-items:center;gap:12px;
+  background:#0d1117;position:relative;overflow:hidden;
+  flex:0 0 224px;width:224px;box-sizing:border-box;
 }
 .team-card-logo{
-  width:72px;height:72px;object-fit:contain;flex-shrink:0;
+  width:50px;height:50px;object-fit:contain;flex-shrink:0;
   z-index:1;
 }
 .team-card-body{
-  flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;z-index:1;
+  flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;z-index:1;
 }
 .team-card-name{
-  font-size:16px;font-weight:900;letter-spacing:-.3px;
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-transform:uppercase;
+  font-size:12px;font-weight:900;letter-spacing:-.3px;line-height:1.08;text-transform:uppercase;overflow-wrap:anywhere;
+  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;
 }
-.team-card-gb{font-size:13px;font-weight:700;opacity:.75;letter-spacing:.5px}
+.team-card-gb{font-size:12px;font-weight:700;opacity:.75;letter-spacing:.5px}
 .team-card-score{
-  font-size:52px;font-weight:900;font-variant-numeric:tabular-nums;
-  letter-spacing:-3px;flex-shrink:0;line-height:1;z-index:1;
+  font-size:38px;font-weight:900;font-variant-numeric:tabular-nums;
+  letter-spacing:-2px;flex-shrink:0;line-height:1;z-index:1;
 }
 .team-card-bg{
   position:absolute;right:-10px;top:50%;transform:translateY(-50%);
@@ -103,8 +104,8 @@ header{
 .pg-legend .dot{font-size:13px;vertical-align:middle;margin-right:3px}
 
 /* Field territory — 3 vertical bars under the pressure gauge (last 10 min) */
-.territory-tile{background:#0d1117;flex:0 0 126px;width:126px;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:5px 8px;overflow:hidden}
-.ts-team{font-size:11px;font-weight:800;letter-spacing:.3px;line-height:1.15;text-transform:uppercase;text-align:center;white-space:normal}
+.territory-tile{background:#0d1117;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:5px 18px;overflow:hidden}
+.ts-team{font-size:11px;font-weight:800;letter-spacing:.4px;white-space:nowrap;line-height:1.2;text-transform:uppercase}
 .ts-dbg{font-size:8px;font-weight:700;opacity:.6;margin-top:5px;white-space:nowrap;font-variant-numeric:tabular-nums;letter-spacing:.1px;line-height:1.5;text-align:center}
 .ts-vwrap{display:flex;align-items:center;justify-content:center;gap:11px;margin:15px 0}
 .ts-pole{font-size:11px;font-weight:800;opacity:.7;white-space:nowrap;letter-spacing:.3px}
@@ -491,7 +492,7 @@ header{
 
   /* ── Score row: cards 50/50, momentum below ── */
   .score-row{flex-wrap:wrap}
-  .team-card{flex:1;min-width:0;padding:10px 12px;gap:8px}
+  .team-card{flex:1 1 0;width:auto;min-width:0;padding:10px 12px;gap:8px}
   .team-card-logo{width:44px;height:44px}
   .team-card-score{font-size:36px;letter-spacing:-2px}
   .team-card-name{font-size:12px}
@@ -1896,8 +1897,8 @@ function renderFieldSections(t1, t2, s1, s2) {
   const defencePosG = r2g != null ? clamp(50 + (r2g - T) * K, 0, 100) : (i2g > 0 ? 50 + entryStr(i2g) : null);
   const midPosG     = (i1g + i2g) > 0 ? (i1g / (i1g + i2g)) * 100 : null;
   const hn = document.getElementById("tsHome"), an = document.getElementById("tsAway");
-  if (hn) { hn.textContent = "◀ " + t1; hn.style.color = col1; } // home = top, arrow left
-  if (an) { an.textContent = t2 + " ▶"; an.style.color = col2; } // away = bottom, arrow right
+  if (hn) { hn.textContent = "◀ " + abbr(t1); hn.style.color = col1; } // home = top (short name)
+  if (an) { an.textContent = abbr(t2) + " ▶"; an.style.color = col2; } // away = bottom (short name)
   const dbg = document.getElementById("tsDbg"); // TEMP: windowed values for testing
   if (dbg) {
     const ssCount = (i, r) => (r == null ? 0 : Math.round(i / r));

@@ -507,9 +507,14 @@ function computeFieldSections(cur, t1, t2, sectionHistory, el) {
   const target = (el || 0) - 10;
   const older  = sectionHistory.filter(s => s.gm != null && s.gm <= target);
   const base   = (older.length ? older[older.length - 1] : sectionHistory[0]) || { a: { i50: 0, ss: 0 }, b: { i50: 0, ss: 0 } };
-  const dA = { i50: cur.a.i50 - base.a.i50, ss: cur.a.ss - base.a.ss };
-  const dB = { i50: cur.b.i50 - base.b.i50, ss: cur.b.ss - base.b.ss };
-  const ratio = d => (d.ss > 0 ? Math.round((d.i50 / d.ss) * 100) / 100 : null); // In50s per scoring shot
+  // scoring shots can't exceed inside-50s over the window (Footywire's I50 / SS
+  // stats update out of step, which can briefly make SS delta > I50 delta)
+  const delta = (c, b) => {
+    const i50 = Math.max(0, c.i50 - b.i50);
+    return { i50, ss: Math.min(Math.max(0, c.ss - b.ss), i50) };
+  };
+  const dA = delta(cur.a, base.a), dB = delta(cur.b, base.b);
+  const ratio = d => (d.ss > 0 ? Math.round((d.i50 / d.ss) * 100) / 100 : null); // In50s per scoring shot (>=1)
   return { [t1]: { i50: dA.i50, in50ss: ratio(dA) }, [t2]: { i50: dB.i50, in50ss: ratio(dB) } };
 }
 
@@ -1179,7 +1184,7 @@ async function fetchRatings(mid) {
       i50w:         sections[tm].i50,     // Inside-50s over last 10 game-min
       in50ssW:      sections[tm].in50ss,  // In50s per scoring shot over last 10 game-min (null if no shots)
       i50g:         cg.i50,               // Inside-50s whole game
-      in50ssG:      cg.ss > 0 ? Math.round((cg.i50 / cg.ss) * 100) / 100 : null, // In50/SS whole game
+      in50ssG:      cg.ss > 0 ? Math.round((cg.i50 / Math.min(cg.ss, cg.i50)) * 100) / 100 : null, // In50/SS whole game (>=1)
     };
   }
 
