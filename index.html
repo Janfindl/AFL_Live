@@ -1906,16 +1906,17 @@ function renderFieldSections(t1, t2, s1, s2) {
   const i1 = s1 ? (s1.i50w || 0) : 0, i2 = s2 ? (s2.i50w || 0) : 0;
   const s1w = shotsW(s1), s2w = shotsW(s2);
   const m1 = margin(i1, s1w), m2 = margin(i2, s2w);
+  const MIDSPAN = 8; // inside-50 lead of 8 fills the midfield bar (each entry = 1/8 of a half); 8-0 max, 0-8 min
   const attackPos  = m1 == null ? 50 : clamp(50 + m1 * G, 0, 100); // team1 attack beats expectation → toward team1 (top)
   const defencePos = m2 == null ? 50 : clamp(50 - m2 * G, 0, 100); // team2 attack held down → team1 defence leads (top)
-  const midPos     = (i1 + i2) > 0 ? (i1 / (i1 + i2)) * 100 : 50;
+  const midPos     = clamp(50 + (i1 - i2) * (50 / MIDSPAN), 0, 100); // pure inside-50 difference
   // whole-game positions (for the notches)
   const i1g = s1 ? (s1.i50g || 0) : 0, i2g = s2 ? (s2.i50g || 0) : 0;
   const s1g = shotsG(s1), s2g = shotsG(s2);
   const m1g = margin(i1g, s1g), m2g = margin(i2g, s2g);
   const attackPosG  = m1g == null ? null : clamp(50 + m1g * G, 0, 100);
   const defencePosG = m2g == null ? null : clamp(50 - m2g * G, 0, 100);
-  const midPosG     = (i1g + i2g) > 0 ? (i1g / (i1g + i2g)) * 100 : null;
+  const midPosG     = (i1g + i2g) > 0 ? clamp(50 + (i1g - i2g) * (50 / MIDSPAN), 0, 100) : null;
   const hn = document.getElementById("tsHome"), an = document.getElementById("tsAway");
   if (hn) { hn.textContent = "◀ " + abbr(t1); hn.style.color = col1; } // home = top (short name)
   if (an) { an.textContent = abbr(t2) + " ▶"; an.style.color = col2; } // away = bottom (short name)
