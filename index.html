@@ -686,8 +686,8 @@ header{
           </defs>
           <path d="M 15 100 A 85 85 0 0 1 185 100" fill="none" stroke="url(#pgGrad)" stroke-width="11" stroke-linecap="round"/>
           <g id="pgTicks" stroke="#0d1117" stroke-width="2"></g>
-          <line id="pgNotch1" stroke-width="3" stroke-linecap="round" style="display:none"/>
-          <line id="pgNotch2" stroke-width="3" stroke-linecap="round" style="display:none"/>
+          <polygon id="pgNotch1" stroke="#e6edf3" stroke-width="0.6" stroke-linejoin="round" style="display:none"/>
+          <polygon id="pgNotch2" stroke="#e6edf3" stroke-width="0.6" stroke-linejoin="round" style="display:none"/>
           <line id="pgNeedle2" x1="100" y1="100" x2="100" y2="24" stroke="#ff7a45" stroke-width="4" stroke-linecap="round"/>
           <line id="pgNeedle1" x1="100" y1="100" x2="100" y2="24" stroke="#4da3ff" stroke-width="4" stroke-linecap="round"/>
           <circle cx="100" cy="100" r="7" fill="#0d1117" stroke="#8b949e" stroke-width="2"/>
@@ -1013,7 +1013,7 @@ function colorDistance(hex1, hex2) {
   const lumDiff = Math.abs(a.l - b.l);
   return { hueDiff, lumDiff };
 }
-function ensureLegible(hex, minLum = 0.25) {
+function ensureLegible(hex, minLum = 0.45) { // floor for readable text on the near-black bg
   const hsl = hexToHsl(hex);
   if (hsl.l < minLum) return hslToHex(hsl.h, hsl.s, minLum);
   return hex;
@@ -1031,19 +1031,22 @@ function resolveTeamColors(t1, t2) {
   const dist = colorDistance(c1.accent, c2.accent);
   // Clash: hue within 40° AND luminance within 0.2
   if (dist.hueDiff < 40 && dist.lumDiff < 0.2) {
-    // Try pillAlt colours as alternative
-    const alt = c2raw.pillAlt;
-    if (alt) {
-      const altColor = alt.txt || alt.bg;
-      if (altColor) {
-        const altDist = colorDistance(c1.accent, altColor);
-        if (altDist.hueDiff >= 40 || altDist.lumDiff >= 0.2) {
-          c2.txt = ensureLegible(altColor);
-          c2.accent = ensureLegible(altColor);
-          resolvedColorMap = { [t1]: c1, [t2]: c2 };
-          return { c1, c2 };
-        }
-      }
+    // Pick an alternative from the team's alt/pill palette — the BRIGHTEST option
+    // that's distinct from t1, so we never land on a dark navy (unreadable on black).
+    const cands = [c2raw.pillAlt?.txt, c2raw.pillAlt?.bg, c2raw.pill?.txt, c2raw.pill?.bg]
+      .filter(hx => typeof hx === "string" && hx[0] === "#");
+    const distinct = cands.filter(hx => {
+      const d = colorDistance(c1.accent, hx);
+      return d.hueDiff >= 40 || d.lumDiff >= 0.2;
+    });
+    const pick = (distinct.length ? distinct : cands)
+      .map(hx => ensureLegible(hx)) // NB: bare .map(ensureLegible) would leak the index as minLum
+      .sort((a, b) => hexToHsl(b).l - hexToHsl(a).l)[0]; // brightest reads best on black
+    if (pick) {
+      c2.txt = pick;
+      c2.accent = pick;
+      resolvedColorMap = { [t1]: c1, [t2]: c2 };
+      return { c1, c2 };
     }
     // Fallback: rotate hue by 120°
     const hsl = hexToHsl(c2.accent);
@@ -1845,7 +1848,8 @@ function renderPressureGauge(t1, t2, s1, s2) {
   };
   setTarget("n1", "pgNeedle1", s1 ? s1.pressure10 : null, col1);
   setTarget("n2", "pgNeedle2", s2 ? s2.pressure10 : null, col2);
-  // Static notch per team marking GAME pressure on the arc
+  // Static triangle per team marking GAME pressure — sits on the dark inside of
+  // the arc pointing outward, for much better contrast than a line over the gradient.
   const setNotch = (id, val, color) => {
     const el = document.getElementById(id);
     if (!el) return;
@@ -1853,17 +1857,20 @@ function renderPressureGauge(t1, t2, s1, s2) {
     el.style.display = "";
     const f = Math.max(0, Math.min(1, val / MAX));
     const a = Math.PI * (1 - f);
-    el.setAttribute("x1", (cx + 78 * Math.cos(a)).toFixed(1));
-    el.setAttribute("y1", (cy - 78 * Math.sin(a)).toFixed(1));
-    el.setAttribute("x2", (cx + 93 * Math.cos(a)).toFixed(1));
-    el.setAttribute("y2", (cy - 93 * Math.sin(a)).toFixed(1));
-    el.setAttribute("stroke", color);
+    const ca = Math.cos(a), sa = Math.sin(a);
+    const rTip = 77, rBase = 68, hw = 5.2;          // tip near arc inner edge, base further in
+    const tx = cx + rTip * ca,  ty = cy - rTip * sa; // outward-pointing tip
+    const bx = cx + rBase * ca, by = cy - rBase * sa;
+    const px = sa, py = ca;                          // tangent (base spread) direction
+    const p = (x, y) => `${x.toFixed(1)},${y.toFixed(1)}`;
+    el.setAttribute("points", `${p(tx, ty)} ${p(bx + hw*px, by + hw*py)} ${p(bx - hw*px, by - hw*py)}`);
+    el.setAttribute("fill", color);
   };
   setNotch("pgNotch1", s1 ? s1.pressureGame : null, col1);
   setNotch("pgNotch2", s2 ? s2.pressureGame : null, col2);
   if (!pgAnim.running) { pgAnim.running = true; requestAnimationFrame(pgStep); }
   const r5   = v => (v == null ? "—" : String(Math.round(v / 5) * 5));
-  const abbr = n => (n || "").replace(/[^A-Za-z ]/g, "").split(/\s+/).filter(Boolean).map(w => w[0]).join("").slice(0, 3).toUpperCase();
+  const abbr = teamAbbr; // proper 3-letter codes (ESS not E, MEL not M)
   const leg  = (id, name, val, color) => {
     const el = document.getElementById(id);
     if (el) el.innerHTML = `<span class="dot" style="color:${color}">●</span>${abbr(name)} ${r5(val)}`;
@@ -1883,7 +1890,7 @@ function renderFieldSections(t1, t2, s1, s2) {
   const col1 = resolvedColor(t1).accent, col2 = resolvedColor(t2).accent;
   const T = 2.20, K = 87; // 2.20 = neutral; ~1.74 → dominate, ~3.5 → cede
   const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
-  const abbr = n => (n || "").replace(/[^A-Za-z ]/g, "").split(/\s+/).filter(Boolean).map(w => w[0]).join("").slice(0, 3).toUpperCase();
+  const abbr = teamAbbr; // proper 3-letter codes (ESS not E, MEL not M)
   const i1 = s1 ? (s1.i50w || 0) : 0, i2 = s2 ? (s2.i50w || 0) : 0;
   const r1 = s1 ? s1.in50ssW : null, r2 = s2 ? s2.in50ssW : null;
   // 0-scoring-shot case: strength scales with inside-50s defended/wasted (each ~6%, capped at half the column)
