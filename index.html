@@ -1884,14 +1884,16 @@ function renderFieldSections(t1, t2, s1, s2) {
   const abbr = n => (n || "").replace(/[^A-Za-z ]/g, "").split(/\s+/).filter(Boolean).map(w => w[0]).join("").slice(0, 3).toUpperCase();
   const i1 = s1 ? (s1.i50w || 0) : 0, i2 = s2 ? (s2.i50w || 0) : 0;
   const r1 = s1 ? s1.in50ssW : null, r2 = s2 ? s2.in50ssW : null;
-  const attackPos  = r1 != null ? clamp(50 + (T - r1) * K, 0, 100) : (i1 > 0 ? 2  : 50);
-  const defencePos = r2 != null ? clamp(50 + (r2 - T) * K, 0, 100) : (i2 > 0 ? 98 : 50);
+  // 0-scoring-shot case: strength scales with inside-50s defended/wasted (each ~6%, capped at half the column)
+  const entryStr = n => Math.min(50, n * 6);
+  const attackPos  = r1 != null ? clamp(50 + (T - r1) * K, 0, 100) : (i1 > 0 ? 50 - entryStr(i1) : 50);
+  const defencePos = r2 != null ? clamp(50 + (r2 - T) * K, 0, 100) : (i2 > 0 ? 50 + entryStr(i2) : 50);
   const midPos     = (i1 + i2) > 0 ? (i1 / (i1 + i2)) * 100 : 50;
   // whole-game positions (for the notches)
   const i1g = s1 ? (s1.i50g || 0) : 0, i2g = s2 ? (s2.i50g || 0) : 0;
   const r1g = s1 ? s1.in50ssG : null, r2g = s2 ? s2.in50ssG : null;
-  const attackPosG  = r1g != null ? clamp(50 + (T - r1g) * K, 0, 100) : null;
-  const defencePosG = r2g != null ? clamp(50 + (r2g - T) * K, 0, 100) : null;
+  const attackPosG  = r1g != null ? clamp(50 + (T - r1g) * K, 0, 100) : (i1g > 0 ? 50 - entryStr(i1g) : null);
+  const defencePosG = r2g != null ? clamp(50 + (r2g - T) * K, 0, 100) : (i2g > 0 ? 50 + entryStr(i2g) : null);
   const midPosG     = (i1g + i2g) > 0 ? (i1g / (i1g + i2g)) * 100 : null;
   const hn = document.getElementById("tsHome"), an = document.getElementById("tsAway");
   if (hn) { hn.textContent = "◀ " + t1; hn.style.color = col1; } // home = top, arrow left
