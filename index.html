@@ -1880,38 +1880,49 @@ function renderPressureGauge(t1, t2, s1, s2) {
 }
 
 // Field territory — 3 vertical bars under the gauge. Each fills from the centre
-// line toward the leading team (team1/left fills DOWN in its colour, team2/right
-// fills UP), height ∝ dominance. Driven by In50s-per-scoring-shot vs the 2.20 pivot:
-//   Attack  = team1's ratio (1.74 → team1 dominates; 3.5 → cede to team2)
-//   Defence = team2's ratio (high → team1's defence rebounds; low → team2 dominates)
-//   Midfield = inside-50 share.
+// line toward the leading team (team1/top fills UP in its colour, team2/bottom
+// fills DOWN), bar length ∝ dominance.
+//
+// Dominance = the SHOT MARGIN vs a neutral conversion rate (2.20 In50s/shot):
+//   margin = scoringShots − entries / 2.20   (per attacking team)
+//   +ve → the attack beat expectation;  −ve → the defence held.
+// Because it's the raw shot difference, magnitude scales with VOLUME: holding a
+// team to 2 shots from 8 entries (−1.6) outranks 1 from 3 (−0.4). No /shots, so
+// no divide-by-zero. Calibrated (user anchors): 5-entries-for-0-shots = full
+// defence, 5-for-5 = full attack, and 3-for-3 sits below 5-for-5 (volume counts).
+//   Attack  column = team1's attack margin   (team1 att vs team2 def)
+//   Defence column = team2's attack margin, inverted (team1 def vs team2 att)
+//   Midfield column = inside-50 share.
 function renderFieldSections(t1, t2, s1, s2) {
   if (!document.getElementById("fieldSections")) return;
   const col1 = resolvedColor(t1).accent, col2 = resolvedColor(t2).accent;
-  const T = 2.20, K = 87; // 2.20 = neutral; ~1.74 → dominate, ~3.5 → cede
+  const T = 2.20, G = 22; // 2.20 = neutral In50s/shot; G≈50/(5/2.2) so 5-for-0 defence fills the bar
   const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
   const abbr = teamAbbr; // proper 3-letter codes (ESS not E, MEL not M)
+  // scoring shots: use ssW/ssG if present, else recover losslessly from entries/ratio (old data)
+  const shotsW = s => !s ? 0 : (s.ssW != null ? s.ssW : (s.in50ssW ? Math.round((s.i50w || 0) / s.in50ssW) : 0));
+  const shotsG = s => !s ? 0 : (s.ssG != null ? s.ssG : (s.in50ssG ? Math.round((s.i50g || 0) / s.in50ssG) : 0));
+  const margin = (E, S) => (E > 0 || S > 0) ? (S - E / T) : null; // null = nothing happened yet
   const i1 = s1 ? (s1.i50w || 0) : 0, i2 = s2 ? (s2.i50w || 0) : 0;
-  const r1 = s1 ? s1.in50ssW : null, r2 = s2 ? s2.in50ssW : null;
-  // 0-scoring-shot case: strength scales with inside-50s defended/wasted (each ~6%, capped at half the column)
-  const entryStr = n => Math.min(50, n * 6);
-  const attackPos  = r1 != null ? clamp(50 + (T - r1) * K, 0, 100) : (i1 > 0 ? 50 - entryStr(i1) : 50);
-  const defencePos = r2 != null ? clamp(50 + (r2 - T) * K, 0, 100) : (i2 > 0 ? 50 + entryStr(i2) : 50);
+  const s1w = shotsW(s1), s2w = shotsW(s2);
+  const m1 = margin(i1, s1w), m2 = margin(i2, s2w);
+  const attackPos  = m1 == null ? 50 : clamp(50 + m1 * G, 0, 100); // team1 attack beats expectation → toward team1 (top)
+  const defencePos = m2 == null ? 50 : clamp(50 - m2 * G, 0, 100); // team2 attack held down → team1 defence leads (top)
   const midPos     = (i1 + i2) > 0 ? (i1 / (i1 + i2)) * 100 : 50;
   // whole-game positions (for the notches)
   const i1g = s1 ? (s1.i50g || 0) : 0, i2g = s2 ? (s2.i50g || 0) : 0;
-  const r1g = s1 ? s1.in50ssG : null, r2g = s2 ? s2.in50ssG : null;
-  const attackPosG  = r1g != null ? clamp(50 + (T - r1g) * K, 0, 100) : (i1g > 0 ? 50 - entryStr(i1g) : null);
-  const defencePosG = r2g != null ? clamp(50 + (r2g - T) * K, 0, 100) : (i2g > 0 ? 50 + entryStr(i2g) : null);
+  const s1g = shotsG(s1), s2g = shotsG(s2);
+  const m1g = margin(i1g, s1g), m2g = margin(i2g, s2g);
+  const attackPosG  = m1g == null ? null : clamp(50 + m1g * G, 0, 100);
+  const defencePosG = m2g == null ? null : clamp(50 - m2g * G, 0, 100);
   const midPosG     = (i1g + i2g) > 0 ? (i1g / (i1g + i2g)) * 100 : null;
   const hn = document.getElementById("tsHome"), an = document.getElementById("tsAway");
   if (hn) { hn.textContent = "◀ " + abbr(t1); hn.style.color = col1; } // home = top (short name)
   if (an) { an.textContent = abbr(t2) + " ▶"; an.style.color = col2; } // away = bottom (short name)
   const dbg = document.getElementById("tsDbg"); // TEMP: windowed values for testing
   if (dbg) {
-    const ssCount = (i, r) => (r == null ? 0 : Math.round(i / r));
-    const line = (t, i, r) => `${abbr(t)} ${i}i50 ${ssCount(i, r)}ss ${r == null ? "—" : r}/sh`;
-    dbg.innerHTML = line(t1, i1, r1) + "<br>" + line(t2, i2, r2);
+    const line = (t, i, sh) => `${abbr(t)} ${i}i50 ${sh}ss ${sh > 0 ? (i / sh).toFixed(2) : "—"}/sh`;
+    dbg.innerHTML = line(t1, i1, s1w) + "<br>" + line(t2, i2, s2w);
   }
   const WHITE = "#ffffff", GREY = "#6e7681";
   const applyBar = (id, posT1) => {
