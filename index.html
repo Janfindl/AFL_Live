@@ -1569,7 +1569,7 @@ function showStatus(msg, isErr=false) {
 // ── Fetch ─────────────────────────────────────────────────────────────────────
 function scheduleRefresh() {
   clearTimeout(refreshTimeout);
-  refreshTimeout = setTimeout(fetchAndRender, 15000);
+  refreshTimeout = setTimeout(fetchAndRender, 10000); // 10s: picks up direct-pushed data faster; still within server cache TTL when GitHub-only
 }
 
 async function fetchAndRender() {
