@@ -1913,10 +1913,14 @@ function renderFieldSections(t1, t2, s1, s2) {
   // whole-game positions (for the notches)
   const i1g = s1 ? (s1.i50g || 0) : 0, i2g = s2 ? (s2.i50g || 0) : 0;
   const s1g = shotsG(s1), s2g = shotsG(s2);
-  const m1g = margin(i1g, s1g), m2g = margin(i2g, s2g);
-  const attackPosG  = m1g == null ? null : clamp(50 + m1g * G, 0, 100);
-  const defencePosG = m2g == null ? null : clamp(50 - m2g * G, 0, 100);
-  const midPosG     = (i1g + i2g) > 0 ? clamp(50 + (i1g - i2g) * (50 / MIDSPAN), 0, 100) : null;
+  // ATT/DEF notches are GAME-AVERAGED: per-entry efficiency (S/E − 1/T) scaled to the
+  // 5-entry window anchor, so a long game shows average quality instead of pegging.
+  const AVGREF = 5;
+  const gAvg = (E, S) => E > 0 ? (S / E - 1 / T) * AVGREF : null;
+  const a1g = gAvg(i1g, s1g), a2g = gAvg(i2g, s2g);
+  const attackPosG  = a1g == null ? null : clamp(50 + a1g * G, 0, 100);
+  const defencePosG = a2g == null ? null : clamp(50 - a2g * G, 0, 100);
+  const midPosG     = (i1g + i2g) > 0 ? (i1g / (i1g + i2g)) * 100 : null; // MID notch = share of total inside-50s
   const hn = document.getElementById("tsHome"), an = document.getElementById("tsAway");
   if (hn) { hn.textContent = "◀ " + abbr(t1); hn.style.color = col1; } // home = top (short name)
   if (an) { an.textContent = abbr(t2) + " ▶"; an.style.color = col2; } // away = bottom (short name)
