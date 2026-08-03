@@ -2627,8 +2627,8 @@ function renderMomentum(momentum, teams, quarterStartTs, scoreEvents, pressureSe
       }
       return chosen;
     };
-    const peaks   = pick(maxima, 5, (a, b) => sm[b].pi - sm[a].pi); // highest first
-    const troughs = pick(minima, 2, (a, b) => sm[a].pi - sm[b].pi); // lowest first
+    const peaks   = pick(maxima, 3, (a, b) => sm[b].pi - sm[a].pi); // highest first
+    const troughs = pick(minima, 3, (a, b) => sm[a].pi - sm[b].pi); // lowest first
     const dash = (i, color) => {
       const x = xMid(sm[i].ts), y = iY(sm[i].pi);
       return `<line x1="${(x - 7).toFixed(1)}" y1="${y.toFixed(1)}" x2="${(x + 7).toFixed(1)}" y2="${y.toFixed(1)}" stroke="${color}" stroke-width="2.4" stroke-linecap="round" vector-effect="non-scaling-stroke"/>`;
@@ -2638,9 +2638,7 @@ function renderMomentum(momentum, teams, quarterStartTs, scoreEvents, pressureSe
       <polyline points="${dPts}" fill="none" stroke="#e6edf3" stroke-opacity="0.6"
         stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
       <text x="4" y="${H - SCORE_H - 3}" fill="#e6edf3" fill-opacity="0.45" font-size="8"
-        font-family="sans-serif" font-weight="700" letter-spacing="0.3">PRESSURE Δ</text>
-      <text x="${W - 4}" y="${H - SCORE_H - 3}" text-anchor="end" fill="#f5a623" fill-opacity="0.6" font-size="8"
-        font-family="sans-serif" font-weight="700" letter-spacing="0.3">INTENSITY</text>`;
+        font-family="sans-serif" font-weight="700" letter-spacing="0.3">PRESSURE Δ</text>`;
   }
 
   el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
