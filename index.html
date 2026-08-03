@@ -515,9 +515,10 @@ header{
   .team-card-gb{font-size:11px}
   .team-card-bg{width:82px;height:82px}
   .last10-group{flex:1 1 100%;min-width:100%;border-top:1px solid #30363d}
-  .last10-body{flex-wrap:wrap}
-  .pressure-gauge{flex:1 1 100%;min-width:100%;padding:6px 16px 8px}
-  .territory-tile{flex:1 1 100%;min-width:100%;padding:14px 18px}
+  /* gauge + territory stay SIDE BY SIDE on mobile — they fit if the gauge can shrink */
+  .pressure-gauge{flex:1 1 0;min-width:0;padding:6px 8px 8px}
+  .territory-tile{flex:1 1 0;min-width:0;padding:8px 6px}
+  .pg-svg{width:100%;max-width:168px}
   .momentum-panel{
     flex:none;width:100%;min-width:100%;
     height:72px;border-top:1px solid #30363d;
