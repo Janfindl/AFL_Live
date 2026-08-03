@@ -2597,20 +2597,12 @@ function renderMomentum(momentum, teams, quarterStartTs, scoreEvents, pressureSe
         font-family="sans-serif" font-weight="700" letter-spacing="0.3">PRESSURE Δ</text>`;
   }
 
-  // Overall leader label
-  const totalNet   = nets.reduce((s, v) => s + v, 0);
-  const leaderC    = totalNet >= 0 ? c1 : c2;
-  const leaderAbbr = teamAbbr(totalNet >= 0 ? t1 : t2);
-
   el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
     ${bars}
     <line x1="0" y1="${midY}" x2="${W}" y2="${midY}" stroke="#30363d" stroke-width="1"/>
     ${qMarkers}
     ${pressureLine}
     ${qWinLabels}
-    <text x="${W-4}" y="${midY-4}" text-anchor="end"
-          fill="${leaderC}" font-size="11" font-family="sans-serif" font-weight="800"
-          >${leaderAbbr}</text>
     <line x1="0" y1="${H - SCORE_H}" x2="${W}" y2="${H - SCORE_H}" stroke="#30363d" stroke-width="0.5"/>
     ${scoreMarkers}
   </svg>`;
