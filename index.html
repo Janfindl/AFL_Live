@@ -1956,7 +1956,13 @@ function renderFieldSections(t1, t2, s1, s2) {
   const m1g = margin(i1g, s1g), m2g = margin(i2g, s2g);
   const attackPosG  = m1g == null ? null : clamp(50 + m1g * NOTCH_G, 0, 100);
   const defencePosG = m2g == null ? null : clamp(50 - m2g * NOTCH_G, 0, 100);
-  const midPosG     = (i1g + i2g) > 0 ? (i1g / (i1g + i2g)) * 100 : null; // MID notch = share of total inside-50s
+  // MID notch = how far the dominant team's inside-50s exceed the other's, as a
+  // fraction of the smaller count: (larger/smaller − 1) = (larger − smaller)/smaller,
+  // mapped 1:1 to bar %-points toward that team (clamped to the half-bar). 62 v 49
+  // (13 more) reads 26.5% off centre — far more than a raw share's ~5%.
+  const iMax = Math.max(i1g, i2g), iMin = Math.min(i1g, i2g);
+  const midOcc = iMin > 0 ? Math.min(50, ((iMax - iMin) / iMin) * 100) : (iMax > 0 ? 50 : 0);
+  const midPosG = (i1g + i2g) > 0 ? (i1g >= i2g ? 50 + midOcc : 50 - midOcc) : null;
   const hn = document.getElementById("tsHome"), an = document.getElementById("tsAway");
   if (hn) { hn.textContent = "◀ " + abbr(t1); hn.style.color = col1; } // home = top (short name)
   if (an) { an.textContent = abbr(t2) + " ▶"; an.style.color = col2; } // away = bottom (short name)
