@@ -377,7 +377,8 @@ function computePressureSeries(fetchLog, teams, windowMins = 10) {
     if (win[t1].ED < 15 || win[t2].ED < 15) continue;
     const p1 = pv(win, t1, t2), p2 = pv(win, t2, t1);
     if (p1 == null || p2 == null) continue;
-    out.push({ ts: fi.ts, pd: Math.round((p1 - p2) * 10) / 10 });
+    // pd = pressure difference (home−away); pi = intensity (sum of both teams' pressure)
+    out.push({ ts: fi.ts, pd: Math.round((p1 - p2) * 10) / 10, pi: Math.round((p1 + p2) * 10) / 10 });
   }
   return out;
 }

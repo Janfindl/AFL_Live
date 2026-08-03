@@ -2586,30 +2586,38 @@ function renderMomentum(momentum, teams, quarterStartTs, scoreEvents, pressureSe
         : `<circle cx="${x}" cy="${y0+7}" r="3.5" fill="${col}" opacity="0.4"/>`;
     }).join("");
 
-  // Smoothed pressure-difference line over the bars (home − away, its own y-scale).
-  // Above the midline = team1 pressure on top. pressure is already a 10-min rolling
-  // metric, so a light moving average is enough to render a clean curve.
+  // Smoothed pressure overlays. Both are trailing 10-min aggregates → plotted at the
+  // window MIDPOINT (5 play-min earlier) so they line up with when it happened.
+  //   • PRESSURE Δ (white): home − away, centred on the midline.
+  //   • INTENSITY (amber): home + away, anchored at the chart floor (0) rising with total pressure.
   let pressureLine = "";
   const psRaw = (pressureSeries || []).filter(p => p && p.ts >= gameStartTs && typeof p.pd === "number");
   if (psRaw.length > 2) {
     const K = 3; // ± smoothing half-window
     const sm = psRaw.map((p, i) => {
-      let s = 0, n = 0;
-      for (let k = -K; k <= K; k++) { const q = psRaw[i + k]; if (q) { s += q.pd; n++; } }
-      return { ts: p.ts, pd: s / n };
+      let sd = 0, si = 0, n = 0;
+      for (let k = -K; k <= K; k++) { const q = psRaw[i + k]; if (q) { sd += q.pd; si += (q.pi || 0); n++; } }
+      return { ts: p.ts, pd: sd / n, pi: si / n };
     });
-    const pdMax   = Math.max(10, ...sm.map(p => Math.abs(p.pd)));
-    const pScale  = (chartH / 2 - 4) / pdMax;
     const clampY  = y => Math.max(LABEL_H + 1, Math.min(H - SCORE_H - 1, y));
-    // Each point is a trailing 10-min aggregate → plot at the window MIDPOINT, i.e. 5
-    // play-minutes earlier, so the curve lines up with when the pressure actually happened.
     const HALF_WIN = 5;
     const xMid = ts => Math.max(0, Math.min(W, (tsToPlayMins(ts) - HALF_WIN) / totalPlay * W));
-    const pts = sm.map(p => `${xMid(p.ts).toFixed(1)},${clampY(midY - p.pd * pScale).toFixed(1)}`).join(" ");
-    pressureLine = `<polyline points="${pts}" fill="none" stroke="#e6edf3" stroke-opacity="0.6"
+    // delta line — centred on the midline
+    const pdMax  = Math.max(10, ...sm.map(p => Math.abs(p.pd)));
+    const pScale = (chartH / 2 - 4) / pdMax;
+    const dPts = sm.map(p => `${xMid(p.ts).toFixed(1)},${clampY(midY - p.pd * pScale).toFixed(1)}`).join(" ");
+    // intensity line — 0 at the floor, game max near the top
+    const piMax  = Math.max(1, ...sm.map(p => p.pi));
+    const yBot = H - SCORE_H - 2, yTop = LABEL_H + 2;
+    const iPts = sm.map(p => `${xMid(p.ts).toFixed(1)},${(yBot - (p.pi / piMax) * (yBot - yTop)).toFixed(1)}`).join(" ");
+    pressureLine = `<polyline points="${iPts}" fill="none" stroke="#f5a623" stroke-opacity="0.55"
+        stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+      <polyline points="${dPts}" fill="none" stroke="#e6edf3" stroke-opacity="0.6"
         stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
       <text x="4" y="${H - SCORE_H - 3}" fill="#e6edf3" fill-opacity="0.45" font-size="8"
-        font-family="sans-serif" font-weight="700" letter-spacing="0.3">PRESSURE Δ</text>`;
+        font-family="sans-serif" font-weight="700" letter-spacing="0.3">PRESSURE Δ</text>
+      <text x="${W - 4}" y="${H - SCORE_H - 3}" text-anchor="end" fill="#f5a623" fill-opacity="0.6" font-size="8"
+        font-family="sans-serif" font-weight="700" letter-spacing="0.3">INTENSITY</text>`;
   }
 
   el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
