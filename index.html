@@ -2541,12 +2541,13 @@ function renderMomentum(momentum, teams, quarterStartTs, scoreEvents) {
   }).join("");
 
   // Quarter winner labels: right-aligned before the NEXT quarter marker, in top strip
-  // This keeps them out of the bar chart area entirely
+  // (keeps them out of the bar chart area). The FINAL quarter has no following marker,
+  // so anchor it at the right edge of its own data — otherwise Q4's differential never
+  // shows (it stays running through Q4 and freezes when the game closes).
   const qWinLabels = qSorted.map(([q, startTs], i) => {
     const nextEntry = qSorted[i + 1];
-    if (!nextEntry) return ""; // Q4 ongoing — no end marker yet
-    const [, nextTs] = nextEntry;
-    const qBins = playBins.filter(b => b.binStart >= startTs && b.binStart < nextTs);
+    const endTs = nextEntry ? nextEntry[1] : lastTs + 1; // final quarter runs to the last data point
+    const qBins = playBins.filter(b => b.binStart >= startTs && b.binStart < endTs);
     if (qBins.length === 0) return "";
     const homeSum = qBins.reduce((s, b) => s + b.homeVal, 0);
     const awaySum = qBins.reduce((s, b) => s + b.awayVal, 0);
@@ -2555,7 +2556,7 @@ function renderMomentum(momentum, teams, quarterStartTs, scoreEvents) {
     const winAbbr = diff > 0 ? teamAbbr(t1) : teamAbbr(t2);
     const winC    = diff > 0 ? c1 : c2;
     const margin  = Math.abs(diff).toFixed(1);
-    const x = (tsToX(nextTs) - 3).toFixed(1);
+    const x = (Math.min(W, tsToX(nextEntry ? nextEntry[1] : lastTs)) - 3).toFixed(1);
     return `<text x="${x}" y="${LABEL_H - 3}" text-anchor="end"
       fill="${winC}" font-size="11" font-family="sans-serif" font-weight="800" opacity="0.95"
       >${winAbbr} +${margin}</text>`;
