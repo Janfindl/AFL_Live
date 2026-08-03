@@ -688,11 +688,11 @@ header{
           <g id="pgTicks" stroke="#0d1117" stroke-width="2"></g>
           <polygon id="pgNotch1" stroke="#e6edf3" stroke-width="0.6" stroke-linejoin="round" style="display:none"/>
           <polygon id="pgNotch2" stroke="#e6edf3" stroke-width="0.6" stroke-linejoin="round" style="display:none"/>
-          <line id="pgNeedle2" x1="100" y1="100" x2="100" y2="24" stroke="#ff7a45" stroke-width="4" stroke-linecap="round"/>
-          <line id="pgNeedle1" x1="100" y1="100" x2="100" y2="24" stroke="#4da3ff" stroke-width="4" stroke-linecap="round"/>
+          <line id="pgNeedle2" x1="100" y1="100" x2="100" y2="38" stroke="#ff7a45" stroke-width="4" stroke-linecap="round"/>
+          <line id="pgNeedle1" x1="100" y1="100" x2="100" y2="38" stroke="#4da3ff" stroke-width="4" stroke-linecap="round"/>
           <circle cx="100" cy="100" r="7" fill="#0d1117" stroke="#8b949e" stroke-width="2"/>
-          <text x="13" y="114" fill="#8b949e" font-size="9" font-weight="700">0</text>
-          <text x="187" y="114" fill="#8b949e" font-size="9" font-weight="700" text-anchor="end" id="pgMaxLbl">300</text>
+          <text x="24" y="114" fill="#8b949e" font-size="9" font-weight="700">0</text>
+          <text x="176" y="114" fill="#8b949e" font-size="9" font-weight="700" text-anchor="end" id="pgMaxLbl">300</text>
         </svg>
         <div class="pg-legend">
           <span id="pgLeg1">—</span>
@@ -1829,7 +1829,7 @@ function renderPressureGauge(t1, t2, s1, s2) {
   // gradient sweeps along the arc (left→top→right), not east→west. transparent → light blue → orange → red
   const arcEl = document.getElementById("pgArc");
   if (arcEl && !arcEl.childNodes.length) {
-    const R = 85, N = 72, sw = 14;
+    const R = 72, N = 72, sw = 18; // smaller radius + thicker stroke; frees the outer ring for game-total arrows
     // Interpolate in HSL so the arc sweeps through vivid hues: light blue → green →
     // yellow → orange → red (the shortest hue path from blue to orange runs through
     // green/yellow, avoiding the grey that a plain RGB blend would give).
@@ -1866,7 +1866,7 @@ function renderPressureGauge(t1, t2, s1, s2) {
     let ticks = "";
     for (let f = 0; f <= 1.0001; f += 0.25) {
       const a = Math.PI * (1 - f);
-      ticks += `<line x1="${(cx+84*Math.cos(a)).toFixed(1)}" y1="${(cy-84*Math.sin(a)).toFixed(1)}" x2="${(cx+76*Math.cos(a)).toFixed(1)}" y2="${(cy-76*Math.sin(a)).toFixed(1)}"/>`;
+      ticks += `<line x1="${(cx+80*Math.cos(a)).toFixed(1)}" y1="${(cy-80*Math.sin(a)).toFixed(1)}" x2="${(cx+64*Math.cos(a)).toFixed(1)}" y2="${(cy-64*Math.sin(a)).toFixed(1)}"/>`;
     }
     ticksEl.innerHTML = ticks;
   }
@@ -1883,8 +1883,8 @@ function renderPressureGauge(t1, t2, s1, s2) {
   };
   setTarget("n1", "pgNeedle1", s1 ? s1.pressure10 : null, col1);
   setTarget("n2", "pgNeedle2", s2 ? s2.pressure10 : null, col2);
-  // Static triangle per team marking GAME pressure — sits on the dark inside of
-  // the arc pointing outward, for much better contrast than a line over the gradient.
+  // Static triangle per team marking GAME pressure — sits just OUTSIDE the arc
+  // pointing inward at the value, so the needles (which sweep the inside) never cover it.
   const setNotch = (id, val, color) => {
     const el = document.getElementById(id);
     if (!el) return;
@@ -1893,8 +1893,8 @@ function renderPressureGauge(t1, t2, s1, s2) {
     const f = Math.max(0, Math.min(1, val / MAX));
     const a = Math.PI * (1 - f);
     const ca = Math.cos(a), sa = Math.sin(a);
-    const rTip = 77, rBase = 68, hw = 5.2;          // tip near arc inner edge, base further in
-    const tx = cx + rTip * ca,  ty = cy - rTip * sa; // outward-pointing tip
+    const rTip = 83, rBase = 91, hw = 5.5;           // tip just outside arc, base further out
+    const tx = cx + rTip * ca,  ty = cy - rTip * sa; // inward-pointing tip (at the arc)
     const bx = cx + rBase * ca, by = cy - rBase * sa;
     const px = sa, py = ca;                          // tangent (base spread) direction
     const p = (x, y) => `${x.toFixed(1)},${y.toFixed(1)}`;
