@@ -684,15 +684,7 @@ header{
       <div class="pressure-gauge" id="pressureGauge">
         <div class="pg-title">Pressure</div>
         <svg class="pg-svg" viewBox="0 0 200 116" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-          <defs>
-            <linearGradient id="pgGrad" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0" stop-color="#f2cc41" stop-opacity="0"/>
-              <stop offset="0.3" stop-color="#f2cc41"/>
-              <stop offset="0.65" stop-color="#f0883e"/>
-              <stop offset="1" stop-color="#e5252a"/>
-            </linearGradient>
-          </defs>
-          <path d="M 15 100 A 85 85 0 0 1 185 100" fill="none" stroke="url(#pgGrad)" stroke-width="14" stroke-linecap="round"/>
+          <g id="pgArc"></g>
           <g id="pgTicks" stroke="#0d1117" stroke-width="2"></g>
           <polygon id="pgNotch1" stroke="#e6edf3" stroke-width="0.6" stroke-linejoin="round" style="display:none"/>
           <polygon id="pgNotch2" stroke="#e6edf3" stroke-width="0.6" stroke-linejoin="round" style="display:none"/>
@@ -1833,6 +1825,38 @@ function renderPressureGauge(t1, t2, s1, s2) {
   const MAX = 400, cx = 100, cy = 100;
   const col1 = resolvedColor(t1).accent, col2 = resolvedColor(t2).accent;
   const maxLbl = document.getElementById("pgMaxLbl"); if (maxLbl) maxLbl.textContent = MAX; // keep scale label in sync
+  // Colour arc that FOLLOWS the angle (drawn once): built from short segments so the
+  // gradient sweeps along the arc (left→top→right), not east→west. transparent → light blue → orange → red
+  const arcEl = document.getElementById("pgArc");
+  if (arcEl && !arcEl.childNodes.length) {
+    const R = 85, N = 72, sw = 14;
+    // Route blue → orange through a light warm tone so it stays in the blue/orange/red
+    // family — no grey (RGB blue+orange = grey) and no green (HSL hue sweep).
+    const stops = [
+      [0.00, [91, 192, 255, 0]],  // light blue, transparent (low)
+      [0.22, [91, 192, 255, 1]],  // light blue
+      [0.44, [247, 214, 170, 1]], // light warm bridge
+      [0.60, [240, 136, 62, 1]],  // orange
+      [1.00, [229, 37, 42, 1]],   // red (high)
+    ];
+    const lerp = (a, b, t) => a + (b - a) * t;
+    const colorAt = t => {
+      let k = 1; while (k < stops.length - 1 && t > stops[k][0]) k++;
+      const [p0, c0] = stops[k - 1], [p1, c1] = stops[k];
+      const f = p1 === p0 ? 0 : (t - p0) / (p1 - p0);
+      const c = [0, 1, 2].map(j => Math.round(lerp(c0[j], c1[j], f)));
+      return `rgba(${c[0]},${c[1]},${c[2]},${lerp(c0[3], c1[3], f).toFixed(3)})`;
+    };
+    const pt = ang => [cx + R * Math.cos(ang), cy - R * Math.sin(ang)];
+    let seg = "";
+    for (let i = 0; i < N; i++) {
+      const [x0, y0] = pt(Math.PI * (1 - i / N));
+      const [x1, y1] = pt(Math.PI * (1 - (i + 1) / N));
+      const cap = (i === 0 || i === N - 1) ? "round" : "butt";
+      seg += `<path d="M ${x0.toFixed(2)} ${y0.toFixed(2)} A ${R} ${R} 0 0 1 ${x1.toFixed(2)} ${y1.toFixed(2)}" fill="none" stroke="${colorAt((i + 0.5) / N)}" stroke-width="${sw}" stroke-linecap="${cap}"/>`;
+    }
+    arcEl.innerHTML = seg;
+  }
   // Notch ticks over the gradient arc (drawn once)
   const ticksEl = document.getElementById("pgTicks");
   if (ticksEl && !ticksEl.childNodes.length) {
