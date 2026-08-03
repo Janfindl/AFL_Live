@@ -67,29 +67,32 @@ header{
   flex-shrink:0;
 }
 .team-card{
-  padding:10px 14px;display:flex;align-items:center;gap:12px;
+  padding:11px 14px;display:flex;flex-direction:column;gap:5px;
   background:#0d1117;position:relative;overflow:hidden;
   flex:0 0 224px;width:224px;box-sizing:border-box;
 }
+/* top: identity (logo + name) */
+.tc-head{display:flex;align-items:center;gap:9px;z-index:1;min-height:38px}
 .team-card-logo{
-  width:50px;height:50px;object-fit:contain;flex-shrink:0;
-  z-index:1;
-}
-.team-card-body{
-  flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;z-index:1;
+  width:38px;height:38px;object-fit:contain;flex-shrink:0;
 }
 .team-card-name{
-  font-size:12px;font-weight:900;letter-spacing:-.3px;line-height:1.08;text-transform:uppercase;overflow-wrap:anywhere;
+  flex:1;min-width:0;
+  font-size:12px;font-weight:900;letter-spacing:-.3px;line-height:1.05;text-transform:uppercase;overflow-wrap:anywhere;
   display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;
 }
-.team-card-gb{font-size:12px;font-weight:700;opacity:.75;letter-spacing:.5px}
+/* middle: hero score fills the vertical space */
+.tc-score-wrap{flex:1;display:flex;align-items:center;z-index:1}
 .team-card-score{
-  font-size:38px;font-weight:900;font-variant-numeric:tabular-nums;
-  letter-spacing:-2px;flex-shrink:0;line-height:1;z-index:1;
+  font-size:50px;font-weight:900;font-variant-numeric:tabular-nums;
+  letter-spacing:-3px;line-height:.85;
 }
+/* bottom: goals.behinds + rating pill */
+.tc-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;z-index:1}
+.team-card-gb{font-size:13px;font-weight:700;opacity:.7;letter-spacing:.5px}
 .team-card-bg{
-  position:absolute;right:-10px;top:50%;transform:translateY(-50%);
-  width:110px;height:110px;object-fit:contain;opacity:.07;pointer-events:none;
+  position:absolute;right:-16px;bottom:-18px;
+  width:104px;height:104px;object-fit:contain;opacity:.06;pointer-events:none;
 }
 .team-card .pill{background:#0d1117cc!important;border-color:#0d111766!important}
 
@@ -492,12 +495,13 @@ header{
 
   /* ── Score row: cards 50/50, momentum below ── */
   .score-row{flex-wrap:wrap}
-  .team-card{flex:1 1 0;width:auto;min-width:0;padding:10px 12px;gap:8px}
-  .team-card-logo{width:44px;height:44px}
-  .team-card-score{font-size:36px;letter-spacing:-2px}
+  .team-card{flex:1 1 0;width:auto;min-width:0;padding:10px 12px;gap:4px}
+  .tc-head{min-height:32px;gap:8px}
+  .team-card-logo{width:32px;height:32px}
+  .team-card-score{font-size:44px;letter-spacing:-2px}
   .team-card-name{font-size:12px}
   .team-card-gb{font-size:11px}
-  .team-card-bg{width:80px;height:80px}
+  .team-card-bg{width:82px;height:82px}
   .pressure-gauge{flex:1 1 100%;min-width:100%;border-top:1px solid #30363d;padding:6px 16px 8px}
   .territory-tile{flex:1 1 100%;min-width:100%;border-top:1px solid #30363d;padding:14px 18px}
   .momentum-panel{
@@ -654,24 +658,28 @@ header{
     <!-- Score cards + Momentum -->
     <div class="score-row" id="teamCards">
       <div class="team-card" id="card1">
-        <img class="team-card-logo" id="c1logo" src="" alt="">
-        <div class="team-card-body">
+        <img class="team-card-bg" id="c1bg" src="" alt="">
+        <div class="tc-head">
+          <img class="team-card-logo" id="c1logo" src="" alt="">
           <div class="team-card-name" id="c1name">—</div>
+        </div>
+        <div class="tc-score-wrap"><div class="team-card-score" id="c1score">—</div></div>
+        <div class="tc-foot">
           <div class="team-card-gb"><span id="c1goals">—</span>.<span id="c1behinds">—</span></div>
           <div id="c1rat">—</div>
         </div>
-        <div class="team-card-score" id="c1score">—</div>
-        <img class="team-card-bg" id="c1bg" src="" alt="">
       </div>
       <div class="team-card" id="card2">
-        <img class="team-card-logo" id="c2logo" src="" alt="">
-        <div class="team-card-body">
+        <img class="team-card-bg" id="c2bg" src="" alt="">
+        <div class="tc-head">
+          <img class="team-card-logo" id="c2logo" src="" alt="">
           <div class="team-card-name" id="c2name">—</div>
+        </div>
+        <div class="tc-score-wrap"><div class="team-card-score" id="c2score">—</div></div>
+        <div class="tc-foot">
           <div class="team-card-gb"><span id="c2goals">—</span>.<span id="c2behinds">—</span></div>
           <div id="c2rat">—</div>
         </div>
-        <div class="team-card-score" id="c2score">—</div>
-        <img class="team-card-bg" id="c2bg" src="" alt="">
       </div>
       <div class="pressure-gauge" id="pressureGauge">
         <div class="pg-title">Pressure</div>
@@ -1913,13 +1921,14 @@ function renderFieldSections(t1, t2, s1, s2) {
   // whole-game positions (for the notches)
   const i1g = s1 ? (s1.i50g || 0) : 0, i2g = s2 ? (s2.i50g || 0) : 0;
   const s1g = shotsG(s1), s2g = shotsG(s2);
-  // ATT/DEF notches are GAME-AVERAGED: per-entry efficiency (S/E − 1/T) scaled to the
-  // 5-entry window anchor, so a long game shows average quality instead of pegging.
-  const AVGREF = 5;
-  const gAvg = (E, S) => E > 0 ? (S / E - 1 / T) * AVGREF : null;
-  const a1g = gAvg(i1g, s1g), a2g = gAvg(i2g, s2g);
-  const attackPosG  = a1g == null ? null : clamp(50 + a1g * G, 0, 100);
-  const defencePosG = a2g == null ? null : clamp(50 - a2g * G, 0, 100);
+  // ATT/DEF notches: whole-game shot margin (S − E/T), which keeps BOTH volume and
+  // efficiency. Scaled for full-game totals (NOTCH_G) so a dominant game clearly
+  // deviates while a close game stays near centre. (Per-entry averaging flattened
+  // it — real whole-game ratios cluster near the 2.20 pivot.)
+  const NOTCH_G = 8;
+  const m1g = margin(i1g, s1g), m2g = margin(i2g, s2g);
+  const attackPosG  = m1g == null ? null : clamp(50 + m1g * NOTCH_G, 0, 100);
+  const defencePosG = m2g == null ? null : clamp(50 - m2g * NOTCH_G, 0, 100);
   const midPosG     = (i1g + i2g) > 0 ? (i1g / (i1g + i2g)) * 100 : null; // MID notch = share of total inside-50s
   const hn = document.getElementById("tsHome"), an = document.getElementById("tsAway");
   if (hn) { hn.textContent = "◀ " + abbr(t1); hn.style.color = col1; } // home = top (short name)
