@@ -96,6 +96,15 @@ header{
 }
 .team-card .pill{background:#0d1117cc!important;border-color:#0d111766!important}
 
+/* "Last 10 Minutes" meta group: shared header over the pressure + territory tiles */
+.last10-group{display:flex;flex-direction:column;flex-shrink:0;background:#0d1117}
+.last10-header{
+  font-size:9px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#8b949e;
+  text-align:center;padding:5px 8px 4px;border-bottom:1px solid #21262d;flex-shrink:0;
+}
+.last10-body{display:flex;flex:1;min-height:0;gap:1px;background:#30363d}
+.last10-body>*{background:#0d1117}
+
 /* Pressure gauge tile */
 .pressure-gauge{
   background:#0d1117;padding:8px 16px 6px;display:flex;flex-direction:column;
@@ -505,8 +514,10 @@ header{
   .team-card-name{font-size:12px}
   .team-card-gb{font-size:11px}
   .team-card-bg{width:82px;height:82px}
-  .pressure-gauge{flex:1 1 100%;min-width:100%;border-top:1px solid #30363d;padding:6px 16px 8px}
-  .territory-tile{flex:1 1 100%;min-width:100%;border-top:1px solid #30363d;padding:14px 18px}
+  .last10-group{flex:1 1 100%;min-width:100%;border-top:1px solid #30363d}
+  .last10-body{flex-wrap:wrap}
+  .pressure-gauge{flex:1 1 100%;min-width:100%;padding:6px 16px 8px}
+  .territory-tile{flex:1 1 100%;min-width:100%;padding:14px 18px}
   .momentum-panel{
     flex:none;width:100%;min-width:100%;
     height:72px;border-top:1px solid #30363d;
@@ -684,6 +695,9 @@ header{
           <div id="c2rat">—</div>
         </div>
       </div>
+      <div class="last10-group">
+        <div class="last10-header">Last 10 Minutes</div>
+        <div class="last10-body">
       <div class="pressure-gauge" id="pressureGauge">
         <div class="pg-title">Pressure</div>
         <svg class="pg-svg" viewBox="0 0 200 116" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
@@ -712,6 +726,8 @@ header{
           </div>
         </div>
         <div class="ts-team ts-away" id="tsAway">—</div>
+      </div>
+        </div>
       </div>
       <div class="momentum-panel">
         <div class="momentum-chart-wrap">
