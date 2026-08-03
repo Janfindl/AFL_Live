@@ -2463,24 +2463,21 @@ function renderMomentum(momentum, teams, quarterStartTs, scoreEvents, pressureSe
     .map(([q, t]) => [Number(q), t])
     .sort((a, b) => a[0] - b[0]);
 
-  // Map real timestamp → game-time minutes (quarter breaks collapsed)
-  function tsToGameMins(ts) {
-    let quarter = 1, qStart = gameStartTs;
-    for (const [q, t] of qSorted) {
-      if (ts >= t) { quarter = q; qStart = t; }
-    }
-    const nextQ    = qSorted.find(([q]) => q === quarter + 1);
-    const qEnd     = nextQ ? nextQ[1] : Infinity;
-    const elapsed  = Math.max(0, Math.min(ts, qEnd) - qStart) / 60000;
-    return (quarter - 1) * Q_MINS + Math.min(elapsed, Q_MINS);
+  // Per-quarter PLAYED duration + cumulative offsets, populated from the play bins
+  // below (breaks excluded). tsToX isn't called until after they're filled in.
+  const qDur = {}, qCum = {};
+  let totalPlay = GAME_MINS;
+  const quarterOf = ts => { let q = 1; for (const [qn, t] of qSorted) if (ts >= t) q = qn; return q; };
+  const qStartOf  = ts => { let s = gameStartTs; for (const [, t] of qSorted) if (ts >= t) s = t; return s; };
+  // ts → cumulative play-time minutes. Each quarter spans its OWN real length and clamps
+  // to that (not a flat 30), so end-of-quarter time-on bins spread across the slot instead
+  // of piling up on the boundary. The axis total = actual game time played.
+  function tsToPlayMins(ts) {
+    const q = quarterOf(ts);
+    const elapsed = Math.max(0, (ts - qStartOf(ts)) / 60000);
+    return (qCum[q] || 0) + Math.min(elapsed, qDur[q] || Q_MINS);
   }
-
-  const tsToX = ts => Math.max(0, Math.min(W, tsToGameMins(ts) / GAME_MINS * W));
-
-  // Fixed bar width based on time (2 min / 120 min * 1000px ≈ 16.7px)
-  const fixedBinW = BIN_MS / (GAME_MINS * 60 * 1000) * W;
-  const gap = Math.max(0.5, fixedBinW * 0.12);
-  const bw  = Math.max(1, fixedBinW - gap);
+  const tsToX = ts => Math.max(0, Math.min(W, tsToPlayMins(ts) / totalPlay * W));
 
   // Build 2-minute bins on the fixed time grid
   const lastTs  = momentum[momentum.length - 1].ts;
@@ -2513,6 +2510,20 @@ function renderMomentum(momentum, teams, quarterStartTs, scoreEvents, pressureSe
     if (!nextQ) return true; // Q4 — no following break, always keep
     return (b.binStart - qStart) / 60000 < Q_MINS + 10; // 40-min cutoff (30 + 10 time-on buffer)
   });
+
+  // Real played duration per quarter (from the kept bins) → cumulative axis + bar width.
+  const BIN_MINS = BIN_MS / 60000;
+  for (const [q, qStart] of qSorted) {
+    let maxEl = 0;
+    for (const b of playBins) if (quarterOf(b.binStart) === q) maxEl = Math.max(maxEl, (b.binStart - qStart) / 60000);
+    qDur[q] = Math.max(BIN_MINS, maxEl + BIN_MINS); // +1 bin so the last bar sits before the next marker
+  }
+  let accPlay = 0;
+  for (const [q] of qSorted) { qCum[q] = accPlay; accPlay += qDur[q]; }
+  totalPlay = accPlay || GAME_MINS;
+  const fixedBinW = BIN_MINS * (W / totalPlay); // one 2-min bin on the play-time axis
+  const gap = Math.max(0.5, fixedBinW * 0.12);
+  const bw  = Math.max(1, fixedBinW - gap);
 
   const nets   = playBins.map(b => b.homeVal - b.awayVal);
   const maxAbs = Math.max(...nets.map(Math.abs), 1);
@@ -2590,7 +2601,11 @@ function renderMomentum(momentum, teams, quarterStartTs, scoreEvents, pressureSe
     const pdMax   = Math.max(10, ...sm.map(p => Math.abs(p.pd)));
     const pScale  = (chartH / 2 - 4) / pdMax;
     const clampY  = y => Math.max(LABEL_H + 1, Math.min(H - SCORE_H - 1, y));
-    const pts = sm.map(p => `${tsToX(p.ts).toFixed(1)},${clampY(midY - p.pd * pScale).toFixed(1)}`).join(" ");
+    // Each point is a trailing 10-min aggregate → plot at the window MIDPOINT, i.e. 5
+    // play-minutes earlier, so the curve lines up with when the pressure actually happened.
+    const HALF_WIN = 5;
+    const xMid = ts => Math.max(0, Math.min(W, (tsToPlayMins(ts) - HALF_WIN) / totalPlay * W));
+    const pts = sm.map(p => `${xMid(p.ts).toFixed(1)},${clampY(midY - p.pd * pScale).toFixed(1)}`).join(" ");
     pressureLine = `<polyline points="${pts}" fill="none" stroke="#e6edf3" stroke-opacity="0.6"
         stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
       <text x="4" y="${H - SCORE_H - 3}" fill="#e6edf3" fill-opacity="0.45" font-size="8"
