@@ -2606,12 +2606,35 @@ function renderMomentum(momentum, teams, quarterStartTs, scoreEvents, pressureSe
     const pdMax  = Math.max(10, ...sm.map(p => Math.abs(p.pd)));
     const pScale = (chartH / 2 - 4) / pdMax;
     const dPts = sm.map(p => `${xMid(p.ts).toFixed(1)},${clampY(midY - p.pd * pScale).toFixed(1)}`).join(" ");
-    // intensity line — 0 at the floor, game max near the top
-    const piMax  = Math.max(1, ...sm.map(p => p.pi));
-    const yBot = H - SCORE_H - 2, yTop = LABEL_H + 2;
-    const iPts = sm.map(p => `${xMid(p.ts).toFixed(1)},${(yBot - (p.pi / piMax) * (yBot - yTop)).toFixed(1)}`).join(" ");
-    pressureLine = `<polyline points="${iPts}" fill="none" stroke="#f5a623" stroke-opacity="0.55"
-        stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+    // intensity EXTREMA (no continuous line): top 5 peaks (local maxima) + lowest 2
+    // troughs (local minima), each marked with a small dash. min-max scaled so peaks
+    // ride high / troughs sit low; peaks amber (busy), troughs light blue (lull).
+    const piMin = Math.min(...sm.map(p => p.pi)), piMax = Math.max(...sm.map(p => p.pi));
+    const piRng = Math.max(1, piMax - piMin);
+    const yBot = H - SCORE_H - 4, yTop = LABEL_H + 4;
+    const iY = pi => yBot - ((pi - piMin) / piRng) * (yBot - yTop);
+    const maxima = [], minima = [];
+    for (let i = 1; i < sm.length - 1; i++) {
+      if (sm[i].pi > sm[i - 1].pi && sm[i].pi >= sm[i + 1].pi) maxima.push(i); // decreases after an increase
+      if (sm[i].pi < sm[i - 1].pi && sm[i].pi <= sm[i + 1].pi) minima.push(i);
+    }
+    const playAt = i => tsToPlayMins(sm[i].ts);
+    const pick = (idxs, n, cmp) => {
+      const chosen = [];
+      for (const i of [...idxs].sort(cmp)) {
+        if (chosen.length >= n) break;
+        if (chosen.every(j => Math.abs(playAt(i) - playAt(j)) >= 5)) chosen.push(i); // ≥5 play-min apart (distinct humps)
+      }
+      return chosen;
+    };
+    const peaks   = pick(maxima, 5, (a, b) => sm[b].pi - sm[a].pi); // highest first
+    const troughs = pick(minima, 2, (a, b) => sm[a].pi - sm[b].pi); // lowest first
+    const dash = (i, color) => {
+      const x = xMid(sm[i].ts), y = iY(sm[i].pi);
+      return `<line x1="${(x - 7).toFixed(1)}" y1="${y.toFixed(1)}" x2="${(x + 7).toFixed(1)}" y2="${y.toFixed(1)}" stroke="${color}" stroke-width="2.4" stroke-linecap="round" vector-effect="non-scaling-stroke"/>`;
+    };
+    const intensityMarks = peaks.map(i => dash(i, "#f5a623")).join("") + troughs.map(i => dash(i, "#5bc0ff")).join("");
+    pressureLine = `${intensityMarks}
       <polyline points="${dPts}" fill="none" stroke="#e6edf3" stroke-opacity="0.6"
         stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
       <text x="4" y="${H - SCORE_H - 3}" fill="#e6edf3" fill-opacity="0.45" font-size="8"
