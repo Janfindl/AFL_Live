@@ -324,6 +324,65 @@ async function syncFromGitHub() {
 const BURST_WINDOW_MINS = 15;
 const STAT_KEYS = Object.keys(WEIGHTS);
 
+// Pressure over time — retroactive, from the fetchLog (same carry-forward walk as
+// computeBursts). At each fetch frame, compute each team's pressure over a trailing
+// window of PLAY-time and return the home−away difference. Reuses the live formula:
+// Pressure(team) = 200 * ((T[team]*2) + TO[opp]) / ED[opp].
+function computePressureSeries(fetchLog, teams, windowMins = 10) {
+  if (!Array.isArray(fetchLog) || fetchLog.length < 2 || !teams || teams.length < 2) return [];
+  const [t1, t2] = teams;
+  const running = new Map();  // pkey -> {ED,TO,T} cumulative
+  const teamOf  = new Map();  // pkey -> team name
+  const frames  = [];         // {ts, pt, cum:{[team]:{ED,TO,T}}}
+  let pt = 0, prev = null;
+  for (const entry of fetchLog) {
+    if (prev && entry.q != null && prev.q != null && entry.q === prev.q
+        && entry.t != null && prev.t != null) {
+      const dt = entry.t - prev.t; if (dt > 0) pt += dt; // cumulative play-time (breaks excluded)
+    }
+    for (const a of (entry.actions || [])) {
+      const key = pkeyAction(a);
+      if (a.tm) teamOf.set(key, a.tm);
+      if (!running.has(key)) running.set(key, { ED: 0, TO: 0, T: 0 });
+      const cur = running.get(key);
+      if (typeof a.ED === "number") cur.ED = a.ED;
+      if (typeof a.TO === "number") cur.TO = a.TO;
+      if (typeof a.T  === "number") cur.T  = a.T;
+    }
+    const cum = { [t1]: { ED: 0, TO: 0, T: 0 }, [t2]: { ED: 0, TO: 0, T: 0 } };
+    for (const [key, s] of running) {
+      const tm = teamOf.get(key);
+      if (tm !== t1 && tm !== t2) continue;
+      cum[tm].ED += s.ED; cum[tm].TO += s.TO; cum[tm].T += s.T;
+    }
+    frames.push({ ts: entry.ts, pt, cum });
+    prev = entry;
+  }
+  const pv = (a, team, opp) => {
+    const den = a[opp].ED;
+    return den > 0 ? (200 * ((a[team].T * 2) + a[opp].TO)) / den : null;
+  };
+  const out = [];
+  let j = 0;
+  for (let i = 0; i < frames.length; i++) {
+    const fi = frames[i];
+    while (j < i && frames[j + 1].pt <= fi.pt - windowMins) j++; // last frame ≥ windowMins earlier
+    const base = frames[j]; // falls back to game start for the first windowMins
+    const win = {
+      [t1]: { ED: fi.cum[t1].ED - base.cum[t1].ED, TO: fi.cum[t1].TO - base.cum[t1].TO, T: fi.cum[t1].T - base.cum[t1].T },
+      [t2]: { ED: fi.cum[t2].ED - base.cum[t2].ED, TO: fi.cum[t2].TO - base.cum[t2].TO, T: fi.cum[t2].T - base.cum[t2].T },
+    };
+    // need a stable denominator (both teams' effective disposals) or the early-game
+    // ratio explodes; skips ~first few minutes until the window has real volume.
+    if (win[t1].ED < 15 || win[t2].ED < 15) continue;
+    const p1 = pv(win, t1, t2), p2 = pv(win, t2, t1);
+    if (p1 == null || p2 == null) continue;
+    out.push({ ts: fi.ts, pd: Math.round((p1 - p2) * 10) / 10 });
+  }
+  return out;
+}
+const pressureSeriesCache = new Map(); // mid -> { stamp, series }
+
 function computeBursts(fetchLog) {
   const playerMap    = new Map();
   const runningStats = new Map();
@@ -795,6 +854,16 @@ http.createServer(async (req, res) => {
           if (cached.summary[tm]) cached.summary[tm].avgRating = tr[tm];
         }
       }
+      // Retroactive pressure-over-time series (home−away), cached per mid until the game updates
+      try {
+        const psStamp = String(cached.savedAt || cached._source || "");
+        let ps = pressureSeriesCache.get(String(mid));
+        if (!ps || ps.stamp !== psStamp) {
+          ps = { stamp: psStamp, series: computePressureSeries(loadFetches(mid), cached.teams) };
+          pressureSeriesCache.set(String(mid), ps);
+        }
+        cached.pressureSeries = ps.series;
+      } catch (e) { console.warn(`[pressureSeries] mid=${mid}: ${e.message}`); }
       cached._servedAt  = new Date().toISOString();
       cached._v         = GIT_SHA;
       console.log(`  → OK  players=${(cached.players||[]).length}  live=${isLive}  age=${Math.round((Date.now()-savedAt)/1000)}s  src=${cached._source||'?'}`);

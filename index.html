@@ -1753,7 +1753,7 @@ function render(data) {
   renderBurst(data.bursts, data.quarterStartTs);
 
   // Momentum
-  renderMomentum(data.momentum, data.teams, data.quarterStartTs, data.scoreEvents);
+  renderMomentum(data.momentum, data.teams, data.quarterStartTs, data.scoreEvents, data.pressureSeries);
 
   // Best (top 10 on ground)
   renderBest(data.players);
@@ -2434,7 +2434,7 @@ function renderQuarterLog(quarterLog, players) {
 }
 
 // ── Momentum chart ────────────────────────────────────────────────────────────
-function renderMomentum(momentum, teams, quarterStartTs, scoreEvents) {
+function renderMomentum(momentum, teams, quarterStartTs, scoreEvents, pressureSeries) {
   const el = document.getElementById("momentumChart");
   const [t1, t2] = teams;
   const c1 = resolvedColor(t1).accent, c2 = resolvedColor(t2).accent;
@@ -2575,6 +2575,28 @@ function renderMomentum(momentum, teams, quarterStartTs, scoreEvents) {
         : `<circle cx="${x}" cy="${y0+7}" r="3.5" fill="${col}" opacity="0.4"/>`;
     }).join("");
 
+  // Smoothed pressure-difference line over the bars (home − away, its own y-scale).
+  // Above the midline = team1 pressure on top. pressure is already a 10-min rolling
+  // metric, so a light moving average is enough to render a clean curve.
+  let pressureLine = "";
+  const psRaw = (pressureSeries || []).filter(p => p && p.ts >= gameStartTs && typeof p.pd === "number");
+  if (psRaw.length > 2) {
+    const K = 3; // ± smoothing half-window
+    const sm = psRaw.map((p, i) => {
+      let s = 0, n = 0;
+      for (let k = -K; k <= K; k++) { const q = psRaw[i + k]; if (q) { s += q.pd; n++; } }
+      return { ts: p.ts, pd: s / n };
+    });
+    const pdMax   = Math.max(10, ...sm.map(p => Math.abs(p.pd)));
+    const pScale  = (chartH / 2 - 4) / pdMax;
+    const clampY  = y => Math.max(LABEL_H + 1, Math.min(H - SCORE_H - 1, y));
+    const pts = sm.map(p => `${tsToX(p.ts).toFixed(1)},${clampY(midY - p.pd * pScale).toFixed(1)}`).join(" ");
+    pressureLine = `<polyline points="${pts}" fill="none" stroke="#e6edf3" stroke-opacity="0.6"
+        stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+      <text x="4" y="${H - SCORE_H - 3}" fill="#e6edf3" fill-opacity="0.45" font-size="8"
+        font-family="sans-serif" font-weight="700" letter-spacing="0.3">PRESSURE Δ</text>`;
+  }
+
   // Overall leader label
   const totalNet   = nets.reduce((s, v) => s + v, 0);
   const leaderC    = totalNet >= 0 ? c1 : c2;
@@ -2584,6 +2606,7 @@ function renderMomentum(momentum, teams, quarterStartTs, scoreEvents) {
     ${bars}
     <line x1="0" y1="${midY}" x2="${W}" y2="${midY}" stroke="#30363d" stroke-width="1"/>
     ${qMarkers}
+    ${pressureLine}
     ${qWinLabels}
     <text x="${W-4}" y="${midY-4}" text-anchor="end"
           fill="${leaderC}" font-size="11" font-family="sans-serif" font-weight="800"
