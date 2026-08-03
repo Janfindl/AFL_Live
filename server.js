@@ -859,7 +859,17 @@ http.createServer(async (req, res) => {
         const psStamp = String(cached.savedAt || cached._source || "");
         let ps = pressureSeriesCache.get(String(mid));
         if (!ps || ps.stamp !== psStamp) {
-          ps = { stamp: psStamp, series: computePressureSeries(loadFetches(mid), cached.teams) };
+          let fetches = loadFetches(mid);
+          // Production storage is ephemeral and syncFromGitHub does NOT pull fetches files
+          // (too large for all games), so pull THIS game's fetches on demand — only when the
+          // game data is new/changed. Re-pull while live so the line keeps updating.
+          if (GH_TOKEN && GH_REPO && (!fetches || !fetches.length || cached.inProgress)) {
+            try {
+              const buf = await ghGetFile(`data/fetches_${mid}.json`);
+              if (buf) { fs.writeFileSync(fetchFile(mid), buf); fetches = JSON.parse(buf.toString()); }
+            } catch (e) { console.warn(`[pressureSeries] fetch pull mid=${mid}: ${e.message}`); }
+          }
+          ps = { stamp: psStamp, series: computePressureSeries(fetches, cached.teams) };
           pressureSeriesCache.set(String(mid), ps);
         }
         cached.pressureSeries = ps.series;
