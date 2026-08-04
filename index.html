@@ -81,15 +81,13 @@ header{
   font-size:12px;font-weight:900;letter-spacing:-.3px;line-height:1.05;text-transform:uppercase;overflow-wrap:anywhere;
   display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;
 }
-/* middle: hero score fills the vertical space */
-.tc-score-wrap{flex:1;display:flex;align-items:center;z-index:1}
+/* middle: hero score with goals.behinds on the same row */
+.tc-score-wrap{flex:1;display:flex;align-items:baseline;gap:10px;z-index:1}
 .team-card-score{
   font-size:50px;font-weight:900;font-variant-numeric:tabular-nums;
   letter-spacing:-3px;line-height:.85;
 }
-/* bottom: goals.behinds + rating pill */
-.tc-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;z-index:1}
-.team-card-gb{font-size:13px;font-weight:700;opacity:.7;letter-spacing:.5px}
+.team-card-gb{font-size:14px;font-weight:700;opacity:.65;letter-spacing:.5px;font-variant-numeric:tabular-nums}
 .team-card-bg{
   position:absolute;right:-16px;bottom:-18px;
   width:104px;height:104px;object-fit:contain;opacity:.06;pointer-events:none;
@@ -685,10 +683,9 @@ header{
           <img class="team-card-logo" id="c1logo" src="" alt="">
           <div class="team-card-name" id="c1name">—</div>
         </div>
-        <div class="tc-score-wrap"><div class="team-card-score" id="c1score">—</div></div>
-        <div class="tc-foot">
+        <div class="tc-score-wrap">
+          <div class="team-card-score" id="c1score">—</div>
           <div class="team-card-gb"><span id="c1goals">—</span>.<span id="c1behinds">—</span></div>
-          <div id="c1rat">—</div>
         </div>
       </div>
       <div class="team-card" id="card2">
@@ -697,10 +694,9 @@ header{
           <img class="team-card-logo" id="c2logo" src="" alt="">
           <div class="team-card-name" id="c2name">—</div>
         </div>
-        <div class="tc-score-wrap"><div class="team-card-score" id="c2score">—</div></div>
-        <div class="tc-foot">
+        <div class="tc-score-wrap">
+          <div class="team-card-score" id="c2score">—</div>
           <div class="team-card-gb"><span id="c2goals">—</span>.<span id="c2behinds">—</span></div>
-          <div id="c2rat">—</div>
         </div>
       </div>
       <div class="last10-group">
@@ -1815,7 +1811,6 @@ function styleTeamCard(cardId, nameId, scoreId, ratId, goalsId, behindsId, name,
   document.getElementById(nameId).textContent  = name;
   document.getElementById(scoreId).textContent = sum.score ?? "—";
   document.getElementById(scoreId).style.color = pillTxt;
-  document.getElementById(ratId).innerHTML     = ratingPill(sum.avgRating);
   const gbEl = document.getElementById(goalsId).parentElement;
   if (gbEl) gbEl.style.color = pillTxt;
   document.getElementById(goalsId).textContent   = goals;
