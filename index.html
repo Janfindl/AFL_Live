@@ -2643,8 +2643,10 @@ function renderMomentum(momentum, teams, quarterStartTs, scoreEvents, pressureSe
       }
       return chosen;
     };
-    const peaks   = pick(maxima, 3, (a, b) => sm[b].pi - sm[a].pi); // highest first
-    const troughs = pick(minima, 3, (a, b) => sm[a].pi - sm[b].pi); // lowest first
+    // Cap grows with the game so early marks aren't churn: 1 in Q1, 2 in Q2, 3 from Q3 on
+    const capN = Math.min(3, quarterOf(lastTs));
+    const peaks   = pick(maxima, capN, (a, b) => sm[b].pi - sm[a].pi); // highest first
+    const troughs = pick(minima, capN, (a, b) => sm[a].pi - sm[b].pi); // lowest first
     const dash = (i, color) => {
       const x = xMid(sm[i].ts), y = iY(sm[i].pi);
       return `<line x1="${(x - 7).toFixed(1)}" y1="${y.toFixed(1)}" x2="${(x + 7).toFixed(1)}" y2="${y.toFixed(1)}" stroke="${color}" stroke-width="2.4" stroke-linecap="round" vector-effect="non-scaling-stroke"/>`;
