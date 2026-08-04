@@ -71,23 +71,28 @@ header{
   background:#0d1117;position:relative;overflow:hidden;
   flex:0 0 224px;width:224px;box-sizing:border-box;
 }
-/* top: identity (logo + name) */
-.tc-head{display:flex;align-items:center;gap:9px;z-index:1;min-height:38px}
+/* main row: big logo + score (mirrored on the away card), gb small above the score */
+.tc-main{flex:1;display:flex;align-items:center;justify-content:space-between;gap:12px;z-index:1;min-height:0}
+#card2 .tc-main{flex-direction:row-reverse}
 .team-card-logo{
-  width:38px;height:38px;object-fit:contain;flex-shrink:0;
+  width:54px;height:54px;object-fit:contain;flex-shrink:0;
 }
-.team-card-name{
-  flex:1;min-width:0;
-  font-size:12px;font-weight:900;letter-spacing:-.3px;line-height:1.05;text-transform:uppercase;overflow-wrap:anywhere;
-  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;
-}
-/* middle: hero score with goals.behinds on the same row */
-.tc-score-wrap{flex:1;display:flex;align-items:baseline;gap:10px;z-index:1}
+.tc-scorecol{display:flex;flex-direction:column;gap:1px;min-width:0}
+#card1 .tc-scorecol{align-items:flex-end}
+#card2 .tc-scorecol{align-items:flex-start}
+.team-card-gb{font-size:13px;font-weight:700;opacity:.7;letter-spacing:.5px;font-variant-numeric:tabular-nums}
 .team-card-score{
   font-size:50px;font-weight:900;font-variant-numeric:tabular-nums;
-  letter-spacing:-3px;line-height:.85;
+  letter-spacing:-3px;line-height:.9;
 }
-.team-card-gb{font-size:14px;font-weight:700;opacity:.65;letter-spacing:.5px;font-variant-numeric:tabular-nums}
+/* bottom: full team name across the card (mirrored to match each side) */
+.team-card-name{
+  width:100%;z-index:1;
+  font-size:13px;font-weight:900;letter-spacing:.6px;line-height:1.1;text-transform:uppercase;overflow-wrap:anywhere;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+}
+#card1 .team-card-name{text-align:left}
+#card2 .team-card-name{text-align:right}
 .team-card-bg{
   position:absolute;right:-16px;bottom:-18px;
   width:104px;height:104px;object-fit:contain;opacity:.06;pointer-events:none;
@@ -510,8 +515,8 @@ header{
   /* ── Score row: cards 50/50, momentum below ── */
   .score-row{flex-wrap:wrap}
   .team-card{flex:1 1 0;width:auto;min-width:0;padding:10px 12px;gap:4px}
-  .tc-head{min-height:32px;gap:8px}
-  .team-card-logo{width:32px;height:32px}
+  .tc-main{gap:8px}
+  .team-card-logo{width:42px;height:42px}
   .team-card-score{font-size:44px;letter-spacing:-2px}
   .team-card-name{font-size:12px}
   .team-card-gb{font-size:11px}
@@ -679,25 +684,25 @@ header{
     <div class="score-row" id="teamCards">
       <div class="team-card" id="card1">
         <img class="team-card-bg" id="c1bg" src="" alt="">
-        <div class="tc-head">
+        <div class="tc-main">
           <img class="team-card-logo" id="c1logo" src="" alt="">
-          <div class="team-card-name" id="c1name">—</div>
+          <div class="tc-scorecol">
+            <div class="team-card-gb"><span id="c1goals">—</span>.<span id="c1behinds">—</span></div>
+            <div class="team-card-score" id="c1score">—</div>
+          </div>
         </div>
-        <div class="tc-score-wrap">
-          <div class="team-card-score" id="c1score">—</div>
-          <div class="team-card-gb"><span id="c1goals">—</span>.<span id="c1behinds">—</span></div>
-        </div>
+        <div class="team-card-name" id="c1name">—</div>
       </div>
       <div class="team-card" id="card2">
         <img class="team-card-bg" id="c2bg" src="" alt="">
-        <div class="tc-head">
+        <div class="tc-main">
           <img class="team-card-logo" id="c2logo" src="" alt="">
-          <div class="team-card-name" id="c2name">—</div>
+          <div class="tc-scorecol">
+            <div class="team-card-gb"><span id="c2goals">—</span>.<span id="c2behinds">—</span></div>
+            <div class="team-card-score" id="c2score">—</div>
+          </div>
         </div>
-        <div class="tc-score-wrap">
-          <div class="team-card-score" id="c2score">—</div>
-          <div class="team-card-gb"><span id="c2goals">—</span>.<span id="c2behinds">—</span></div>
-        </div>
+        <div class="team-card-name" id="c2name">—</div>
       </div>
       <div class="last10-group">
         <div class="last10-header">Last 10 Minutes</div>
@@ -1764,8 +1769,8 @@ function render(data) {
   const s1 = data.summary[t1], s2 = data.summary[t2];
   const teamGoals   = t => (data.players||[]).filter(p=>p.team===t).reduce((s,p)=>s+(p.G||0),0);
   const teamBehinds = t => (data.players||[]).filter(p=>p.team===t).reduce((s,p)=>s+(p.B||0),0);
-  styleTeamCard("card1","c1name","c1score","c1rat","c1goals","c1behinds", t1, s1, c1, teamGoals(t1), teamBehinds(t1));
-  styleTeamCard("card2","c2name","c2score","c2rat","c2goals","c2behinds", t2, s2, c2, teamGoals(t2), teamBehinds(t2));
+  styleTeamCard("card1","c1name","c1score","c1goals","c1behinds", t1, s1, c1, teamGoals(t1), teamBehinds(t1));
+  styleTeamCard("card2","c2name","c2score","c2goals","c2behinds", t2, s2, c2, teamGoals(t2), teamBehinds(t2));
   renderPressureGauge(t1, t2, s1, s2);
   renderFieldSections(t1, t2, s1, s2);
 
@@ -1795,7 +1800,7 @@ function render(data) {
   renderBasicTable(data.players);
 }
 
-function styleTeamCard(cardId, nameId, scoreId, ratId, goalsId, behindsId, name, sum, col, goals, behinds) {
+function styleTeamCard(cardId, nameId, scoreId, goalsId, behindsId, name, sum, col, goals, behinds) {
   const card   = document.getElementById(cardId);
   const logo   = teamLogo(name);
   const isCard2 = cardId === "card2";
