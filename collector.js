@@ -511,11 +511,19 @@ function computeFieldSections(cur, t1, t2, sectionHistory, el) {
   // stats update out of step, which can briefly make SS delta > I50 delta)
   const delta = (c, b) => {
     const i50 = Math.max(0, c.i50 - b.i50);
-    return { i50, ss: Math.min(Math.max(0, c.ss - b.ss), i50) };
+    return {
+      i50,
+      ss: Math.min(Math.max(0, c.ss - b.ss), i50),
+      up: Math.max(0, (c.up || 0) - (b.up || 0)), // uncontested possessions (old entries lack up/cp → 0)
+      cp: Math.max(0, (c.cp || 0) - (b.cp || 0)), // contested possessions
+    };
   };
   const dA = delta(cur.a, base.a), dB = delta(cur.b, base.b);
   const ratio = d => (d.ss > 0 ? Math.round((d.i50 / d.ss) * 100) / 100 : null); // In50s per scoring shot (>=1)
-  return { [t1]: { i50: dA.i50, in50ss: ratio(dA) }, [t2]: { i50: dB.i50, in50ss: ratio(dB) } };
+  return {
+    [t1]: { i50: dA.i50, in50ss: ratio(dA), up: dA.up, cp: dA.cp },
+    [t2]: { i50: dB.i50, in50ss: ratio(dB), up: dB.up, cp: dB.cp },
+  };
 }
 
 // ── Burst detection ───────────────────────────────────────────────────────────
@@ -1160,9 +1168,13 @@ async function fetchRatings(mid) {
   const hhAdv   = parseHeadToHead(advData.headToHead);
   const _i50Row = hhBasic.find(r => r.stat === "Inside 50s")    || {};
   const _ssRow  = hhBasic.find(r => r.stat === "Scoring Shots") || {};
+  const _upRow  = hhAdv.find(r => r.stat === "Uncontested Possessions") || {};
+  const _cpRow  = hhAdv.find(r => r.stat === "Contested Possessions")   || {};
   const curSec  = {
-    a: { i50: parseFloat(_i50Row.home) || 0, ss: parseFloat(_ssRow.home) || 0 },
-    b: { i50: parseFloat(_i50Row.away) || 0, ss: parseFloat(_ssRow.away) || 0 },
+    a: { i50: parseFloat(_i50Row.home) || 0, ss: parseFloat(_ssRow.home) || 0,
+         up: parseFloat(_upRow.home) || 0,  cp: parseFloat(_cpRow.home) || 0 },
+    b: { i50: parseFloat(_i50Row.away) || 0, ss: parseFloat(_ssRow.away) || 0,
+         up: parseFloat(_upRow.away) || 0,  cp: parseFloat(_cpRow.away) || 0 },
   };
   const sections = computeFieldSections(curSec, team1Name, team2Name, state.sectionHistory, el);
   if (!isStatCorrection && !(gameTime && gameTime.isBreak)) {
@@ -1185,6 +1197,10 @@ async function fetchRatings(mid) {
       in50ssW:      sections[tm].in50ss,  // In50s per scoring shot over last 10 game-min (null if no shots)
       i50g:         cg.i50,               // Inside-50s whole game
       in50ssG:      cg.ss > 0 ? Math.round((cg.i50 / Math.min(cg.ss, cg.i50)) * 100) / 100 : null, // In50/SS whole game (>=1)
+      upW:          sections[tm].up,      // Uncontested possessions over last 10 game-min (CONTROL)
+      cpW:          sections[tm].cp,      // Contested possessions over last 10 game-min (CONTEST)
+      upG:          cg.up,                // Uncontested possessions whole game
+      cpG:          cg.cp,                // Contested possessions whole game
     };
   }
 

@@ -123,6 +123,10 @@ header{
 /* AFL oval: elliptical boundary around the three territory columns */
 .ts-oval{border:1.5px solid #3d444d;border-radius:50%;padding:14px 26px;margin:2px 0}
 .ts-vwrap{display:flex;align-items:center;justify-content:center;gap:11px}
+/* ground (names + oval) with the separate CONTROL/CONTEST columns to its right */
+.ts-row{display:flex;align-items:center;gap:16px}
+.ts-ground{display:flex;flex-direction:column;align-items:center}
+.ts-extra{display:flex;gap:11px;padding-right:3px}
 .ts-pole{font-size:11px;font-weight:800;opacity:.7;white-space:nowrap;letter-spacing:.3px}
 .ts-vbar{position:relative;width:18px;height:64px;background:#161b22;border-radius:3px}
 .ts-vbar::before{content:'';position:absolute;left:0;right:0;top:50%;height:1px;background:#8b949e;opacity:.55;z-index:1}
@@ -515,9 +519,12 @@ header{
   .team-card-gb{font-size:11px}
   .team-card-bg{width:82px;height:82px}
   .last10-group{flex:1 1 100%;min-width:100%;border-top:1px solid #30363d}
-  /* gauge + territory stay SIDE BY SIDE on mobile — they fit if the gauge can shrink */
+  /* gauge + territory stay SIDE BY SIDE on mobile — they fit if the gauge can shrink;
+     territory gets the larger share now it carries the CONTROL/CONTEST columns */
   .pressure-gauge{flex:1 1 0;min-width:0;padding:6px 8px 8px}
-  .territory-tile{flex:1 1 0;min-width:0;padding:8px 6px}
+  .territory-tile{flex:1.4 1 0;min-width:0;padding:8px 4px}
+  .ts-row{gap:10px}
+  .ts-extra{padding-right:0}
   .pg-svg{width:100%;max-width:168px}
   .momentum-panel{
     flex:none;width:100%;min-width:100%;
@@ -718,15 +725,23 @@ header{
         </div>
       </div>
       <div class="territory-tile">
-        <div class="ts-team ts-home" id="tsHome">—</div>
-        <div class="ts-oval">
-          <div class="ts-vwrap" id="fieldSections">
-            <div class="ts-vbar"><span class="ts-vlbl top">ATT</span><div class="ts-vfill" id="tvAtk"></div><div class="ts-notch" id="tnAtk"></div><span class="ts-vlbl bot">DEF</span></div>
-            <div class="ts-vbar"><span class="ts-vlbl top">MID</span><div class="ts-vfill" id="tvMid"></div><div class="ts-notch" id="tnMid"></div><span class="ts-vlbl bot">MID</span></div>
-            <div class="ts-vbar"><span class="ts-vlbl top">DEF</span><div class="ts-vfill" id="tvDef"></div><div class="ts-notch" id="tnDef"></div><span class="ts-vlbl bot">ATT</span></div>
+        <div class="ts-row">
+          <div class="ts-ground">
+            <div class="ts-team ts-home" id="tsHome">—</div>
+            <div class="ts-oval">
+              <div class="ts-vwrap" id="fieldSections">
+                <div class="ts-vbar"><span class="ts-vlbl top">ATT</span><div class="ts-vfill" id="tvAtk"></div><div class="ts-notch" id="tnAtk"></div><span class="ts-vlbl bot">DEF</span></div>
+                <div class="ts-vbar"><span class="ts-vlbl top">MID</span><div class="ts-vfill" id="tvMid"></div><div class="ts-notch" id="tnMid"></div><span class="ts-vlbl bot">MID</span></div>
+                <div class="ts-vbar"><span class="ts-vlbl top">DEF</span><div class="ts-vfill" id="tvDef"></div><div class="ts-notch" id="tnDef"></div><span class="ts-vlbl bot">ATT</span></div>
+              </div>
+            </div>
+            <div class="ts-team ts-away" id="tsAway">—</div>
+          </div>
+          <div class="ts-extra">
+            <div class="ts-vbar"><span class="ts-vlbl top">CTL</span><div class="ts-vfill" id="tvCtl"></div><div class="ts-notch" id="tnCtl"></div><span class="ts-vlbl bot">CTL</span></div>
+            <div class="ts-vbar"><span class="ts-vlbl top">CON</span><div class="ts-vfill" id="tvCon"></div><div class="ts-notch" id="tnCon"></div><span class="ts-vlbl bot">CON</span></div>
           </div>
         </div>
-        <div class="ts-team ts-away" id="tsAway">—</div>
       </div>
         </div>
       </div>
@@ -2016,6 +2031,22 @@ function renderFieldSections(t1, t2, s1, s2) {
   setNotch("tnAtk", attackPosG);
   setNotch("tnMid", midPosG);
   setNotch("tnDef", defencePosG);
+  // CONTROL (uncontested possessions) & CONTEST (contested possessions) — separate
+  // columns right of the ground oval. Live bar = 10-min window difference (like the
+  // MID bar); notch = whole-game occupancy ((larger−smaller)/smaller, like MID's).
+  const CTL_SPAN = 12, CON_SPAN = 8; // window diff that fills a half-bar
+  const diffPos = (a, b, span) => (a == null && b == null) ? 50 : clamp(50 + ((a || 0) - (b || 0)) * (50 / span), 0, 100);
+  const occPos = (a, b) => {
+    a = a || 0; b = b || 0;
+    if (a + b <= 0) return null; // no data (e.g. games recorded before this metric)
+    const mx = Math.max(a, b), mn = Math.min(a, b);
+    const o = mn > 0 ? Math.min(50, ((mx - mn) / mn) * 100) : 50;
+    return a >= b ? 50 + o : 50 - o;
+  };
+  applyBar("tvCtl", diffPos(s1 ? s1.upW : null, s2 ? s2.upW : null, CTL_SPAN));
+  applyBar("tvCon", diffPos(s1 ? s1.cpW : null, s2 ? s2.cpW : null, CON_SPAN));
+  setNotch("tnCtl", occPos(s1 ? s1.upG : 0, s2 ? s2.upG : 0));
+  setNotch("tnCon", occPos(s1 ? s1.cpG : 0, s2 ? s2.cpG : 0));
 }
 
 // ── Delta colour scales ───────────────────────────────────────────────────────
