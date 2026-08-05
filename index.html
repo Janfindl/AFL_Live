@@ -2511,12 +2511,15 @@ function renderMomentum(momentum, teams, quarterStartTs, scoreEvents, pressureSe
     return;
   }
 
-  // Layout constants. W/H track the container's REAL pixel size so the viewBox maps
-  // 1:1 — with preserveAspectRatio="none" a fixed viewBox would squash the text
-  // horizontally whenever the panel is narrow.
+  // W tracks the container's REAL pixel width so the viewBox maps 1:1 horizontally —
+  // with preserveAspectRatio="none" a fixed viewBox squashed the text on narrow panels.
+  // H stays FIXED: it sets the SVG's intrinsic aspect ratio, which drives the panel's
+  // height. Making it dynamic too created a feedback loop that grew the whole row.
   const _r      = el.getBoundingClientRect();
   const W       = Math.max(100, Math.round(_r.width)  || 1000);
-  const H       = Math.max(44,  Math.round(_r.height) || 104);
+  // H is CLAMPED: it feeds the SVG's intrinsic aspect ratio, which can influence the
+  // panel height — an unclamped value let that feed back and grow the whole score row.
+  const H       = Math.min(200, Math.max(60, Math.round(_r.height) || 104));
   const LABEL_H = 14;                     // top strip: Q labels + winner labels
   const SCORE_H = 14;                     // bottom strip: goal/behind markers
   const chartH  = H - LABEL_H - SCORE_H;  // bar area height
