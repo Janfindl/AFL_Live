@@ -1778,8 +1778,13 @@ function render(data) {
   const teamBehinds = t => (data.players||[]).filter(p=>p.team===t).reduce((s,p)=>s+(p.B||0),0);
   styleTeamCard("card1","c1score","c1goals","c1behinds", t1, s1, c1, teamGoals(t1), teamBehinds(t1));
   styleTeamCard("card2","c2score","c2goals","c2behinds", t2, s2, c2, teamGoals(t2), teamBehinds(t2));
-  renderPressureGauge(t1, t2, s1, s2);
-  renderFieldSections(t1, t2, s1, s2);
+  // Finished games show WHOLE-GAME figures on the main indicators (the separate
+  // game notches then become redundant and are hidden).
+  const live = !!data.inProgress;
+  const hdr = document.querySelector(".last10-header");
+  if (hdr) hdr.textContent = live ? "Last 10 Minutes" : "Full Game";
+  renderPressureGauge(t1, t2, s1, s2, live);
+  renderFieldSections(t1, t2, s1, s2, live);
 
   // Hot / Cold
   renderHot(data.hot5, data.hotWindowMins);
@@ -1861,7 +1866,7 @@ function pgStep(ts) {
   }
   requestAnimationFrame(pgStep);
 }
-function renderPressureGauge(t1, t2, s1, s2) {
+function renderPressureGauge(t1, t2, s1, s2, live = true) {
   if (!document.getElementById("pressureGauge")) return;
   const MAX = 400, cx = 100, cy = 100;
   const col1 = resolvedColor(t1).accent, col2 = resolvedColor(t2).accent;
@@ -1922,8 +1927,9 @@ function renderPressureGauge(t1, t2, s1, s2) {
     st.target = (f - 0.5) * 180;
     st.live = true; // spring always travels from its current position to the new target (incl. first load)
   };
-  setTarget("n1", "pgNeedle1", s1 ? s1.pressure10 : null, col1);
-  setTarget("n2", "pgNeedle2", s2 ? s2.pressure10 : null, col2);
+  // live → last 10 min; finished → whole game (the notches are then hidden below)
+  setTarget("n1", "pgNeedle1", s1 ? (live ? s1.pressure10 : s1.pressureGame) : null, col1);
+  setTarget("n2", "pgNeedle2", s2 ? (live ? s2.pressure10 : s2.pressureGame) : null, col2);
   // Static triangle per team marking GAME pressure — sits just OUTSIDE the arc
   // pointing inward at the value, so the needles (which sweep the inside) never cover it.
   const setNotch = (id, val, color) => {
@@ -1942,8 +1948,8 @@ function renderPressureGauge(t1, t2, s1, s2) {
     el.setAttribute("points", `${p(tx, ty)} ${p(bx + hw*px, by + hw*py)} ${p(bx - hw*px, by - hw*py)}`);
     el.setAttribute("fill", color);
   };
-  setNotch("pgNotch1", s1 ? s1.pressureGame : null, col1);
-  setNotch("pgNotch2", s2 ? s2.pressureGame : null, col2);
+  setNotch("pgNotch1", (live && s1) ? s1.pressureGame : null, col1); // redundant once the needles show game totals
+  setNotch("pgNotch2", (live && s2) ? s2.pressureGame : null, col2);
   if (!pgAnim.running) { pgAnim.running = true; requestAnimationFrame(pgStep); }
 }
 
@@ -1961,7 +1967,7 @@ function renderPressureGauge(t1, t2, s1, s2) {
 //   Attack  column = team1's attack margin   (team1 att vs team2 def)
 //   Defence column = team2's attack margin, inverted (team1 def vs team2 att)
 //   Midfield column = inside-50 share.
-function renderFieldSections(t1, t2, s1, s2) {
+function renderFieldSections(t1, t2, s1, s2, live = true) {
   if (!document.getElementById("fieldSections")) return;
   const col1 = resolvedColor(t1).accent, col2 = resolvedColor(t2).accent;
   const T = 2.20, G = 22; // 2.20 = neutral In50s/shot; G≈50/(5/2.2) so 5-for-0 defence fills the bar
@@ -2018,14 +2024,15 @@ function renderFieldSections(t1, t2, s1, s2) {
     if (topEl) topEl.style.color = Math.abs(d) < 0.5 ? WHITE : (d > 0 ? col1 : GREY);
     if (botEl) botEl.style.color = Math.abs(d) < 0.5 ? WHITE : (d < 0 ? col2 : GREY);
   };
-  applyBar("tvAtk", attackPos);
-  applyBar("tvMid", midPos);
-  applyBar("tvDef", defencePos);
+  // live → 10-min window; finished → whole game (notches hidden, being redundant)
+  applyBar("tvAtk", live ? attackPos  : (attackPosG  ?? 50));
+  applyBar("tvMid", live ? midPos     : (midPosG     ?? 50));
+  applyBar("tvDef", live ? defencePos : (defencePosG ?? 50));
   // whole-game notch on each column, coloured by the section leader
   const setNotch = (id, posG) => {
     const n = document.getElementById(id);
     if (!n) return;
-    if (posG == null) { n.style.display = "none"; return; }
+    if (posG == null || !live) { n.style.display = "none"; return; }
     n.style.display = "";
     n.style.top = (100 - posG) + "%"; // home = top
     n.style.background = Math.abs(posG - 50) < 0.5 ? WHITE : (posG > 50 ? col1 : col2);
@@ -2045,8 +2052,10 @@ function renderFieldSections(t1, t2, s1, s2) {
     const o = mn > 0 ? Math.min(50, ((mx - mn) / mn) * 100) : 50;
     return a >= b ? 50 + o : 50 - o;
   };
-  applyBar("tvCtl", diffPos(s1 ? s1.upW : null, s2 ? s2.upW : null, UNC_SPAN));
-  applyBar("tvCon", diffPos(s1 ? s1.cpW : null, s2 ? s2.cpW : null, CON_SPAN));
+  applyBar("tvCtl", live ? diffPos(s1 ? s1.upW : null, s2 ? s2.upW : null, UNC_SPAN)
+                         : (occPos(s1 ? s1.upG : 0, s2 ? s2.upG : 0) ?? 50));
+  applyBar("tvCon", live ? diffPos(s1 ? s1.cpW : null, s2 ? s2.cpW : null, CON_SPAN)
+                         : (occPos(s1 ? s1.cpG : 0, s2 ? s2.cpG : 0) ?? 50));
   setNotch("tnCtl", occPos(s1 ? s1.upG : 0, s2 ? s2.upG : 0));
   setNotch("tnCon", occPos(s1 ? s1.cpG : 0, s2 ? s2.cpG : 0));
 }
