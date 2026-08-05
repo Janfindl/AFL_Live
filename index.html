@@ -2492,8 +2492,17 @@ function renderQuarterLog(quarterLog, players) {
 }
 
 // ── Momentum chart ────────────────────────────────────────────────────────────
+// Re-rendered on resize so the viewBox keeps matching the container's pixel size
+// (see W/H below) — otherwise a narrow container would squash the SVG text.
+let lastMomentumArgs = null, momentumResizeTimer = null;
+window.addEventListener("resize", () => {
+  if (!lastMomentumArgs) return;
+  clearTimeout(momentumResizeTimer);
+  momentumResizeTimer = setTimeout(() => renderMomentum(...lastMomentumArgs), 120);
+});
 function renderMomentum(momentum, teams, quarterStartTs, scoreEvents, pressureSeries) {
   const el = document.getElementById("momentumChart");
+  lastMomentumArgs = [momentum, teams, quarterStartTs, scoreEvents, pressureSeries];
   const [t1, t2] = teams;
   const c1 = resolvedColor(t1).accent, c2 = resolvedColor(t2).accent;
 
@@ -2502,13 +2511,16 @@ function renderMomentum(momentum, teams, quarterStartTs, scoreEvents, pressureSe
     return;
   }
 
-  // Layout constants
-  const W       = 1000;
+  // Layout constants. W/H track the container's REAL pixel size so the viewBox maps
+  // 1:1 — with preserveAspectRatio="none" a fixed viewBox would squash the text
+  // horizontally whenever the panel is narrow.
+  const _r      = el.getBoundingClientRect();
+  const W       = Math.max(100, Math.round(_r.width)  || 1000);
+  const H       = Math.max(44,  Math.round(_r.height) || 104);
   const LABEL_H = 14;                     // top strip: Q labels + winner labels
   const SCORE_H = 14;                     // bottom strip: goal/behind markers
-  const H       = 90 + LABEL_H;          // total SVG height = 104
-  const chartH  = H - LABEL_H - SCORE_H; // bar area height = 76
-  const midY    = LABEL_H + chartH / 2;  // centre line y = 52
+  const chartH  = H - LABEL_H - SCORE_H;  // bar area height
+  const midY    = LABEL_H + chartH / 2;   // centre line y
 
   // Compressed game-time axis: each quarter = 25% of chart width, breaks collapsed
   const Q_MINS    = 30;
@@ -2625,10 +2637,18 @@ function renderMomentum(momentum, teams, quarterStartTs, scoreEvents, pressureSe
     const winAbbr = diff > 0 ? teamAbbr(t1) : teamAbbr(t2);
     const winC    = diff > 0 ? c1 : c2;
     const margin  = Math.abs(diff).toFixed(1);
-    const x = (Math.min(W, tsToX(nextEntry ? nextEntry[1] : lastTs)) - 3).toFixed(1);
-    return `<text x="${x}" y="${LABEL_H - 3}" text-anchor="end"
-      fill="${winC}" font-size="11" font-family="sans-serif" font-weight="800" opacity="0.95"
-      >${winAbbr} +${margin}</text>`;
+    // Text is never squashed now, so fit it to the slot instead: shrink the font on a
+    // narrow panel, drop the team abbrev if it still won't fit, and skip if hopeless.
+    const xEnd  = Math.min(W, tsToX(nextEntry ? nextEntry[1] : lastTs));
+    const slotW = xEnd - tsToX(startTs) - 17; // reserve for the "Qn" marker sharing the strip
+    const fs    = W < 420 ? 8 : 11;
+    const wOf   = s => s.length * fs * 0.62;
+    const full  = `${winAbbr} +${margin}`, brief = `+${margin}`;
+    const label = wOf(full) <= slotW ? full : (wOf(brief) <= slotW ? brief : null);
+    if (!label) return "";
+    return `<text x="${(xEnd - 3).toFixed(1)}" y="${LABEL_H - 3}" text-anchor="end"
+      fill="${winC}" font-size="${fs}" font-family="sans-serif" font-weight="800" opacity="0.95"
+      >${label}</text>`;
   }).join("");
 
   // Score event markers positioned by real timestamp
