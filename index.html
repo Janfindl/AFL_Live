@@ -107,14 +107,15 @@ header{
 }
 .pg-title{font-size:10px;font-weight:800;letter-spacing:1.5px;opacity:.55;text-transform:uppercase}
 .pg-svg{width:168px;height:auto;display:block;overflow:visible}
-.pg-legend{display:flex;gap:14px;font-size:12px;font-weight:800;font-variant-numeric:tabular-nums;margin-top:1px}
-.pg-legend .dot{font-size:13px;vertical-align:middle;margin-right:3px}
 
 /* Field territory — 3 vertical bars under the pressure gauge (last 10 min) */
 .territory-tile{background:#0d1117;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:5px 12px;overflow:hidden}
 .ts-team{font-size:11px;font-weight:800;letter-spacing:.4px;white-space:nowrap;line-height:1.2;text-transform:uppercase}
-.ts-team.ts-home{align-self:stretch;text-align:left;padding-left:22px}  /* over the top ATT (left) column */
-.ts-team.ts-away{align-self:stretch;text-align:right;padding-right:22px} /* under the bottom ATT (right) column */
+.ts-team.ts-home{align-self:stretch;text-align:left;padding-left:31px}   /* name flush with the ATT (left) column */
+.ts-team.ts-away{align-self:stretch;text-align:right;padding-right:31px} /* name flush with the right-hand column */
+.ts-nm{position:relative}                                     /* arrows hang outside the justified name */
+.ts-home .ts-arw{position:absolute;right:100%;margin-right:3px}
+.ts-away .ts-arw{position:absolute;left:100%;margin-left:3px}
 /* AFL oval: elliptical boundary around the three territory columns */
 .ts-oval{border:1.5px solid #3d444d;border-radius:50%;padding:14px 30px;margin:2px 0;position:relative}
 .ts-ground-svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
@@ -709,11 +710,13 @@ header{
           <circle cx="100" cy="100" r="7" fill="#0d1117" stroke="#8b949e" stroke-width="2"/>
           <text x="24" y="114" fill="#8b949e" font-size="9" font-weight="700">0</text>
           <text x="176" y="114" fill="#8b949e" font-size="9" font-weight="700" text-anchor="end" id="pgMaxLbl">300</text>
+          <!-- scale labels at the 100 / 200 / 300 ticks (MAX = 400) -->
+          <g fill="#8b949e" font-size="8" font-weight="800" text-anchor="middle" letter-spacing=".5">
+            <text x="36" y="37">LOW</text>
+            <text x="100" y="11">HIGH</text>
+            <text x="164" y="37">HOT</text>
+          </g>
         </svg>
-        <div class="pg-legend">
-          <span id="pgLeg1">—</span>
-          <span id="pgLeg2">—</span>
-        </div>
       </div>
       <div class="territory-tile">
         <div class="ts-row">
@@ -724,10 +727,10 @@ header{
                    and 50m arcs at each end. Home attacks left (◀), away attacks right (▶). -->
               <svg class="ts-ground-svg" viewBox="0 0 138 94" preserveAspectRatio="none" aria-hidden="true">
                 <g fill="none" stroke="#3d444d" stroke-width="1">
-                  <rect x="0" y="39" width="9" height="16"/>
-                  <rect x="129" y="39" width="9" height="16"/>
-                  <path d="M 6 18 Q 44 47 6 76"/>
-                  <path d="M 132 18 Q 94 47 132 76"/>
+                  <rect x="2" y="39" width="14" height="16"/>
+                  <rect x="122" y="39" width="14" height="16"/>
+                  <path d="M 16 17 Q 70 47 16 77"/>
+                  <path d="M 122 17 Q 68 47 122 77"/>
                   <circle cx="69" cy="47" r="7"/>
                   <path d="M 62 47 H 76 M 69 40 V 54" stroke-opacity=".7"/>
                 </g>
@@ -743,7 +746,7 @@ header{
             <div class="ts-team ts-away" id="tsAway">—</div>
           </div>
           <div class="ts-extra">
-            <div class="ts-vbar"><span class="ts-vlbl top">CTL</span><div class="ts-vfill" id="tvCtl"></div><div class="ts-notch" id="tnCtl"></div><span class="ts-vlbl bot">CTL</span></div>
+            <div class="ts-vbar"><span class="ts-vlbl top">UNC</span><div class="ts-vfill" id="tvCtl"></div><div class="ts-notch" id="tnCtl"></div><span class="ts-vlbl bot">UNC</span></div>
             <div class="ts-vbar"><span class="ts-vlbl top">CON</span><div class="ts-vfill" id="tvCon"></div><div class="ts-notch" id="tnCon"></div><span class="ts-vlbl bot">CON</span></div>
           </div>
         </div>
@@ -1942,14 +1945,6 @@ function renderPressureGauge(t1, t2, s1, s2) {
   setNotch("pgNotch1", s1 ? s1.pressureGame : null, col1);
   setNotch("pgNotch2", s2 ? s2.pressureGame : null, col2);
   if (!pgAnim.running) { pgAnim.running = true; requestAnimationFrame(pgStep); }
-  const r5   = v => (v == null ? "—" : String(Math.round(v / 5) * 5));
-  const abbr = teamAbbr; // proper 3-letter codes (ESS not E, MEL not M)
-  const leg  = (id, name, val, color) => {
-    const el = document.getElementById(id);
-    if (el) el.innerHTML = `<span class="dot" style="color:${color}">●</span>${abbr(name)} ${r5(val)}`;
-  };
-  leg("pgLeg1", t1, s1 ? s1.pressure10 : null, col1);
-  leg("pgLeg2", t2, s2 ? s2.pressure10 : null, col2);
 }
 
 // Field territory — 3 vertical bars under the gauge. Each fills from the centre
@@ -2002,8 +1997,9 @@ function renderFieldSections(t1, t2, s1, s2) {
   const midOcc = iMin > 0 ? Math.min(50, ((iMax - iMin) / iMin) * 100) : (iMax > 0 ? 50 : 0);
   const midPosG = (i1g + i2g) > 0 ? (i1g >= i2g ? 50 + midOcc : 50 - midOcc) : null;
   const hn = document.getElementById("tsHome"), an = document.getElementById("tsAway");
-  if (hn) { hn.textContent = "◀ " + abbr(t1); hn.style.color = col1; } // home = top (short name)
-  if (an) { an.textContent = abbr(t2) + " ▶"; an.style.color = col2; } // away = bottom (short name)
+  // only the NAME is justified to the column; the arrows overhang beyond it
+  if (hn) { hn.innerHTML = `<span class="ts-nm"><span class="ts-arw">◀◀</span>${esc(abbr(t1))}</span>`; hn.style.color = col1; } // home attacks left
+  if (an) { an.innerHTML = `<span class="ts-nm">${esc(abbr(t2))}<span class="ts-arw">▶▶</span></span>`; an.style.color = col2; } // away attacks right
   // attack-direction triangles over each goal square (home attacks up, away down)
   const tgH = document.getElementById("tgHome"), tgA = document.getElementById("tgAway");
   if (tgH) tgH.setAttribute("fill", col1);
@@ -2040,7 +2036,7 @@ function renderFieldSections(t1, t2, s1, s2) {
   // CONTROL (uncontested possessions) & CONTEST (contested possessions) — separate
   // columns right of the ground oval. Live bar = 10-min window difference (like the
   // MID bar); notch = whole-game occupancy ((larger−smaller)/smaller, like MID's).
-  const CTL_SPAN = 12, CON_SPAN = 8; // window diff that fills a half-bar
+  const UNC_SPAN = 12, CON_SPAN = 8; // window diff that fills a half-bar
   const diffPos = (a, b, span) => (a == null && b == null) ? 50 : clamp(50 + ((a || 0) - (b || 0)) * (50 / span), 0, 100);
   const occPos = (a, b) => {
     a = a || 0; b = b || 0;
@@ -2049,7 +2045,7 @@ function renderFieldSections(t1, t2, s1, s2) {
     const o = mn > 0 ? Math.min(50, ((mx - mn) / mn) * 100) : 50;
     return a >= b ? 50 + o : 50 - o;
   };
-  applyBar("tvCtl", diffPos(s1 ? s1.upW : null, s2 ? s2.upW : null, CTL_SPAN));
+  applyBar("tvCtl", diffPos(s1 ? s1.upW : null, s2 ? s2.upW : null, UNC_SPAN));
   applyBar("tvCon", diffPos(s1 ? s1.cpW : null, s2 ? s2.cpW : null, CON_SPAN));
   setNotch("tnCtl", occPos(s1 ? s1.upG : 0, s2 ? s2.upG : 0));
   setNotch("tnCon", occPos(s1 ? s1.cpG : 0, s2 ? s2.cpG : 0));
