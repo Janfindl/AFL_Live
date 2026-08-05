@@ -116,8 +116,9 @@ header{
 .ts-team.ts-home{align-self:stretch;text-align:left;padding-left:22px}  /* over the top ATT (left) column */
 .ts-team.ts-away{align-self:stretch;text-align:right;padding-right:22px} /* under the bottom ATT (right) column */
 /* AFL oval: elliptical boundary around the three territory columns */
-.ts-oval{border:1.5px solid #3d444d;border-radius:50%;padding:14px 26px;margin:2px 0}
-.ts-vwrap{display:flex;align-items:center;justify-content:center;gap:11px}
+.ts-oval{border:1.5px solid #3d444d;border-radius:50%;padding:14px 30px;margin:2px 0;position:relative}
+.ts-ground-svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.ts-vwrap{display:flex;align-items:center;justify-content:center;gap:11px;position:relative;z-index:1}
 /* ground (names + oval) with the separate CONTROL/CONTEST columns to its right */
 .ts-row{display:flex;align-items:center;gap:16px}
 .ts-ground{display:flex;flex-direction:column;align-items:center}
@@ -719,6 +720,20 @@ header{
           <div class="ts-ground">
             <div class="ts-team ts-home" id="tsHome">—</div>
             <div class="ts-oval">
+              <!-- ground markings run EAST-WEST along the oval's long axis: goal squares
+                   and 50m arcs at each end. Home attacks left (◀), away attacks right (▶). -->
+              <svg class="ts-ground-svg" viewBox="0 0 138 94" preserveAspectRatio="none" aria-hidden="true">
+                <g fill="none" stroke="#3d444d" stroke-width="1">
+                  <rect x="0" y="39" width="9" height="16"/>
+                  <rect x="129" y="39" width="9" height="16"/>
+                  <path d="M 6 18 Q 44 47 6 76"/>
+                  <path d="M 132 18 Q 94 47 132 76"/>
+                  <circle cx="69" cy="47" r="7"/>
+                  <path d="M 62 47 H 76 M 69 40 V 54" stroke-opacity=".7"/>
+                </g>
+                <polygon id="tgHome" points="1,47 13,40 13,54"/>
+                <polygon id="tgAway" points="137,47 125,40 125,54"/>
+              </svg>
               <div class="ts-vwrap" id="fieldSections">
                 <div class="ts-vbar"><span class="ts-vlbl top">ATT</span><div class="ts-vfill" id="tvAtk"></div><div class="ts-notch" id="tnAtk"></div><span class="ts-vlbl bot">DEF</span></div>
                 <div class="ts-vbar"><span class="ts-vlbl top">MID</span><div class="ts-vfill" id="tvMid"></div><div class="ts-notch" id="tnMid"></div><span class="ts-vlbl bot">MID</span></div>
@@ -1989,6 +2004,10 @@ function renderFieldSections(t1, t2, s1, s2) {
   const hn = document.getElementById("tsHome"), an = document.getElementById("tsAway");
   if (hn) { hn.textContent = "◀ " + abbr(t1); hn.style.color = col1; } // home = top (short name)
   if (an) { an.textContent = abbr(t2) + " ▶"; an.style.color = col2; } // away = bottom (short name)
+  // attack-direction triangles over each goal square (home attacks up, away down)
+  const tgH = document.getElementById("tgHome"), tgA = document.getElementById("tgAway");
+  if (tgH) tgH.setAttribute("fill", col1);
+  if (tgA) tgA.setAttribute("fill", col2);
   const WHITE = "#ffffff", GREY = "#6e7681";
   const applyBar = (id, posT1) => {
     const f = document.getElementById(id);
