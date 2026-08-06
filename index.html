@@ -1980,7 +1980,10 @@ function renderFieldSections(t1, t2, s1, s2, live = true) {
   const i1 = s1 ? (s1.i50w || 0) : 0, i2 = s2 ? (s2.i50w || 0) : 0;
   const s1w = shotsW(s1), s2w = shotsW(s2);
   const m1 = margin(i1, s1w), m2 = margin(i2, s2w);
-  const MIDSPAN = 8; // inside-50 lead of 8 fills the midfield bar (each entry = 1/8 of a half); 8-0 max, 0-8 min
+  // Inside-50 lead that fills the midfield bar. Teams only register ~4 inside-50s each
+  // per 10 min, so real window differentials run 0–3 — an 8-entry span left this bar
+  // near-flat (median 6% fill) while ATT/DEF swung 40–48%. 4 matches their dynamic range.
+  const MIDSPAN = 4;
   const attackPos  = m1 == null ? 50 : clamp(50 + m1 * G, 0, 100); // team1 attack beats expectation → toward team1 (top)
   const defencePos = m2 == null ? 50 : clamp(50 - m2 * G, 0, 100); // team2 attack held down → team1 defence leads (top)
   const midPos     = clamp(50 + (i1 - i2) * (50 / MIDSPAN), 0, 100); // pure inside-50 difference
