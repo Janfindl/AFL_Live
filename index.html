@@ -2849,7 +2849,8 @@ function renderTable(players, quarterLog) {
     const abbr = teamAbbr(p.team);
     const rc   = ratingColor(p.rating);
     const barW = (p.rating / 10 * 100).toFixed(0);
-    const qLog = (quarterLog || {})[p.name] || {};
+    // quarterLog is keyed name#jersey; fall back to name-only for legacy files
+    const qLog = (quarterLog || {})[puid(p)] || (quarterLog || {})[p.name] || {};
     const qCells = QUARTERS.map(q => {
       const v = (qLog[q] !== null && qLog[q] !== undefined) ? qLog[q] : null;
       if (v === null) return `<td class="zero">—</td>`;
