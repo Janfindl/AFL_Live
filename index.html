@@ -2046,7 +2046,10 @@ function renderFieldSections(t1, t2, s1, s2, live = true) {
   // CONTROL (uncontested possessions) & CONTEST (contested possessions) — separate
   // columns right of the ground oval. Live bar = 10-min window difference (like the
   // MID bar); notch = whole-game occupancy ((larger−smaller)/smaller, like MID's).
-  const UNC_SPAN = 12, CON_SPAN = 8; // window diff that fills a half-bar
+  // Window diff that fills a half-bar. Uncontested possessions run ~20-35 per team per
+  // 10 min, so gaps of 15 are routine — a span of 12 pegged the bar in a normal Q1.
+  // Contested run ~11 per team with much smaller gaps, so 8 stays.
+  const UNC_SPAN = 30, CON_SPAN = 8;
   const diffPos = (a, b, span) => (a == null && b == null) ? 50 : clamp(50 + ((a || 0) - (b || 0)) * (50 / span), 0, 100);
   const occPos = (a, b) => {
     a = a || 0; b = b || 0;
